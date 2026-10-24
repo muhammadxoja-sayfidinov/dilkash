@@ -34,7 +34,8 @@ class StaffApiService {
       final userData = data['user'] ?? data[role] ?? {};
       return StaffUser.fromJson(userData, role);
     } else {
-      throw Exception(data['message'] ?? 'Telefon raqam yoki PIN-kod noto\'g\'ri');
+      throw Exception(
+          data['message'] ?? 'Telefon raqam yoki PIN-kod noto\'g\'ri');
     }
   }
 
@@ -76,7 +77,8 @@ class StaffApiService {
       return data['status'] == 'success' || data['success'] == true;
     } else {
       final err = jsonDecode(utf8.decode(response.bodyBytes));
-      throw Exception(err['message'] ?? err['error'] ?? 'Statusni yangilashda xatolik');
+      throw Exception(
+          err['message'] ?? err['error'] ?? 'Statusni yangilashda xatolik');
     }
   }
 
@@ -228,4 +230,3 @@ class StaffApiService {
     return data['success'] == true;
   }
 }
-

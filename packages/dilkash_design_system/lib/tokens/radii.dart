@@ -18,5 +18,6 @@ class DilkashRadii {
   static BorderRadius get radiusXl => BorderRadius.circular(xl);
   static BorderRadius get radiusFull => BorderRadius.circular(full);
 
-  static const BorderRadius sheet = BorderRadius.vertical(top: Radius.circular(xl));
+  static const BorderRadius sheet =
+      BorderRadius.vertical(top: Radius.circular(xl));
 }

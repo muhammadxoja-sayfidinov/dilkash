@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chek #{{ order.order_number }} - Bo'limlar bo'yicha</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', Courier, monospace, monospace;
+        }
+
+        body {
+            background-color: #f1f5f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 10px 80px 10px;
+            color: #000;
+        }
+
+        /* STATION FILTER TABS (TOP BAR) */
+        .station-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            max-width: 800px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 10px 14px;
+            border-radius: 12px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+        }
+
+        .station-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #475569;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .station-tab:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        .station-tab.active {
+            background: #0f172a;
+            color: #ffffff;
+            border-color: #0f172a;
+        }
+
+        .station-tab .badge {
+            background: rgba(255,255,255,0.25);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+
+        .station-tab:not(.active) .badge {
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        /* RECEIPT SLIP STYLING (80mm / 58mm Thermal) */
+        .receipt-slip {
+            width: 80mm;
+            max-width: 100%;
+            background: white;
+            padding: 15px 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .tear-off-divider {
+            width: 80mm;
+            max-width: 100%;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: #64748b;
+            padding: 12px 0;
+            letter-spacing: 2px;
+            border-top: 2px dashed #94a3b8;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .header-station {
+            text-align: center;
+            border-bottom: 2px dashed #000;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        .station-badge-title {
+            font-size: 18px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .station-subtitle {
+            font-size: 11px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .table-highlight-box {
+            border: 2px solid #000;
+            padding: 6px 8px;
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f8f8;
+        }
+
+        .table-big-text {
+            font-size: 20px;
+            font-weight: 900;
+        }
+
+        .order-num-text {
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .meta-list {
+            font-size: 12px;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+
+        .meta-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+
+        /* ITEMS TABLE */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        .items-table th {
+            border-bottom: 1px solid #000;
+            padding: 4px 0;
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .items-table td {
+            padding: 5px 0;
+            vertical-align: top;
+            border-bottom: 1px dotted #ccc;
+        }
+
+        .item-qty-tag {
+            font-size: 14px;
+            font-weight: 900;
+            white-space: nowrap;
+            padding-right: 6px;
+        }
+
+        .item-name {
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .item-cat {
+            font-size: 10px;
+            color: #555;
+            display: block;
+        }
+
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+
+        /* SUMMARY & FOOTER */
+        .slip-summary {
+            border-top: 1.5px dashed #000;
+            padding-top: 8px;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .grand-total-row {
+            font-size: 16px;
+            font-weight: 900;
+            border-top: 1.5px solid #000;
+            border-bottom: 1.5px solid #000;
+            padding: 6px 0;
+            margin-top: 4px;
+        }
+
+        .kitchen-cook-notice {
+            text-align: center;
+            border: 1px solid #000;
+            padding: 5px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-top: 8px;
+            text-transform: uppercase;
+        }
+
+        .slip-footer {
+            text-align: center;
+            font-size: 11px;
+            border-top: 1px dashed #000;
+            padding-top: 8px;
+            margin-top: 8px;
+        }
+
+        .qr-image {
+            margin: 6px auto;
+            width: 65px;
+            height: 65px;
+            display: block;
+        }
+
+        /* FIXED FLOATING ACTION BAR */
+        .action-dock {
+            position: fixed;
+            bottom: 20px;
+            display: flex;
+            gap: 12px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(8px);
+            padding: 10px 18px;
+            border-radius: 40px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+            padding: 10px 18px;
+            font-size: 14px;
+            font-weight: 700;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+        .btn-action:active { transform: scale(0.96); }
+
+        .btn-print {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-close {
+            background: #334155;
+            color: white;
+        }
+
+        /* PRINT STYLES */
+        @media print {
+            body {
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .station-nav,
+            .action-dock {
+                display: none !important;
+            }
+
+            .receipt-slip {
+                width: 100% !important;
+                max-width: 80mm !important;
+                padding: 5px !important;
+                box-shadow: none !important;
+                margin: 0 auto !important;
+                page-break-after: always;
+            }
+
+            .tear-off-divider {
+                page-break-after: always;
+                border-top: 1px dashed #000 !important;
+                color: #000 !important;
+            }
+
+            @page {
+                margin: 0;
+                size: 80mm auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- TOP STATION SWITCHER -->
+    <div class="station-nav">
+        <a href="?dept=all" class="station-tab {% if department_filter == 'all' %}active{% endif %}">
+            📋 Barcha cheklar (Ketma-ket)
+            <span class="badge">{{ order.items.count }}</span>
+        </a>
+
+        {% if has_shashlik %}
+        <a href="?dept=shashlik" class="station-tab {% if department_filter == 'shashlik' %}active{% endif %}">
+            🥩 Shashlikchi cheki
+            <span class="badge">{{ shashlik_data.total_qty }} ta</span>
+        </a>
+        {% endif %}
+
+        {% if has_kitchen %}
+        <a href="?dept=kitchen" class="station-tab {% if department_filter == 'kitchen' %}active{% endif %}">
+            🍲 Oshxona cheki
+            <span class="badge">{{ kitchen_data.total_qty }} ta</span>
+        </a>
+        {% endif %}
+
+        {% if has_bar %}
+        <a href="?dept=bar" class="station-tab {% if department_filter == 'bar' %}active{% endif %}">
+            ☕ Desert & Bar cheki
+            <span class="badge">{{ bar_data.total_qty }} ta</span>
+        </a>
+        {% endif %}
+
+        <a href="?dept=kassa" class="station-tab {% if department_filter == 'kassa' %}active{% endif %}">
+            🧾 Kassa hisob cheki
+            <span class="badge">{{ order.total_amount|floatformat:0 }} so'm</span>
+        </a>
+    </div>
+
+    <!-- 1. SHASHLIKCHI CHEKI (MANGAL / KABOBLAR) -->
+    {% if has_shashlik and department_filter == 'all' or department_filter == 'shashlik' %}
+    <div class="receipt-slip" id="slip-shashlik">
+        <div class="header-station">
+            <div class="station-badge-title">🥩 SHASHLIKCHI CHEKI</div>
+            <div class="station-subtitle">MANGAL & KABOBLAR BO'LIMI</div>
+        </div>
+
+        <div class="table-highlight-box">
+            <span class="table-big-text">STOL #{{ order.table_number|default:"1" }}</span>
+            <span class="order-num-text">Zakaz #{{ order.order_number }}</span>
+        </div>
+
+        <div class="meta-list">
+            <div class="meta-item">
+                <span>Ofitsiant:</span>
+                <strong>{{ waiter_display_name }}</strong>
+            </div>
+            <div class="meta-item">
+                <span>Vaqt:</span>
+                <span>{{ order.created_at|date:"d.m.Y H:i" }}</span>
+            </div>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Soni</th>
+                    <th style="width: 75%;">Taom nomi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in shashlik_data.items %}
+                <tr>
+                    <td class="item-qty-tag">[ {{ item.quantity }}x ]</td>
+                    <td>
+                        <span class="item-name">{{ item.product_name }}</span>
+                        {% if item.category_name %}
+                        <span class="item-cat">{{ item.category_name }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="slip-summary">
+            <div class="summary-row">
+                <span>Shashliklar jami:</span>
+                <strong>{{ shashlik_data.total_qty }} dona/sikh</strong>
+            </div>
+        </div>
+
+        <div class="kitchen-cook-notice">
+            ⚡ ILTIMOS, TEZ VA MAZALI PISHIRING!
+        </div>
+
+        <div class="slip-footer">
+            <div>Dilkash Restorani • Mangal Bo'limi</div>
+        </div>
+    </div>
+    {% if department_filter == 'all' and has_kitchen or department_filter == 'all' and has_bar %}
+    <div class="tear-off-divider">✂️ - - - - QIRQISH CHIZIG'I - - - - ✂️</div>
+    {% endif %}
+    {% endif %}
+
+
+    <!-- 2. OSHXONA CHEKI (MILLIY, BIRINCHI, ISSIQ TAOMLAR, SALATLAR) -->
+    {% if has_kitchen and department_filter == 'all' or department_filter == 'kitchen' %}
+    <div class="receipt-slip" id="slip-kitchen">
+        <div class="header-station">
+            <div class="station-badge-title">🍲 OSHXONA CHEKI</div>
+            <div class="station-subtitle">ISSIQ TAOMLAR VA SALATLAR</div>
+        </div>
+
+        <div class="table-highlight-box">
+            <span class="table-big-text">STOL #{{ order.table_number|default:"1" }}</span>
+            <span class="order-num-text">Zakaz #{{ order.order_number }}</span>
+        </div>
+
+        <div class="meta-list">
+            <div class="meta-item">
+                <span>Ofitsiant:</span>
+                <strong>{{ waiter_display_name }}</strong>
+            </div>
+            <div class="meta-item">
+                <span>Vaqt:</span>
+                <span>{{ order.created_at|date:"d.m.Y H:i" }}</span>
+            </div>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Soni</th>
+                    <th style="width: 75%;">Taom nomi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in kitchen_data.items %}
+                <tr>
+                    <td class="item-qty-tag">[ {{ item.quantity }}x ]</td>
+                    <td>
+                        <span class="item-name">{{ item.product_name }}</span>
+                        {% if item.category_name %}
+                        <span class="item-cat">{{ item.category_name }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="slip-summary">
+            <div class="summary-row">
+                <span>Taomlar soni:</span>
+                <strong>{{ kitchen_data.total_qty }} ta</strong>
+            </div>
+        </div>
+
+        <div class="kitchen-cook-notice">
+            ⚡ OSHPAZ: BUYURTMANI TAYYORLASHGA TOPSHIRILDI
+        </div>
+
+        <div class="slip-footer">
+            <div>Dilkash Restorani • Oshxona Bo'limi</div>
+        </div>
+    </div>
+    {% if department_filter == 'all' and has_bar %}
+    <div class="tear-off-divider">✂️ - - - - QIRQISH CHIZIG'I - - - - ✂️</div>
+    {% endif %}
+    {% endif %}
+
+
+    <!-- 3. DESERT VA BAR CHEKI (ICHIMLIKLAR XONASI) -->
+    {% if has_bar and department_filter == 'all' or department_filter == 'bar' %}
+    <div class="receipt-slip" id="slip-bar">
+        <div class="header-station">
+            <div class="station-badge-title">☕ DESERT & BAR CHEKI</div>
+            <div class="station-subtitle">DESERTLAR VA ICHIMLIKLAR XONASI</div>
+        </div>
+
+        <div class="table-highlight-box">
+            <span class="table-big-text">STOL #{{ order.table_number|default:"1" }}</span>
+            <span class="order-num-text">Zakaz #{{ order.order_number }}</span>
+        </div>
+
+        <div class="meta-list">
+            <div class="meta-item">
+                <span>Ofitsiant:</span>
+                <strong>{{ waiter_display_name }}</strong>
+            </div>
+            <div class="meta-item">
+                <span>Vaqt:</span>
+                <span>{{ order.created_at|date:"d.m.Y H:i" }}</span>
+            </div>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Soni</th>
+                    <th style="width: 75%;">Nomi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in bar_data.items %}
+                <tr>
+                    <td class="item-qty-tag">[ {{ item.quantity }}x ]</td>
+                    <td>
+                        <span class="item-name">{{ item.product_name }}</span>
+                        {% if item.category_name %}
+                        <span class="item-cat">{{ item.category_name }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="slip-summary">
+            <div class="summary-row">
+                <span>Ichimlik & Desert jami:</span>
+                <strong>{{ bar_data.total_qty }} ta</strong>
+            </div>
+        </div>
+
+        <div class="kitchen-cook-notice">
+            🍹 BARMEN: ZUDLIK BILAN UZATILSIN!
+        </div>
+
+        <div class="slip-footer">
+            <div>Dilkash Restorani • Bar & Desert Bo'limi</div>
+        </div>
+    </div>
+    {% if department_filter == 'all' %}
+    <div class="tear-off-divider">✂️ - - - - QIRQISH CHIZIG'I - - - - ✂️</div>
+    {% endif %}
+    {% endif %}
+
+
+    <!-- 4. KASSA HISOB CHEKI (TO'LIQ HISOB-KITOB) -->
+    {% if department_filter == 'all' or department_filter == 'kassa' %}
+    <div class="receipt-slip" id="slip-kassa">
+        <div class="header-station">
+            <div class="station-badge-title">🧾 KASSA CHEKI</div>
+            <div class="station-subtitle">DILKASH RESTORANI</div>
+            <div style="font-size: 10px; margin-top: 2px;">Tel: +998 90 123-45-67</div>
+        </div>
+
+        <div class="meta-list">
+            <div class="meta-item">
+                <span>Buyurtma:</span>
+                <strong>#{{ order.order_number }}</strong>
+            </div>
+            <div class="meta-item">
+                <span>Sana / Vaqt:</span>
+                <span>{{ order.created_at|date:"d.m.Y H:i" }}</span>
+            </div>
+            <div class="meta-item">
+                <span>Ofitsiant:</span>
+                <span>{{ waiter_display_name }}</span>
+            </div>
+            <div class="meta-item">
+                <span>Stol:</span>
+                <strong>#{{ order.table_number|default:"1" }}</strong>
+            </div>
+            {% if order.customer and order.customer.full_name %}
+            <div class="meta-item">
+                <span>Mijoz:</span>
+                <span>{{ order.customer.full_name }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 50%;">Taom</th>
+                    <th class="text-center" style="width: 15%;">Soni</th>
+                    <th class="text-right" style="width: 35%;">Summa</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items.all %}
+                <tr>
+                    <td>{{ item.product.name }}</td>
+                    <td class="text-center">{{ item.quantity }}</td>
+                    <td class="text-right">{{ item.total|floatformat:0 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="slip-summary">
+            <div class="summary-row">
+                <span>Taomlar summasi:</span>
+                <span>{{ order.products_total|floatformat:0 }} so'm</span>
+            </div>
+            {% if order.service_type == 'delivery' and order.delivery_cost %}
+            <div class="summary-row">
+                <span>Yetkazib berish:</span>
+                <span>{{ order.delivery_cost|floatformat:0 }} so'm</span>
+            </div>
+            {% endif %}
+            <div class="summary-row grand-total-row">
+                <span>JAMI TO'LOV:</span>
+                <span>{{ order.total_amount|floatformat:0 }} so'm</span>
+            </div>
+        </div>
+
+        <!-- To'lov Holati -->
+        <div style="text-align: center; border: 2px solid #000; padding: 6px; margin: 8px 0; font-weight: bold; font-size: 13px;">
+            {% if order.is_paid %}
+                ✓ TO'LANGAN ({{ order.get_payment_method_display|upper }})
+            {% else %}
+                TO'LOV KUTILMOQDA [ NAQD / KARTA ]
+            {% endif %}
+        </div>
+
+        <div class="slip-footer">
+            <div>Tashrifingiz uchun rahmat!</div>
+            <div>Yoqimli ishtaha tilaymiz!</div>
+            <img class="qr-image" src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=ORDER-{{ order.order_number }}" alt="QR">
+            <div style="font-size: 9px; color: #555;">ID: {{ order.order_number }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ACTION FLOATING DOCK -->
+    <div class="action-dock">
+        <button class="btn-action btn-print" onclick="window.print()">
+            🖨️ Chop etish (Print)
+        </button>
+        <button class="btn-action btn-close" onclick="window.close()">
+            ✖️ Yopish
+        </button>
+    </div>
+
+    <script>
+        // Avtomatik chop etish oynasini ochish
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+            }, 400);
+        };
+    </script>
+</body>
+</html>

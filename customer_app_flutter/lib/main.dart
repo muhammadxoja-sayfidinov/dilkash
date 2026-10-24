@@ -57,4 +57,3 @@ class CustomerApp extends StatelessWidget {
     );
   }
 }
-

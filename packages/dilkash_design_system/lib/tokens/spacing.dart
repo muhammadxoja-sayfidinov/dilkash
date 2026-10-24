@@ -15,12 +15,17 @@ class DilkashSpacing {
   static const double huge = 40.0;
 
   // Standard EdgeInsets Helpers
-  static const EdgeInsets page = EdgeInsets.symmetric(horizontal: lg, vertical: lg);
-  static const EdgeInsets screenHorizontal = EdgeInsets.symmetric(horizontal: lg);
+  static const EdgeInsets page =
+      EdgeInsets.symmetric(horizontal: lg, vertical: lg);
+  static const EdgeInsets screenHorizontal =
+      EdgeInsets.symmetric(horizontal: lg);
   static const EdgeInsets card = EdgeInsets.all(lg);
   static const EdgeInsets cardDense = EdgeInsets.all(md);
   static const EdgeInsets modal = EdgeInsets.fromLTRB(xl, md, xl, xxl);
-  static const EdgeInsets button = EdgeInsets.symmetric(horizontal: xl, vertical: md);
-  static const EdgeInsets chip = EdgeInsets.symmetric(horizontal: md, vertical: sm);
-  static const EdgeInsets input = EdgeInsets.symmetric(horizontal: lg, vertical: 14.0);
+  static const EdgeInsets button =
+      EdgeInsets.symmetric(horizontal: xl, vertical: md);
+  static const EdgeInsets chip =
+      EdgeInsets.symmetric(horizontal: md, vertical: sm);
+  static const EdgeInsets input =
+      EdgeInsets.symmetric(horizontal: lg, vertical: 14.0);
 }

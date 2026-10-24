@@ -19,7 +19,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final List<Map<String, dynamic>> _slides = [
     {
       'title': 'Eng Sara Milliy & Zamonaviy Taomlar',
-      'subtitle': 'Toshkent toʻy oshi, Gʻijduvon shashliklari va tandir somsalar toʻgʻridan-toʻgʻri restoran oshpazlaridan sizning dasturxoningizga.',
+      'subtitle':
+          'Toshkent toʻy oshi, Gʻijduvon shashliklari va tandir somsalar toʻgʻridan-toʻgʻri restoran oshpazlaridan sizning dasturxoningizga.',
       'icon': Icons.restaurant_rounded,
       'color': DilkashColors.amber600,
       'badge': 'PREMIUM SIFAT',
@@ -27,7 +28,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     },
     {
       'title': 'Tezkor Dastavka & Jonli Xarita',
-      'subtitle': 'Buyurtmangiz oshxonadan chiqishi bilanoq kuryer xaritada real vaqt rejimida koʻrinadi. Oʻrtacha yetkazish atigi 30 daqiqa.',
+      'subtitle':
+          'Buyurtmangiz oshxonadan chiqishi bilanoq kuryer xaritada real vaqt rejimida koʻrinadi. Oʻrtacha yetkazish atigi 30 daqiqa.',
       'icon': Icons.electric_moped_rounded,
       'color': DilkashColors.primary500,
       'badge': '30 DAQIQADA',
@@ -35,7 +37,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     },
     {
       'title': 'Keshbeklar, Choychaqa & Oson Toʻlov',
-      'subtitle': 'Har bir buyurtmadan 5% gacha keshbek oling. Naqd, Click yoki Payme orqali birgina harakat bilan toʻlang.',
+      'subtitle':
+          'Har bir buyurtmadan 5% gacha keshbek oling. Naqd, Click yoki Payme orqali birgina harakat bilan toʻlang.',
       'icon': Icons.account_balance_wallet_rounded,
       'color': DilkashColors.primary400,
       'badge': '5% KESHBEK',
@@ -77,9 +80,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFFE2E8F0),
+                      color: isDark
+                          ? DilkashColors.surfaceDarkElevated
+                          : const Color(0xFFE2E8F0),
                       borderRadius: DilkashRadii.radiusFull,
                     ),
                     child: Text(
@@ -124,10 +130,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           width: 120,
                           height: 120,
                           decoration: BoxDecoration(
-                            color: (slide['color'] as Color).withValues(alpha: 0.12),
+                            color: (slide['color'] as Color)
+                                .withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: (slide['color'] as Color).withValues(alpha: 0.25),
+                              color: (slide['color'] as Color)
+                                  .withValues(alpha: 0.25),
                               width: 2.0,
                             ),
                           ),
@@ -143,12 +151,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
                         // Badge Pill (No Emojis!)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 5),
                           decoration: BoxDecoration(
-                            color: isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFFF1F5F9),
+                            color: isDark
+                                ? DilkashColors.surfaceDarkElevated
+                                : const Color(0xFFF1F5F9),
                             borderRadius: DilkashRadii.radiusFull,
                             border: Border.all(
-                              color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                              color: isDark
+                                  ? DilkashColors.borderDark
+                                  : DilkashColors.borderLight,
                             ),
                           ),
                           child: Row(
@@ -222,8 +235,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         height: 8,
                         decoration: BoxDecoration(
                           color: _currentIndex == i
-                              ? (isDark ? DilkashColors.primary400 : DilkashColors.primary500)
-                              : (isDark ? DilkashColors.borderDark : const Color(0xFFCBD5E1)),
+                              ? (isDark
+                                  ? DilkashColors.primary400
+                                  : DilkashColors.primary500)
+                              : (isDark
+                                  ? DilkashColors.borderDark
+                                  : const Color(0xFFCBD5E1)),
                           borderRadius: DilkashRadii.radiusFull,
                         ),
                       ),

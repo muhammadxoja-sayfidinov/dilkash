@@ -14,7 +14,8 @@ class StaffThemeController extends ChangeNotifier {
   bool get isDarkMode {
     if (_themeMode == ThemeMode.dark) return true;
     if (_themeMode == ThemeMode.light) return false;
-    final brightness = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    final brightness =
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
     return brightness == Brightness.dark;
   }
 
@@ -80,12 +81,16 @@ class StaffColors {
   // Dynamic Theme-Aware Getters
   static Color background(bool isDark) => isDark ? bgDark : bgLight;
   static Color card(bool isDark) => isDark ? cardDark : cardLight;
-  static Color cardSecondary(bool isDark) => isDark ? cardSecondaryDark : cardSecondaryLight;
+  static Color cardSecondary(bool isDark) =>
+      isDark ? cardSecondaryDark : cardSecondaryLight;
   static Color border(bool isDark) => isDark ? borderDark : borderLight;
   static Color input(bool isDark) => isDark ? inputDark : inputLight;
-  static Color textPrimary(bool isDark) => isDark ? textPrimaryDark : textPrimaryLight;
-  static Color textSecondary(bool isDark) => isDark ? textSecondaryDark : textSecondaryLight;
-  static Color textMuted(bool isDark) => isDark ? textMutedDark : textMutedLight;
+  static Color textPrimary(bool isDark) =>
+      isDark ? textPrimaryDark : textPrimaryLight;
+  static Color textSecondary(bool isDark) =>
+      isDark ? textSecondaryDark : textSecondaryLight;
+  static Color textMuted(bool isDark) =>
+      isDark ? textMutedDark : textMutedLight;
 }
 
 class StaffDesign {
@@ -101,7 +106,8 @@ class StaffDesign {
   static BorderRadius get radiusMd => BorderRadius.circular(rMd);
   static BorderRadius get radiusLg => BorderRadius.circular(rLg);
   static BorderRadius get radiusXl => BorderRadius.circular(rXl);
-  static BorderRadius get radiusSheet => const BorderRadius.vertical(top: Radius.circular(rXl));
+  static BorderRadius get radiusSheet =>
+      const BorderRadius.vertical(top: Radius.circular(rXl));
 
   // Border widths
   static const double borderStandard = 1.0;

@@ -17,7 +17,8 @@ class TipReviewModal extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => TipReviewModal(orderId: orderId, orderNumber: orderNumber),
+      builder: (_) =>
+          TipReviewModal(orderId: orderId, orderNumber: orderNumber),
     );
   }
 
@@ -91,13 +92,18 @@ class _TipReviewModalState extends State<TipReviewModal> {
           Container(
             width: 40,
             height: 4,
-            decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(10)),
           ),
           const SizedBox(height: 16),
 
           Text(
             'Buyurtma #${widget.orderNumber} Bahosi',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+            style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 6),
           const Text(
@@ -115,7 +121,9 @@ class _TipReviewModalState extends State<TipReviewModal> {
               return IconButton(
                 iconSize: 36,
                 icon: Icon(
-                  starIndex <= _rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                  starIndex <= _rating
+                      ? Icons.star_rounded
+                      : Icons.star_outline_rounded,
                   color: Colors.amber,
                 ),
                 onPressed: () => setState(() => _rating = starIndex),
@@ -130,7 +138,10 @@ class _TipReviewModalState extends State<TipReviewModal> {
             alignment: Alignment.centerLeft,
             child: Text(
               '🛵 Kuryerga choychaqa (Ixtiyoriy):',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)),
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Color(0xFF1E293B)),
             ),
           ),
           const SizedBox(height: 10),
@@ -146,10 +157,14 @@ class _TipReviewModalState extends State<TipReviewModal> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
-                        color: isSelected ? Colors.amber.shade600 : const Color(0xFFF1F5F9),
+                        color: isSelected
+                            ? Colors.amber.shade600
+                            : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isSelected ? Colors.amber.shade700 : Colors.transparent,
+                          color: isSelected
+                              ? Colors.amber.shade700
+                              : Colors.transparent,
                         ),
                       ),
                       child: Center(
@@ -158,7 +173,9 @@ class _TipReviewModalState extends State<TipReviewModal> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
-                            color: isSelected ? Colors.black : const Color(0xFF334155),
+                            color: isSelected
+                                ? Colors.black
+                                : const Color(0xFF334155),
                           ),
                         ),
                       ),
@@ -196,11 +213,14 @@ class _TipReviewModalState extends State<TipReviewModal> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0F172A),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
               child: _isSubmitting
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Yuborish', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  : const Text('Yuborish',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ),
         ],

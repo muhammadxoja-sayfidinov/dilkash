@@ -47,7 +47,8 @@ class _DilkashSkeletonState extends State<DilkashSkeleton>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFFE2E8F0);
+    final baseColor =
+        isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFFE2E8F0);
 
     return AnimatedBuilder(
       animation: _animation,
@@ -92,7 +93,8 @@ class DilkashDishGridSkeleton extends StatelessWidget {
             child: DilkashSkeleton(
               width: double.infinity,
               height: double.infinity,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(DilkashRadii.lg - 1)),
+              borderRadius: BorderRadius.vertical(
+                  top: Radius.circular(DilkashRadii.lg - 1)),
             ),
           ),
           Expanded(

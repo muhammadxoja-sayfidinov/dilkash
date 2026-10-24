@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stollar uchun QR Stend Kartochkalari - Dilkash Restaurant</title>
+    
+    <!-- Google Fonts: Outfit & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --brand-primary: #0d6b4e;
+            --brand-gold: #c0a36f;
+            --brand-dark: #070d0a;
+            --bg-canvas: #f7faf8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-canvas);
+            color: #1e293b;
+            padding: 24px;
+        }
+
+        /* Top Action Bar */
+        .control-bar {
+            max-width: 1100px;
+            margin: 0 auto 28px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 18px 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+            border: 1px solid #e2e8f0;
+        }
+
+        .bar-title h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--brand-dark);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .bar-title p {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .bar-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            border: none;
+        }
+
+        .btn-print {
+            background: linear-gradient(135deg, #10866a 0%, #0d6b4e 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(13, 107, 78, 0.25);
+        }
+
+        .btn-print:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(79, 70, 229, 0.35);
+        }
+
+        .btn-secondary {
+            background: #f8fafc;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        /* QR Cards Grid */
+        .qr-grid {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 28px;
+        }
+
+        /* Luxury Table Tent Card */
+        .tent-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 24px;
+            padding: 30px 24px 24px 24px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            page-break-inside: avoid;
+            transition: transform 0.2s;
+        }
+
+        .tent-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+        }
+
+        /* Top Luxury Gold Accent */
+        .card-accent-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: linear-gradient(90deg, #d97706, #fbbf24, #d97706);
+        }
+
+        .brand-logo-sub {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+
+        .table-headline {
+            font-family: 'Outfit', sans-serif;
+            font-size: 34px;
+            font-weight: 900;
+            color: var(--brand-dark);
+            margin-bottom: 4px;
+            letter-spacing: -0.02em;
+        }
+
+        .table-subinfo {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 18px;
+        }
+
+        /* QR Frame */
+        .qr-frame {
+            background: #ffffff;
+            border: 2px solid #0f172a;
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 18px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+            position: relative;
+        }
+
+        .qr-img {
+            width: 180px;
+            height: 180px;
+            display: block;
+            border-radius: 8px;
+        }
+
+        /* Instructions */
+        .instruction-box {
+            margin-bottom: 16px;
+        }
+
+        .instruction-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .instruction-desc {
+            font-size: 12px;
+            color: #64748b;
+            line-height: 1.4;
+            max-width: 250px;
+        }
+
+        /* Wi-Fi & Services Pill */
+        .card-footer-info {
+            width: 100%;
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 8px 12px;
+            font-size: 11px;
+            color: #475569;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .wifi-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 600;
+        }
+
+        /* Print Optimization */
+        @media print {
+            body {
+                background: white !important;
+                padding: 0 !important;
+            }
+            .control-bar {
+                display: none !important;
+            }
+            .qr-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 20px !important;
+                max-width: 100% !important;
+            }
+            .tent-card {
+                box-shadow: none !important;
+                border: 2px solid #000000 !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            .card-accent-bar {
+                background: #000000 !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="control-bar">
+    <div class="bar-title">
+        <h1>🍽️ Stollar Uchun QR Stend Kartochkalari</h1>
+        <p>A4 yoki stol stend formatida chop etishga tayyorlangan dizayn</p>
+    </div>
+    <div class="bar-actions">
+        <button class="btn-action btn-print" onclick="window.print()">
+            <i class="fas fa-print"></i>
+            <span>Chop etish (Print)</span>
+        </button>
+        <button class="btn-action btn-secondary" onclick="window.history.back()">
+            <i class="fas fa-arrow-left"></i>
+            <span>Orqaga</span>
+        </button>
+    </div>
+</div>
+
+<div class="qr-grid">
+    {% for table in tables %}
+    <div class="tent-card">
+        <div class="card-accent-bar"></div>
+        <div class="brand-logo-sub">
+            <i class="fas fa-utensils"></i> Dilkash Lounge
+        </div>
+        
+        <div class="table-headline">STOL #{{ table.number }}</div>
+        <div class="table-subinfo">{{ table.name|default:"Asosiy Zal" }} · {{ table.capacity }} kishilik</div>
+
+        <div class="qr-frame">
+            <img class="qr-img" 
+                 src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data={{ base_url }}/table/{{ table.number }}/" 
+                 alt="Stol #{{ table.number }} QR Kodi">
+        </div>
+
+        <div class="instruction-box">
+            <div class="instruction-title">
+                <i class="fas fa-receipt" style="color: var(--brand-gold);"></i>
+                <span>Stol hisobini (chekini) ko'rish</span>
+            </div>
+            <p class="instruction-desc">
+                QR kodni kamerangiz orqali skanerlang va stolingizning joriy hisobi hamda buyurtmalar chekini jonli ko'ring.
+            </p>
+        </div>
+
+        <div class="card-footer-info">
+            <div class="wifi-item">
+                <i class="fas fa-wifi" style="color: #4f46e5;"></i>
+                <span>Wi-Fi: <strong>Dilkash_Guest</strong></span>
+            </div>
+            <div class="wifi-item">
+                <i class="fas fa-bell" style="color: #d97706;"></i>
+                <span>Ofitsiant xizmati</span>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; background: white; border-radius: 20px; border: 1px dashed #cbd5e1;">
+        <i class="fas fa-chair" style="font-size: 40px; color: #94a3b8; margin-bottom: 12px;"></i>
+        <h3 style="font-family: 'Outfit', sans-serif; font-size: 20px; margin-bottom: 6px;">Faol stollar topilmadi</h3>
+        <p style="color: #64748b; font-size: 14px;">Admin panel orqali restoran stollarini kiriting.</p>
+    </div>
+    {% endfor %}
+</div>
+
+</body>
+</html>

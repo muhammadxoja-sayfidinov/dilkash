@@ -116,7 +116,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: DilkashColors.primary500))
+          ? const Center(
+              child: CircularProgressIndicator(color: DilkashColors.primary500))
           : _errorMessage != null
               ? DilkashErrorState(
                   message: _errorMessage!,
@@ -134,7 +135,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           decoration: BoxDecoration(
                             borderRadius: DilkashRadii.radiusLg,
                             border: Border.all(
-                              color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                              color: isDark
+                                  ? DilkashColors.borderDark
+                                  : DilkashColors.borderLight,
                             ),
                           ),
                           child: ClipRRect(
@@ -153,13 +156,15 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                     TileLayer(
                                       urlTemplate:
                                           'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-                                      userAgentPackageName: 'uz.dilkash.customer',
+                                      userAgentPackageName:
+                                          'uz.dilkash.customer',
                                     ),
                                     PolylineLayer(
                                       polylines: [
                                         Polyline(
                                           points: [
-                                            const LatLng(restaurantLat, restaurantLng),
+                                            const LatLng(
+                                                restaurantLat, restaurantLng),
                                             LatLng(_courierLat, _courierLng),
                                             LatLng(_customerLat, _customerLng),
                                           ],
@@ -172,7 +177,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                       markers: [
                                         // Restaurant Marker
                                         Marker(
-                                          point: const LatLng(restaurantLat, restaurantLng),
+                                          point: const LatLng(
+                                              restaurantLat, restaurantLng),
                                           width: 36,
                                           height: 36,
                                           child: Container(
@@ -190,14 +196,17 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                         // Courier Marker (Moving)
                                         if (_order!.status == 'yolda')
                                           Marker(
-                                            point: LatLng(_courierLat, _courierLng),
+                                            point: LatLng(
+                                                _courierLat, _courierLng),
                                             width: 44,
                                             height: 44,
                                             child: Container(
                                               decoration: BoxDecoration(
                                                 color: DilkashColors.info,
                                                 shape: BoxShape.circle,
-                                                border: Border.all(color: Colors.white, width: 2),
+                                                border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 2),
                                               ),
                                               child: const Icon(
                                                 Icons.two_wheeler_rounded,
@@ -208,7 +217,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                           ),
                                         // Customer Delivery Marker
                                         Marker(
-                                          point: LatLng(_customerLat, _customerLng),
+                                          point: LatLng(
+                                              _customerLat, _customerLng),
                                           width: 38,
                                           height: 38,
                                           child: const Icon(
@@ -227,9 +237,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                   top: 12,
                                   left: 12,
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 5),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.8),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.8),
                                       borderRadius: DilkashRadii.radiusFull,
                                     ),
                                     child: Row(
@@ -272,7 +284,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           color: DilkashColors.surface(isDark),
                           borderRadius: DilkashRadii.radiusLg,
                           border: Border.all(
-                            color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                            color: isDark
+                                ? DilkashColors.borderDark
+                                : DilkashColors.borderLight,
                           ),
                         ),
                         child: Column(
@@ -298,7 +312,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,
-                                        color: DilkashColors.textPrimary(isDark),
+                                        color:
+                                            DilkashColors.textPrimary(isDark),
                                       ),
                                     ),
                                   ],
@@ -308,11 +323,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                             ),
                             const SizedBox(height: 14),
                             Text(
-                              UzbekFormatters.formatCurrency(_order!.totalAmount),
+                              UzbekFormatters.formatCurrency(
+                                  _order!.totalAmount),
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.w800,
-                                color: isDark ? DilkashColors.primary400 : DilkashColors.primary600,
+                                color: isDark
+                                    ? DilkashColors.primary400
+                                    : DilkashColors.primary600,
                                 letterSpacing: -0.3,
                               ),
                             ),
@@ -341,7 +359,8 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: 13,
-                                        color: DilkashColors.textPrimary(isDark),
+                                        color:
+                                            DilkashColors.textPrimary(isDark),
                                       ),
                                     ),
                                   ),
@@ -360,7 +379,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           color: DilkashColors.surface(isDark),
                           borderRadius: DilkashRadii.radiusLg,
                           border: Border.all(
-                            color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                            color: isDark
+                                ? DilkashColors.borderDark
+                                : DilkashColors.borderLight,
                           ),
                         ),
                         child: Column(
@@ -381,12 +402,14 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                               steps: [
                                 const DilkashStatusStep(
                                   title: 'Qabul qilindi',
-                                  subtitle: 'Buyurtmangiz tizimga tushdi va tasdiqlandi',
+                                  subtitle:
+                                      'Buyurtmangiz tizimga tushdi va tasdiqlandi',
                                   icon: Icons.receipt_long_rounded,
                                 ),
                                 const DilkashStatusStep(
                                   title: 'Oshxonada tayyorlanmoqda',
-                                  subtitle: 'Oshpazlar taomni pishirishni boshladi',
+                                  subtitle:
+                                      'Oshpazlar taomni pishirishni boshladi',
                                   icon: Icons.outdoor_grill_rounded,
                                 ),
                                 DilkashStatusStep(
@@ -399,14 +422,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                 if (_order!.serviceType == 'delivery')
                                   DilkashStatusStep(
                                     title: 'Kuryer yoʻlda',
-                                    subtitle: _order!.courierName != null && _order!.courierName!.isNotEmpty
+                                    subtitle: _order!.courierName != null &&
+                                            _order!.courierName!.isNotEmpty
                                         ? 'Kuryer: ${_order!.courierName}'
                                         : 'Kuryer manzilingiz tomon yoʻl oldi',
                                     icon: Icons.two_wheeler_rounded,
                                   ),
                                 const DilkashStatusStep(
                                   title: 'Yetkazildi / Yakunlandi',
-                                  subtitle: 'Yoqimli ishtaha! Dilkashni tanlaganingiz uchun rahmat',
+                                  subtitle:
+                                      'Yoqimli ishtaha! Dilkashni tanlaganingiz uchun rahmat',
                                   icon: Icons.check_circle_outline_rounded,
                                 ),
                               ],
@@ -423,7 +448,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           color: DilkashColors.surface(isDark),
                           borderRadius: DilkashRadii.radiusLg,
                           border: Border.all(
-                            color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                            color: isDark
+                                ? DilkashColors.borderDark
+                                : DilkashColors.borderLight,
                           ),
                         ),
                         child: Column(
@@ -441,9 +468,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                             const SizedBox(height: 12),
                             ..._order!.items.map((item) {
                               return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 6),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
                                       child: Text(
@@ -451,16 +480,19 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                         style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w500,
-                                          color: DilkashColors.textPrimary(isDark),
+                                          color:
+                                              DilkashColors.textPrimary(isDark),
                                         ),
                                       ),
                                     ),
                                     Text(
-                                      UzbekFormatters.formatCurrency(item.price * item.quantity),
+                                      UzbekFormatters.formatCurrency(
+                                          item.price * item.quantity),
                                       style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w700,
-                                        color: DilkashColors.textPrimary(isDark),
+                                        color:
+                                            DilkashColors.textPrimary(isDark),
                                       ),
                                     ),
                                   ],

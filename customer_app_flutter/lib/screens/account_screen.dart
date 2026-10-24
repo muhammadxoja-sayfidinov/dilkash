@@ -77,7 +77,9 @@ class AccountScreen extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: isSelected
-            ? (isDark ? DilkashColors.surfaceDarkElevated : DilkashColors.primary50)
+            ? (isDark
+                ? DilkashColors.surfaceDarkElevated
+                : DilkashColors.primary50)
             : Colors.transparent,
         borderRadius: DilkashRadii.radiusSm,
         border: Border.all(
@@ -89,7 +91,9 @@ class AccountScreen extends StatelessWidget {
       child: ListTile(
         leading: Icon(
           icon,
-          color: isSelected ? DilkashColors.primary(isDark) : DilkashColors.textSecondary(isDark),
+          color: isSelected
+              ? DilkashColors.primary(isDark)
+              : DilkashColors.textSecondary(isDark),
         ),
         title: Text(
           title,
@@ -100,7 +104,8 @@ class AccountScreen extends StatelessWidget {
           ),
         ),
         trailing: isSelected
-            ? Icon(Icons.check_circle_rounded, color: DilkashColors.primary(isDark))
+            ? Icon(Icons.check_circle_rounded,
+                color: DilkashColors.primary(isDark))
             : null,
         onTap: onTap,
       ),
@@ -109,7 +114,8 @@ class AccountScreen extends StatelessWidget {
 
   void _showEditProfileDialog(BuildContext context, AuthProvider auth) {
     final nameCtrl = TextEditingController(text: auth.user?.fullName ?? '');
-    final addrCtrl = TextEditingController(text: auth.user?.defaultAddress ?? '');
+    final addrCtrl =
+        TextEditingController(text: auth.user?.defaultAddress ?? '');
 
     showDialog(
       context: context,
@@ -182,7 +188,9 @@ class AccountScreen extends StatelessWidget {
                 color: DilkashColors.surface(isDark),
                 borderRadius: DilkashRadii.radiusLg,
                 border: Border.all(
-                  color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                  color: isDark
+                      ? DilkashColors.borderDark
+                      : DilkashColors.borderLight,
                 ),
               ),
               child: Row(
@@ -191,10 +199,14 @@ class AccountScreen extends StatelessWidget {
                     width: 58,
                     height: 58,
                     decoration: BoxDecoration(
-                      color: isDark ? DilkashColors.surfaceDarkElevated : DilkashColors.primary50,
+                      color: isDark
+                          ? DilkashColors.surfaceDarkElevated
+                          : DilkashColors.primary50,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isDark ? DilkashColors.primary400 : DilkashColors.primary500,
+                        color: isDark
+                            ? DilkashColors.primary400
+                            : DilkashColors.primary500,
                         width: 1.5,
                       ),
                     ),
@@ -202,7 +214,9 @@ class AccountScreen extends StatelessWidget {
                       child: Icon(
                         Icons.person_rounded,
                         size: 32,
-                        color: isDark ? DilkashColors.primary400 : DilkashColors.primary500,
+                        color: isDark
+                            ? DilkashColors.primary400
+                            : DilkashColors.primary500,
                       ),
                     ),
                   ),
@@ -222,7 +236,9 @@ class AccountScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          user != null ? UzbekFormatters.formatPhone(user.phone) : 'Tizimga kirmagan',
+                          user != null
+                              ? UzbekFormatters.formatPhone(user.phone)
+                              : 'Tizimga kirmagan',
                           style: TextStyle(
                             fontSize: 13,
                             color: DilkashColors.textSecondary(isDark),
@@ -252,7 +268,9 @@ class AccountScreen extends StatelessWidget {
                         color: DilkashColors.surface(isDark),
                         borderRadius: DilkashRadii.radiusLg,
                         border: Border.all(
-                          color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                          color: isDark
+                              ? DilkashColors.borderDark
+                              : DilkashColors.borderLight,
                         ),
                       ),
                       child: Column(
@@ -260,11 +278,14 @@ class AccountScreen extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.savings_outlined, size: 18, color: DilkashColors.amber500),
+                              const Icon(Icons.savings_outlined,
+                                  size: 18, color: DilkashColors.amber500),
                               const SizedBox(width: 6),
                               Text(
                                 'Keshbek',
-                                style: TextStyle(fontSize: 12, color: DilkashColors.textSecondary(isDark)),
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: DilkashColors.textSecondary(isDark)),
                               ),
                             ],
                           ),
@@ -274,7 +295,9 @@ class AccountScreen extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
-                              color: isDark ? DilkashColors.primary400 : DilkashColors.primary600,
+                              color: isDark
+                                  ? DilkashColors.primary400
+                                  : DilkashColors.primary600,
                             ),
                           ),
                         ],
@@ -289,7 +312,9 @@ class AccountScreen extends StatelessWidget {
                         color: DilkashColors.surface(isDark),
                         borderRadius: DilkashRadii.radiusLg,
                         border: Border.all(
-                          color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                          color: isDark
+                              ? DilkashColors.borderDark
+                              : DilkashColors.borderLight,
                         ),
                       ),
                       child: Column(
@@ -297,11 +322,15 @@ class AccountScreen extends StatelessWidget {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.receipt_long_outlined, size: 18, color: DilkashColors.primary(isDark)),
+                              Icon(Icons.receipt_long_outlined,
+                                  size: 18,
+                                  color: DilkashColors.primary(isDark)),
                               const SizedBox(width: 6),
                               Text(
                                 'Buyurtmalar',
-                                style: TextStyle(fontSize: 12, color: DilkashColors.textSecondary(isDark)),
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: DilkashColors.textSecondary(isDark)),
                               ),
                             ],
                           ),
@@ -329,7 +358,9 @@ class AccountScreen extends StatelessWidget {
                 color: DilkashColors.surface(isDark),
                 borderRadius: DilkashRadii.radiusLg,
                 border: Border.all(
-                  color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                  color: isDark
+                      ? DilkashColors.borderDark
+                      : DilkashColors.borderLight,
                 ),
               ),
               child: Column(
@@ -339,31 +370,46 @@ class AccountScreen extends StatelessWidget {
                     title: const Text('Ilova mavzusi (Yorugʻ / Tungi)'),
                     subtitle: Text(
                       themeProv.isDarkMode ? 'Tungi rejim' : 'Kunduzgi rejim',
-                      style: TextStyle(fontSize: 12, color: DilkashColors.textSecondary(isDark)),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: DilkashColors.textSecondary(isDark)),
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => _showThemeSelectionSheet(context, themeProv),
                   ),
-                  Divider(height: 1, color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight),
+                  Divider(
+                      height: 1,
+                      color: isDark
+                          ? DilkashColors.borderDark
+                          : DilkashColors.borderLight),
                   ListTile(
                     leading: const Icon(Icons.language_rounded),
                     title: const Text('Til / Язык'),
                     subtitle: Text(
                       'Oʻzbekcha (Lotin)',
-                      style: TextStyle(fontSize: 12, color: DilkashColors.textSecondary(isDark)),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: DilkashColors.textSecondary(isDark)),
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () {
-                      DilkashFeedback.showInfo(context, 'Hozirda Oʻzbek tili faol');
+                      DilkashFeedback.showInfo(
+                          context, 'Hozirda Oʻzbek tili faol');
                     },
                   ),
-                  Divider(height: 1, color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight),
+                  Divider(
+                      height: 1,
+                      color: isDark
+                          ? DilkashColors.borderDark
+                          : DilkashColors.borderLight),
                   ListTile(
                     leading: const Icon(Icons.dns_outlined),
                     title: const Text('Server manzili (Base URL)'),
                     subtitle: Text(
                       ApiService.baseUrl,
-                      style: TextStyle(fontSize: 12, color: DilkashColors.textSecondary(isDark)),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: DilkashColors.textSecondary(isDark)),
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () {
@@ -373,17 +419,24 @@ class AccountScreen extends StatelessWidget {
                       );
                     },
                   ),
-                  Divider(height: 1, color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight),
+                  Divider(
+                      height: 1,
+                      color: isDark
+                          ? DilkashColors.borderDark
+                          : DilkashColors.borderLight),
                   ListTile(
                     leading: const Icon(Icons.support_agent_rounded),
                     title: const Text('Qoʻllab-quvvatlash xizmati'),
                     subtitle: Text(
                       '+998 71 200 00 00',
-                      style: TextStyle(fontSize: 12, color: DilkashColors.textSecondary(isDark)),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: DilkashColors.textSecondary(isDark)),
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () {
-                      DilkashFeedback.showInfo(context, 'Bogʻlanish: +998 71 200 00 00');
+                      DilkashFeedback.showInfo(
+                          context, 'Bogʻlanish: +998 71 200 00 00');
                     },
                   ),
                 ],

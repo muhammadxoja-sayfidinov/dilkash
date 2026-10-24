@@ -1,0 +1,489 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Dashboard{% endblock %}
+{% block header_title %}Umumiy Ko'rsatkichlar & Statistika{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Executive Dashboard Aesthetics 2026/2027 */
+    .dashboard-hero {
+        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+        border-radius: var(--radius-xl);
+        padding: 28px 32px;
+        color: white;
+        margin-bottom: 24px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 16px 36px -10px rgba(49, 46, 129, 0.35);
+    }
+
+    .hero-glow-circle {
+        position: absolute;
+        top: -60px;
+        right: -60px;
+        width: 240px;
+        height: 240px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(129, 140, 248, 0.4) 0%, rgba(129, 140, 248, 0) 70%);
+        pointer-events: none;
+    }
+
+    .dashboard-hero h2 {
+        font-size: 1.85rem;
+        font-weight: 800;
+        color: white;
+        margin-bottom: 6px;
+    }
+
+    .dashboard-hero p {
+        color: #c7d2fe;
+        font-size: 0.95rem;
+        margin: 0;
+    }
+
+    .hero-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    /* KPI Bento Grid */
+    .kpi-card {
+        border-radius: var(--radius-lg);
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        padding: 22px;
+        box-shadow: var(--shadow-card);
+        transition: var(--transition-smooth);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-card-hover);
+    }
+
+    .kpi-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+    }
+
+    .kpi-icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        color: white;
+    }
+
+    .kpi-icon.new { background: var(--brand-gradient); box-shadow: 0 8px 18px -4px rgba(99, 102, 241, 0.4); }
+    .kpi-icon.prep { background: var(--amber-gradient); box-shadow: 0 8px 18px -4px rgba(245, 158, 11, 0.4); }
+    .kpi-icon.ready { background: var(--emerald-gradient); box-shadow: 0 8px 18px -4px rgba(16, 185, 129, 0.4); }
+    .kpi-icon.today { background: var(--cyan-gradient); box-shadow: 0 8px 18px -4px rgba(6, 182, 212, 0.4); }
+
+    .kpi-value {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2.25rem;
+        font-weight: 800;
+        color: var(--text-heading);
+        line-height: 1.1;
+    }
+
+    .kpi-label {
+        font-size: 0.88rem;
+        color: var(--text-muted);
+        font-weight: 600;
+        margin-top: 4px;
+    }
+
+    .kpi-badge {
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: var(--radius-pill);
+    }
+
+    /* Revenue Display */
+    .revenue-card {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        border-radius: var(--radius-lg);
+        color: white;
+        padding: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: var(--shadow-card);
+    }
+
+    .revenue-amount {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2.6rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        line-height: 1.1;
+        margin: 10px 0;
+    }
+
+    /* Channel breakdown */
+    .channel-box {
+        background: #f8fafc;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: 16px;
+        text-align: center;
+        transition: var(--transition-smooth);
+    }
+
+    .channel-box:hover {
+        background: #ffffff;
+        border-color: var(--brand-primary-light);
+        box-shadow: var(--shadow-subtle);
+    }
+
+    .channel-val {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.7rem;
+        font-weight: 800;
+    }
+
+    .channel-lbl {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+
+    /* Avatar Pill */
+    .user-avatar-pill {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: var(--brand-gradient);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.9rem;
+    }
+
+    .service-pill-tag {
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: var(--radius-pill);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .service-pill-tag.dine {
+        background: rgba(99, 102, 241, 0.12);
+        color: #4f46e5;
+    }
+
+    .service-pill-tag.pickup {
+        background: rgba(245, 158, 11, 0.12);
+        color: #b45309;
+    }
+
+    .service-pill-tag.delivery {
+        background: rgba(6, 182, 212, 0.12);
+        color: #0369a1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- HERO WELCOME BANNER -->
+<div class="dashboard-hero">
+    <div class="hero-glow-circle"></div>
+    <div class="d-flex flex-wrap justify-content-between align-items-center">
+        <div>
+            <h2>Xush kelibsiz, Boshqaruvchi! 👨‍🍳</h2>
+            <p>Bugungi restoran faoliyati, real-vaqtdagi kassa va oshxona buyurtmalari boshqaruv markazi</p>
+        </div>
+        <div class="hero-actions">
+            <a href="{% url 'chef_panel:new_orders' %}" class="btn btn-warning">
+                <i class="fas fa-fire-burner me-1"></i> Oshxona KDS doskasi
+            </a>
+            <a href="{% url 'chef_panel:table_qrs' %}" target="_blank" class="btn btn-outline-light">
+                <i class="fas fa-qrcode me-1"></i> Stol QR kodlari
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- TOP 4 KPI CARDS -->
+<div class="row g-3 mb-4">
+    <!-- Yangi buyurtmalar -->
+    <div class="col-xl-3 col-md-6">
+        <div class="kpi-card">
+            <div class="kpi-top">
+                <div class="kpi-icon new">
+                    <i class="fas fa-bell"></i>
+                </div>
+                <span class="kpi-badge bg-primary text-white">Yangi qabul</span>
+            </div>
+            <div class="kpi-value">{{ stats.yangi_buyurtmalar }}</div>
+            <div class="kpi-label">Kutayotgan yangi buyurtmalar</div>
+        </div>
+    </div>
+
+    <!-- Tasdiqlangan / Jarayonda -->
+    <div class="col-xl-3 col-md-6">
+        <div class="kpi-card">
+            <div class="kpi-top">
+                <div class="kpi-icon prep">
+                    <i class="fas fa-fire-burner"></i>
+                </div>
+                <span class="kpi-badge bg-warning text-dark">Pishirilmoqda</span>
+            </div>
+            <div class="kpi-value">{{ stats.tasdiqlangan_buyurtmalar }}</div>
+            <div class="kpi-label">Tasdiqlangan & Jarayonda</div>
+        </div>
+    </div>
+
+    <!-- Tayyor buyurtmalar -->
+    <div class="col-xl-3 col-md-6">
+        <div class="kpi-card">
+            <div class="kpi-top">
+                <div class="kpi-icon ready">
+                    <i class="fas fa-check-double"></i>
+                </div>
+                <span class="kpi-badge bg-success text-white">Stolga tayyor</span>
+            </div>
+            <div class="kpi-value">{{ stats.tayor_buyurtmalar }}</div>
+            <div class="kpi-label">Tayyorlangan taomlar</div>
+        </div>
+    </div>
+
+    <!-- Bugungi jami buyurtmalar -->
+    <div class="col-xl-3 col-md-6">
+        <div class="kpi-card">
+            <div class="kpi-top">
+                <div class="kpi-icon today">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <span class="kpi-badge bg-info text-white">Bugun</span>
+            </div>
+            <div class="kpi-value">{{ stats.bugungi_buyurtmalar }}</div>
+            <div class="kpi-label">Bugungi jami buyurtmalar</div>
+        </div>
+    </div>
+</div>
+
+<!-- REVENUE & CHANNELS SUMMARY -->
+<div class="row g-3 mb-4">
+    <!-- Bugungi Savdo -->
+    <div class="col-lg-5">
+        <div class="revenue-card h-100 d-flex flex-column justify-content-between">
+            <div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span style="font-size: 0.9rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">
+                        <i class="fas fa-coins me-1 text-warning"></i> Kassa Savdosi
+                    </span>
+                    <span class="badge bg-success">Real-vaqt</span>
+                </div>
+                <div class="revenue-amount">{{ today_sales|floatformat:0 }} so'm</div>
+                <div style="font-size: 0.85rem; color: #cbd5e1;">Bugungi barcha qabul qilingan buyurtmalar summasi</div>
+            </div>
+
+            <div class="mt-4 pt-3" style="border-top: 1px solid rgba(255,255,255,0.1);">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span style="font-size: 0.82rem; color: #94a3b8;">Haftalik savdo (7 kun):</span>
+                    <strong style="color: #ffffff; font-size: 1rem;">{{ weekly_stats.total_amount|floatformat:0 }} so'm</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span style="font-size: 0.82rem; color: #94a3b8;">Haftalik buyurtmalar soni:</span>
+                    <strong style="color: #ffffff; font-size: 1rem;">{{ weekly_stats.total_orders }} ta</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Buyurtma turlari bo'yicha taqsimot -->
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-simple text-primary"></i> Buyurtma Kanallari Taqsimoti</h5>
+                <span class="badge bg-light text-dark">Faol navbat</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="channel-box">
+                            <div class="channel-val text-primary">{{ stats.dine_in_buyurtmalar|default:"0" }}</div>
+                            <div class="channel-lbl">
+                                <i class="fas fa-utensils me-1"></i> Stolda (Dine-in)
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="channel-box">
+                            <div class="channel-val text-warning">{{ stats.pickup_buyurtmalar }}</div>
+                            <div class="channel-lbl">
+                                <i class="fas fa-store me-1"></i> Olib ketish (Pickup)
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="channel-box">
+                            <div class="channel-val text-info">{{ stats.delivery_buyurtmalar }}</div>
+                            <div class="channel-lbl">
+                                <i class="fas fa-truck me-1"></i> Yetkazib berish
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-3 rounded" style="background: #f8fafc; border: 1px dashed #cbd5e1;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="fas fa-mobile-screen-button text-success fa-lg"></i>
+                            <div>
+                                <strong style="font-size: 0.9rem;">Telegram Mini App va Stol QR Tizimi</strong>
+                                <div style="font-size: 0.78rem; color: #64748b;">Mijozlar stoldan to'g'ridan-to'g'ri elektron buyurtma bera oladi</div>
+                            </div>
+                        </div>
+                        <a href="{% url 'chef_panel:menu_app' %}" target="_blank" class="btn btn-sm btn-primary">
+                            Menyuni ko'rish
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- RECENT ORDERS AND TOP CUSTOMERS -->
+<div class="row g-3">
+    <!-- Oxirgi Buyurtmalar Jadvali -->
+    <div class="col-xl-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-clock text-primary"></i> Oxirgi Buyurtmalar</h5>
+                <a href="{% url 'chef_panel:order_list' %}" class="btn btn-sm btn-outline-primary" style="font-size: 0.8rem; padding: 4px 10px;">
+                    Barchasini ko'rish <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_orders %}
+                    <div class="table-responsive">
+                        <table class="table-custom">
+                            <thead>
+                                <tr>
+                                    <th>Buyurtma #</th>
+                                    <th>Mijoz</th>
+                                    <th>Xizmat turi</th>
+                                    <th>Summa</th>
+                                    <th>Holati</th>
+                                    <th>Vaqt</th>
+                                    <th class="text-end">Amal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in recent_orders %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-dark">#{{ order.order_number }}</div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold text-heading">{{ order.customer.full_name }}</div>
+                                        <div class="text-muted" style="font-size: 0.78rem;">{{ order.customer.phone_number }}</div>
+                                    </td>
+                                    <td>
+                                        {% if order.service_type == 'dine_in' %}
+                                            <span class="service-pill-tag dine">
+                                                <i class="fas fa-chair"></i> Stol #{{ order.table_number|default:"1" }}
+                                            </span>
+                                        {% elif order.service_type == 'pickup' %}
+                                            <span class="service-pill-tag pickup">
+                                                <i class="fas fa-bag-shopping"></i> Olib ketish
+                                            </span>
+                                        {% else %}
+                                            <span class="service-pill-tag delivery">
+                                                <i class="fas fa-motorcycle"></i> Yetkazish
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-dark">{{ order.total_amount|floatformat:0 }}</span>
+                                        <span class="text-muted" style="font-size: 0.8rem;">so'm</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge-status {{ order.status }}">
+                                            {{ order.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="text-muted">{{ order.created_at|date:"H:i" }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="d-flex justify-content-end gap-1">
+                                            <a href="{% url 'chef_panel:thermal_receipt' order.id %}" target="_blank" class="btn btn-sm btn-light border" title="POS Chek chiqarish" style="padding: 5px 9px;">
+                                                <i class="fas fa-print"></i>
+                                            </a>
+                                            <a href="{% url 'chef_panel:order_detail' order.id %}" class="btn btn-sm btn-primary" title="Batafsil ko'rish" style="padding: 5px 10px;">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-utensils fa-3x text-muted mb-3 opacity-50"></i>
+                        <h6 class="text-muted">Hozircha oxirgi buyurtmalar mavjud emas</h6>
+                        <p class="text-muted small">Yangi buyurtmalar kelganda bu jadvalda aks etadi.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Mijozlar -->
+    <div class="col-xl-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-trophy text-warning"></i> Doimiy VIP Mijozlar</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if top_customers %}
+                    <div class="p-3 d-flex flex-column gap-2">
+                        {% for customer in top_customers %}
+                        <div class="d-flex align-items-center justify-content-between p-2 rounded" style="background: #f8fafc; border: 1px solid #f1f5f9;">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="user-avatar-pill">
+                                    {{ customer.full_name|slice:":1"|upper }}
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-heading" style="font-size: 0.88rem;">{{ customer.full_name }}</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">{{ customer.phone_number }}</div>
+                                </div>
+                            </div>
+                            <span class="badge bg-primary text-white" style="font-size: 0.75rem;">
+                                {{ customer.order_count }} ta
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted small">Mijozlar statistikasi to'planmoqda</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

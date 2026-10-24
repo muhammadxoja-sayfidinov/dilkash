@@ -15,7 +15,8 @@ class MyOrdersScreen extends StatefulWidget {
   State<MyOrdersScreen> createState() => _MyOrdersScreenState();
 }
 
-class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProviderStateMixin {
+class _MyOrdersScreenState extends State<MyOrdersScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   List<CustomerOrder> _orders = [];
   bool _isLoading = true;
@@ -87,9 +88,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
         ],
         bottom: TabBar(
           controller: _tabController,
-          labelColor: isDark ? DilkashColors.primary400 : DilkashColors.primary500,
+          labelColor:
+              isDark ? DilkashColors.primary400 : DilkashColors.primary500,
           unselectedLabelColor: DilkashColors.textSecondary(isDark),
-          indicatorColor: isDark ? DilkashColors.primary400 : DilkashColors.primary500,
+          indicatorColor:
+              isDark ? DilkashColors.primary400 : DilkashColors.primary500,
           tabs: [
             Tab(text: 'Faol (${activeOrders.length})'),
             Tab(text: 'Tarix (${pastOrders.length})'),
@@ -100,19 +103,23 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
           ? DilkashEmptyState(
               icon: Icons.account_circle_outlined,
               title: 'Tizimga kirmagansiz',
-              message: 'Buyurtmalar tarixini koʻrish uchun profilingizga kiring',
+              message:
+                  'Buyurtmalar tarixini koʻrish uchun profilingizga kiring',
               actionLabel: 'Kirish',
               onAction: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const AuthScreen(returnOnSuccess: true)),
+                  MaterialPageRoute(
+                      builder: (_) => const AuthScreen(returnOnSuccess: true)),
                 ).then((val) {
                   if (val == true) _loadOrders();
                 });
               },
             )
           : _isLoading
-              ? const Center(child: CircularProgressIndicator(color: DilkashColors.primary500))
+              ? const Center(
+                  child: CircularProgressIndicator(
+                      color: DilkashColors.primary500))
               : _errorMessage != null
                   ? DilkashErrorState(
                       message: _errorMessage!,
@@ -121,14 +128,17 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                   : TabBarView(
                       controller: _tabController,
                       children: [
-                        _buildOrdersList(activeOrders, isActive: true, isDark: isDark),
-                        _buildOrdersList(pastOrders, isActive: false, isDark: isDark),
+                        _buildOrdersList(activeOrders,
+                            isActive: true, isDark: isDark),
+                        _buildOrdersList(pastOrders,
+                            isActive: false, isDark: isDark),
                       ],
                     ),
     );
   }
 
-  Widget _buildOrdersList(List<CustomerOrder> list, {required bool isActive, required bool isDark}) {
+  Widget _buildOrdersList(List<CustomerOrder> list,
+      {required bool isActive, required bool isDark}) {
     if (list.isEmpty) {
       return DilkashEmptyState(
         icon: isActive ? Icons.inventory_2_outlined : Icons.history_rounded,
@@ -153,7 +163,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
               color: DilkashColors.surface(isDark),
               borderRadius: DilkashRadii.radiusLg,
               border: Border.all(
-                color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                color: isDark
+                    ? DilkashColors.borderDark
+                    : DilkashColors.borderLight,
               ),
             ),
             child: InkWell(
@@ -201,7 +213,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
 
                     // Items snippet
                     Text(
-                      order.items.map((i) => '${i.quantity}x ${i.dishName}').join(', '),
+                      order.items
+                          .map((i) => '${i.quantity}x ${i.dishName}')
+                          .join(', '),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -220,7 +234,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: isDark ? DilkashColors.primary400 : DilkashColors.primary600,
+                            color: isDark
+                                ? DilkashColors.primary400
+                                : DilkashColors.primary600,
                           ),
                         ),
                         if (isActive)
@@ -245,10 +261,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with SingleTickerProvid
                           Row(
                             children: [
                               TextButton.icon(
-                                icon: const Icon(Icons.star_outline_rounded, size: 16),
+                                icon: const Icon(Icons.star_outline_rounded,
+                                    size: 16),
                                 label: const Text('Baholash'),
                                 onPressed: () {
-                                  TipReviewModal.show(context, order.id, order.orderNumber);
+                                  TipReviewModal.show(
+                                      context, order.id, order.orderNumber);
                                 },
                               ),
                             ],

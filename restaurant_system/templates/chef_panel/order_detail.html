@@ -1,0 +1,595 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Buyurtma #{{ order.order_number }} tafsilotlari{% endblock %}
+
+{% block content %}
+<div class="row g-2">
+    <div class="col-lg-8">
+        <!-- Order Details -->
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-receipt me-2"></i>
+                        Buyurtma #{{ order.order_number }}
+                        {% if order.service_type == 'dine_in' %}
+                            <span class="service-badge" style="background: #10b981; color: white;">
+                                <i class="fas fa-chair me-1"></i>Stol #{{ order.table_number|default:"1" }}
+                            </span>
+                        {% elif order.service_type == 'delivery' %}
+                            <span class="service-badge service-delivery">
+                                <i class="fas fa-truck me-1"></i>Yetkazib berish
+                            </span>
+                        {% else %}
+                            <span class="service-badge service-pickup">
+                                <i class="fas fa-store me-1"></i>Olib ketish
+                            </span>
+                        {% endif %}
+                    </h5>
+                    <div class="d-flex align-items-center">
+                        <a href="{% url 'chef_panel:thermal_receipt' order.id %}" target="_blank" class="btn btn-sm btn-dark me-2">
+                            <i class="fas fa-print me-1"></i>Chek chiqarish
+                        </a>
+                        {% if order.status == 'yangi' %}
+                            <span class="status-badge bg-warning">
+                                <i class="fas fa-star me-1"></i>Yangi
+                            </span>
+                        {% elif order.status == 'tasdiqlangan' %}
+                            <span class="status-badge bg-success">
+                                <i class="fas fa-check-circle me-1"></i>Tasdiqlangan
+                            </span>
+                        {% elif order.status == 'tayor' %}
+                            <span class="status-badge bg-info">
+                                <i class="fas fa-utensils me-1"></i>Tayor
+                            </span>
+                        {% elif order.status == 'yolda' %}
+                            <span class="status-badge bg-info">
+                                <i class="fas fa-truck me-1"></i>Yo'lda
+                            </span>
+                        {% elif order.status == 'yetkazildi' %}
+                            <span class="status-badge bg-secondary">
+                                <i class="fas fa-check-double me-1"></i>Yetkazildi
+                            </span>
+                        {% elif order.status == 'olib_ketildi' %}
+                            <span class="status-badge bg-secondary">
+                                <i class="fas fa-hand-holding me-1"></i>Olib ketildi
+                            </span>
+                        {% elif order.status == 'bekor_qilingan' %}
+                            <span class="status-badge bg-danger">
+                                <i class="fas fa-times me-1"></i>Bekor qilingan
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Customer Info -->
+                <div class="customer-section mb-2">
+                    <h6 class="section-title">
+                        <i class="fas fa-user me-2"></i>Mijoz ma'lumotlari
+                    </h6>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Mijoz:</span>
+                            <span class="info-value">{{ order.customer.full_name }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Telefon:</span>
+                            <span class="info-value">{{ order.customer.phone_number }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">To'lov usuli:</span>
+                            <span class="info-value">{{ order.get_payment_method_display }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Xizmat turi:</span>
+                            <span class="info-value">{{ order.get_service_type_display }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Address/Pickup Info -->
+                {% if order.service_type == 'delivery' %}
+                <div class="address-section mb-2">
+                    <h6 class="section-title">
+                        <i class="fas fa-map-marker-alt me-2"></i>Yetkazib berish manzili
+                    </h6>
+                    <div class="info-grid">
+                        {% if order.address %}
+                        <div class="info-item">
+                            <span class="info-label">Manzil:</span>
+                            <span class="info-value">{{ order.address }}</span>
+                        </div>
+                        {% endif %}
+                        {% if order.latitude and order.longitude %}
+                        <div class="info-item">
+                            <span class="info-label">Lokatsiya:</span>
+                            <span class="info-value">
+                                <div class="d-flex flex-wrap gap-1">
+                                    <a href="https://yandex.uz/maps/?rtext=41.311081,69.240562~{{ order.latitude }},{{ order.longitude }}&rtt=auto" target="_blank" class="btn btn-sm btn-warning text-dark">
+                                        <i class="fas fa-route me-1"></i>Yandex Marshrut
+                                    </a>
+                                    <a href="https://www.google.com/maps?q={{ order.latitude }},{{ order.longitude }}" target="_blank" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-map-marker-alt me-1"></i>Google Maps
+                                    </a>
+                                </div>
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="pickup-section mb-2">
+                    <h6 class="section-title">
+                        <i class="fas fa-store me-2"></i>Olib ketish ma'lumotlari
+                    </h6>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Olib ketish joyi:</span>
+                            <span class="info-value">Restoran</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Yetkazib berish:</span>
+                            <span class="info-value">Yo'q</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Order Timeline -->
+                <div class="timeline-section mb-2">
+                    <h6 class="section-title">
+                        <i class="fas fa-clock me-2"></i>Vaqt ma'lumotlari
+                    </h6>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Yaratilgan:</span>
+                            <span class="info-value">{{ order.created_at|date:"d.m.Y H:i" }}</span>
+                        </div>
+                        {% if order.confirmed_at %}
+                        <div class="info-item">
+                            <span class="info-label">Tasdiqlangan:</span>
+                            <span class="info-value">{{ order.confirmed_at|date:"d.m.Y H:i" }}</span>
+                        </div>
+                        {% endif %}
+                        {% if order.ready_at %}
+                        <div class="info-item">
+                            <span class="info-label">Tayor bo'lgan:</span>
+                            <span class="info-value">{{ order.ready_at|date:"d.m.Y H:i" }}</span>
+                        </div>
+                        {% endif %}
+                        {% if order.delivered_at %}
+                        <div class="info-item">
+                            <span class="info-label">Yetkazilgan:</span>
+                            <span class="info-value">{{ order.delivered_at|date:"d.m.Y H:i" }}</span>
+                        </div>
+                        {% endif %}
+                        {% if order.picked_up_at %}
+                        <div class="info-item">
+                            <span class="info-label">Olib ketilgan:</span>
+                            <span class="info-value">{{ order.picked_up_at|date:"d.m.Y H:i" }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Products -->
+                <div class="products-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-utensils me-2"></i>Mahsulotlar
+                    </h6>
+                    <div class="products-list">
+                        {% for item in order_items %}
+                        <div class="product-item">
+                            <div class="product-info">
+                                <span class="product-name">{{ item.product.name }}</span>
+                                <span class="product-quantity">{{ item.quantity }}x</span>
+                            </div>
+                            <span class="product-total">{{ item.total|floatformat:0 }} so'm</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Order Summary -->
+                    <div class="order-summary">
+                        <div class="summary-row">
+                            <span class="summary-label">Mahsulotlar summasi:</span>
+                            <span class="summary-value">{{ order.products_total|floatformat:0 }} so'm</span>
+                        </div>
+                        {% if order.service_type == 'delivery' %}
+                        <div class="summary-row">
+                            <span class="summary-label">Yetkazib berish:</span>
+                            <span class="summary-value">{{ order.delivery_cost|floatformat:0 }} so'm</span>
+                        </div>
+                        {% endif %}
+                        <div class="summary-row total-row">
+                            <span class="summary-label">Umumiy summa:</span>
+                            <span class="summary-value">{{ order.total_amount|floatformat:0 }} so'm</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="card-footer">
+                <div class="d-flex gap-1 flex-wrap">
+                    {% if order.status == 'yangi' %}
+                        <button class="btn btn-success confirm-order" data-order-id="{{ order.id }}">
+                            <i class="fas fa-check me-2"></i>Tasdiqlash
+                        </button>
+                    {% elif order.status == 'tasdiqlangan' %}
+                        <button class="btn btn-warning ready-order" data-order-id="{{ order.id }}">
+                            <i class="fas fa-utensils me-2"></i>Tayor
+                        </button>
+                    {% elif order.status == 'tayor' %}
+                        {% if order.service_type == 'pickup' %}
+                            <button class="btn btn-success picked-up-order" data-order-id="{{ order.id }}">
+                                <i class="fas fa-hand-holding me-2"></i>Olib ketildi
+                            </button>
+                        {% elif order.service_type == 'dine_in' %}
+                            <button class="btn btn-success served-order" data-order-id="{{ order.id }}">
+                                <i class="fas fa-concierge-bell me-2"></i>Stolga berildi
+                            </button>
+                        {% else %}
+                            <button class="btn btn-info on-way-order" data-order-id="{{ order.id }}">
+                                <i class="fas fa-truck me-2"></i>Yo'lda
+                            </button>
+                        {% endif %}
+                    {% elif order.status == 'yolda' %}
+                        <button class="btn btn-secondary delivered-order" data-order-id="{{ order.id }}">
+                            <i class="fas fa-check-double me-2"></i>Yetkazildi
+                        </button>
+                    {% endif %}
+                    {% if order.status not in 'yetkazildi,olib_ketildi,bekor_qilingan' %}
+                        <button class="btn btn-danger cancel-order" data-order-id="{{ order.id }}">
+                            <i class="fas fa-times me-2"></i>Bekor qilish
+                        </button>
+                    {% endif %}
+                    <a href="{% url 'chef_panel:new_orders' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Orqaga
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Status History -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>
+                    Holat tarixi
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if status_history %}
+                    <div class="status-history">
+                        {% for history in status_history %}
+                        <div class="history-item">
+                            <div class="history-status">{{ history.get_new_status_display }}</div>
+                            <div class="history-time">{{ history.changed_at|date:"d.m.Y H:i" }}</div>
+                            {% if history.changed_by %}
+                                <div class="history-user">{{ history.changed_by.username }}</div>
+                            {% endif %}
+                            {% if history.notes %}
+                                <div class="history-notes">{{ history.notes }}</div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-2">
+                        <i class="fas fa-history fa-3x text-muted mb-2"></i>
+                        <p class="text-muted">Holat tarixi mavjud emas</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.service-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.6rem;
+    border-radius: var(--radius-full);
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
+.service-delivery {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+}
+
+.service-pickup {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 2px solid var(--border-light);
+    display: flex;
+    align-items: center;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 0.6rem;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.6rem;
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    transition: none;
+}
+
+.info-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.info-value {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+.address-section,
+.pickup-section {
+    background: linear-gradient(135deg, #e0f2fe 0%, #b3e5fc 100%);
+    padding: 1rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid #81d4fa;
+}
+
+.products-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 0.8rem;
+}
+
+.product-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem;
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
+    transition: none;
+}
+
+.product-info {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex: 1;
+}
+
+.product-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.product-quantity {
+    font-weight: 600;
+    color: var(--primary-color);
+    background: var(--bg-primary);
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+}
+
+.product-total {
+    font-weight: 600;
+    color: var(--success-color);
+}
+
+.order-summary {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    border-radius: var(--radius-lg);
+    padding: 0.6rem;
+    border: 1px solid var(--border-light);
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0;
+}
+
+.summary-row:not(:last-child) {
+    border-bottom: 1px solid var(--border-light);
+}
+
+.total-row {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+    margin: 0.3rem -0.6rem -0.6rem;
+    padding: 0.6rem;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.summary-label {
+    color: var(--text-secondary);
+}
+
+.summary-value {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.status-history {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.history-item {
+    padding: 0.6rem;
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+    border-radius: var(--radius-lg);
+    border-left: 4px solid var(--primary-color);
+    transition: none;
+}
+
+.history-status {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.2rem;
+}
+
+.history-time {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.2rem;
+}
+
+.history-user {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.history-notes {
+    font-size: 0.875rem;
+    color: var(--info-color);
+    margin-top: 0.3rem;
+    padding: 0.3rem;
+    background: var(--bg-primary);
+    border-radius: var(--radius-sm);
+}
+
+@media (max-width: 768px) {
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .d-flex.gap-2 {
+        flex-direction: column;
+    }
+    
+    .product-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.4rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // CSRF tokenni AJAX so'rovlariga qo'shish
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    $.ajaxSetup({
+        beforeSend: function(xhr, settings) {
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/.test(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", csrftoken);
+            }
+        }
+    });
+
+    function updateOrderStatus(orderId, newStatus, confirmationMessage) {
+        if (confirmationMessage && !confirm(confirmationMessage)) {
+            return;
+        }
+        
+        $.ajax({
+            url: '{% url "chef_panel:update_order_status" %}',
+            type: 'POST',
+            data: JSON.stringify({
+                order_id: orderId,
+                status: newStatus
+            }),
+            contentType: 'application/json',
+            success: function(data) {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Xatolik yuz berdi');
+                }
+            },
+            error: function(jqXHR, textStatus) {
+                alert("Xato yuz berdi: " + (jqXHR.responseJSON ? jqXHR.responseJSON.message : textStatus));
+            }
+        });
+    }
+
+    $('.confirm-order').click(function() {
+        var orderId = $(this).data('order-id');
+        updateOrderStatus(orderId, 'tasdiqlangan', 'Buyurtmani tasdiqlaysizmi?');
+    });
+
+    $('.ready-order').click(function() {
+        var orderId = $(this).data('order-id');
+        updateOrderStatus(orderId, 'tayor', 'Buyurtma tayor deb belgilaysizmi?');
+    });
+
+    $('.picked-up-order').click(function() {
+        var orderId = $(this).data('order-id');
+        updateOrderStatus(orderId, 'olib_ketildi', 'Buyurtma olib ketildi deb belgilaysizmi?');
+    });
+
+    $('.served-order').click(function() {
+        var orderId = $(this).data('order-id');
+        updateOrderStatus(orderId, 'yetkazildi', 'Buyurtma stolga yetkazildi deb belgilaysizmi?');
+    });
+
+    $('.on-way-order').click(function() {
+        var orderId = $(this).data('order-id');
+        updateOrderStatus(orderId, 'yolda', 'Buyurtma yo\'lda deb belgilaysizmi?');
+    });
+
+    $('.delivered-order').click(function() {
+        var orderId = $(this).data('order-id');
+        updateOrderStatus(orderId, 'yetkazildi', 'Buyurtma yetkazildi deb belgilaysizmi?');
+    });
+
+    $('.cancel-order').click(function() {
+        var orderId = $(this).data('order-id');
+        updateOrderStatus(orderId, 'bekor_qilingan', 'Buyurtmani bekor qilasizmi?');
+    });
+});
+</script>
+{% endblock %}

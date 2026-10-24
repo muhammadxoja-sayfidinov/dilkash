@@ -20,7 +20,8 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
-  final TextEditingController _phoneController = TextEditingController(text: '+998 90 123 45 67');
+  final TextEditingController _phoneController =
+      TextEditingController(text: '+998 90 123 45 67');
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
 
@@ -35,7 +36,8 @@ class _AuthScreenState extends State<AuthScreen> {
   void _sendOtp() {
     final rawPhone = _phoneController.text.trim();
     if (rawPhone.replaceAll(RegExp(r'\D'), '').length < 9) {
-      setState(() => _errorMessage = 'Iltimos, toʻliq telefon raqamingizni kiriting');
+      setState(() =>
+          _errorMessage = 'Iltimos, toʻliq telefon raqamingizni kiriting');
       return;
     }
     if (_isRegister && _nameController.text.trim().isEmpty) {
@@ -198,10 +200,14 @@ class _AuthScreenState extends State<AuthScreen> {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: isDark ? DilkashColors.surfaceDarkElevated : DilkashColors.primary50,
+                  color: isDark
+                      ? DilkashColors.surfaceDarkElevated
+                      : DilkashColors.primary50,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isDark ? DilkashColors.borderDark : DilkashColors.primary200,
+                    color: isDark
+                        ? DilkashColors.borderDark
+                        : DilkashColors.primary200,
                     width: 1.5,
                   ),
                 ),
@@ -209,7 +215,9 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: Icon(
                     Icons.restaurant_rounded,
                     size: 36,
-                    color: isDark ? DilkashColors.primary400 : DilkashColors.primary500,
+                    color: isDark
+                        ? DilkashColors.primary400
+                        : DilkashColors.primary500,
                   ),
                 ),
               ),
@@ -217,7 +225,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
               // Title
               Text(
-                _otpSent ? 'SMS Tasdiqlash' : (_isRegister ? 'Roʻyxatdan oʻtish' : 'Xush kelibsiz'),
+                _otpSent
+                    ? 'SMS Tasdiqlash'
+                    : (_isRegister ? 'Roʻyxatdan oʻtish' : 'Xush kelibsiz'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
@@ -246,16 +256,21 @@ class _AuthScreenState extends State<AuthScreen> {
                   decoration: BoxDecoration(
                     color: DilkashColors.errorLight,
                     borderRadius: DilkashRadii.radiusSm,
-                    border: Border.all(color: DilkashColors.error.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: DilkashColors.error.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline_rounded, size: 20, color: DilkashColors.error),
+                      const Icon(Icons.error_outline_rounded,
+                          size: 20, color: DilkashColors.error),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(color: DilkashColors.error, fontSize: 13, fontWeight: FontWeight.w500),
+                          style: const TextStyle(
+                              color: DilkashColors.error,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500),
                         ),
                       ),
                     ],
@@ -270,7 +285,9 @@ class _AuthScreenState extends State<AuthScreen> {
                   color: DilkashColors.surface(isDark),
                   borderRadius: DilkashRadii.radiusLg,
                   border: Border.all(
-                    color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                    color: isDark
+                        ? DilkashColors.borderDark
+                        : DilkashColors.borderLight,
                   ),
                 ),
                 child: Column(
@@ -310,19 +327,24 @@ class _AuthScreenState extends State<AuthScreen> {
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          color: isDark ? DilkashColors.surfaceDarkElevated : DilkashColors.amber50,
+                          color: isDark
+                              ? DilkashColors.surfaceDarkElevated
+                              : DilkashColors.amber50,
                           borderRadius: DilkashRadii.radiusSm,
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.info_outline_rounded, size: 18, color: DilkashColors.amber600),
+                            const Icon(Icons.info_outline_rounded,
+                                size: 18, color: DilkashColors.amber600),
                             const SizedBox(width: 8),
                             Text(
                               'Sinov uchun SMS kod: 1234',
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: isDark ? DilkashColors.amber400 : DilkashColors.amber700,
+                                color: isDark
+                                    ? DilkashColors.amber400
+                                    : DilkashColors.amber700,
                               ),
                             ),
                           ],
@@ -397,7 +419,8 @@ class _AuthScreenState extends State<AuthScreen> {
                 onPressed: () {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (_) => const MainNavigationShell()),
+                    MaterialPageRoute(
+                        builder: (_) => const MainNavigationShell()),
                   );
                 },
                 child: Text(

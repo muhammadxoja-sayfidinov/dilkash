@@ -29,15 +29,15 @@ class ApiService {
 
   // 1. Menyu va toifalarni yuklash
   static Future<Map<String, dynamic>> fetchMenu() async {
-    final response = await http.get(Uri.parse('$baseUrl/api/mobile/customer/menu/'));
+    final response =
+        await http.get(Uri.parse('$baseUrl/api/mobile/customer/menu/'));
     if (response.statusCode == 200) {
       final data = jsonDecode(utf8.decode(response.bodyBytes));
       List<Category> categories = (data['categories'] as List? ?? [])
           .map((c) => Category.fromJson(c))
           .toList();
-      List<Dish> dishes = (data['dishes'] as List? ?? [])
-          .map((d) => Dish.fromJson(d))
-          .toList();
+      List<Dish> dishes =
+          (data['dishes'] as List? ?? []).map((d) => Dish.fromJson(d)).toList();
       return {'categories': categories, 'dishes': dishes};
     } else {
       throw Exception('Menyu yuklanmadi (${response.statusCode})');
@@ -138,7 +138,8 @@ class ApiService {
       return jsonDecode(utf8.decode(response.bodyBytes));
     } else {
       final err = jsonDecode(utf8.decode(response.bodyBytes));
-      throw Exception(err['message'] ?? err['error'] ?? 'Buyurtma yaratishda xatolik');
+      throw Exception(
+          err['message'] ?? err['error'] ?? 'Buyurtma yaratishda xatolik');
     }
   }
 

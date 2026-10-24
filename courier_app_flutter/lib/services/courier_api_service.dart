@@ -77,10 +77,13 @@ class CourierApiService {
     );
 
     final data = jsonDecode(utf8.decode(response.bodyBytes));
-    if (response.statusCode == 200 && (data['success'] == true || data['status'] == 'success')) {
+    if (response.statusCode == 200 &&
+        (data['success'] == true || data['status'] == 'success')) {
       return data;
     } else {
-      throw Exception(data['message'] ?? data['error'] ?? 'Buyurtmani biriktirib bo\'lmadi');
+      throw Exception(data['message'] ??
+          data['error'] ??
+          'Buyurtmani biriktirib bo\'lmadi');
     }
   }
 
@@ -118,4 +121,3 @@ class CourierApiService {
     );
   }
 }
-

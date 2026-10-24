@@ -158,7 +158,8 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Stol #$tableNumber sizga muvaffaqiyatli biriktirildi!'),
+            content:
+                Text('Stol #$tableNumber sizga muvaffaqiyatli biriktirildi!'),
             backgroundColor: StaffColors.accent,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: StaffDesign.radiusMd),
@@ -220,7 +221,8 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
 
   void _openTakeOrderSheet(RestaurantTableModel table) async {
     // Bo'sh stolga zakaz olish boshlanganda stol avtomatik shu ofitsiantga belgilanadi
-    if (table.assignedWaiterName == null || table.assignedWaiterName != widget.waiter.name) {
+    if (table.assignedWaiterName == null ||
+        table.assignedWaiterName != widget.waiter.name) {
       await _assignTable(table.number);
     }
     _openTakeOrderSheetModal(table.number);
@@ -393,16 +395,15 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildFilterTab('all', 'Barchasi (${_tables.length})', isDark),
-                  const SizedBox(width: 8),
                   _buildFilterTab(
-                      'free', 'Bo\'sh (${_tables.length - occupiedCount})', isDark),
+                      'all', 'Barchasi (${_tables.length})', isDark),
                   const SizedBox(width: 8),
-                  _buildFilterTab(
-                      'occupied', 'Band ($occupiedCount)', isDark),
+                  _buildFilterTab('free',
+                      'Bo\'sh (${_tables.length - occupiedCount})', isDark),
                   const SizedBox(width: 8),
-                  _buildFilterTab(
-                      'calls', 'Chaqiruvlar ($callsCount)', isDark),
+                  _buildFilterTab('occupied', 'Band ($occupiedCount)', isDark),
+                  const SizedBox(width: 8),
+                  _buildFilterTab('calls', 'Chaqiruvlar ($callsCount)', isDark),
                 ],
               ),
             ),
@@ -432,7 +433,8 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: StaffColors.error.withValues(alpha: 0.12),
+                                  color:
+                                      StaffColors.error.withValues(alpha: 0.12),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
@@ -453,7 +455,8 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
                               const SizedBox(height: 16),
                               ElevatedButton.icon(
                                 onPressed: () => _loadFloorStatus(),
-                                icon: const Icon(Icons.refresh_rounded, size: 18),
+                                icon:
+                                    const Icon(Icons.refresh_rounded, size: 18),
                                 label: const Text('Qayta urinish'),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: StaffColors.primary,
@@ -516,7 +519,8 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
                 : (isDark
                     ? color.withValues(alpha: 0.35)
                     : color.withValues(alpha: 0.22)),
-            width: isAlert ? StaffDesign.borderThick : StaffDesign.borderStandard,
+            width:
+                isAlert ? StaffDesign.borderThick : StaffDesign.borderStandard,
           ),
         ),
         child: Column(
@@ -545,7 +549,8 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.3,
-                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
+                color:
+                    isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B),
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -569,18 +574,15 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
               : StaffColors.cardSecondary(isDark),
           borderRadius: StaffDesign.radiusSm,
           border: Border.all(
-            color: isSelected
-                ? Colors.transparent
-                : StaffColors.border(isDark),
+            color: isSelected ? Colors.transparent : StaffColors.border(isDark),
             width: StaffDesign.borderStandard,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected
-                ? Colors.white
-                : StaffColors.textSecondary(isDark),
+            color:
+                isSelected ? Colors.white : StaffColors.textSecondary(isDark),
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
             fontSize: 12,
           ),
@@ -761,7 +763,8 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
                   decoration: BoxDecoration(
-                    color: StaffColors.error.withValues(alpha: isDark ? 0.20 : 0.10),
+                    color: StaffColors.error
+                        .withValues(alpha: isDark ? 0.20 : 0.10),
                     borderRadius: StaffDesign.radiusXs,
                     border: Border.all(
                       color: StaffColors.error.withValues(alpha: 0.35),
@@ -794,10 +797,11 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
               ] else if (isOccupied && table.order != null) ...[
                 if (isReady)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: StaffColors.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+                      color: StaffColors.primary
+                          .withValues(alpha: isDark ? 0.20 : 0.12),
                       borderRadius: StaffDesign.radiusXs,
                     ),
                     child: Row(
@@ -806,13 +810,17 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
                         Icon(
                           Icons.check_circle_rounded,
                           size: 12,
-                          color: isDark ? StaffColors.primaryLight : StaffColors.primary,
+                          color: isDark
+                              ? StaffColors.primaryLight
+                              : StaffColors.primary,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           'Tayyor • Yetkazing!',
                           style: TextStyle(
-                            color: isDark ? StaffColors.primaryLight : StaffColors.primary,
+                            color: isDark
+                                ? StaffColors.primaryLight
+                                : StaffColors.primary,
                             fontWeight: FontWeight.w800,
                             fontSize: 10,
                           ),
@@ -967,7 +975,9 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: (table.isOccupied ? StaffColors.warning : StaffColors.accent)
+                        color: (table.isOccupied
+                                ? StaffColors.warning
+                                : StaffColors.accent)
                             .withValues(alpha: 0.15),
                         borderRadius: StaffDesign.radiusMd,
                       ),
@@ -1093,8 +1103,8 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
                         _releaseTable(table.number);
                       },
                       child: const Text('Bo\'shatish',
-                          style:
-                              TextStyle(fontSize: 12, color: StaffColors.error)),
+                          style: TextStyle(
+                              fontSize: 12, color: StaffColors.error)),
                     ),
                 ],
               ),
@@ -1133,7 +1143,9 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
                           Text(
                             table.call!.reason,
                             style: TextStyle(
-                              color: isDark ? Colors.red.shade200 : Colors.red.shade800,
+                              color: isDark
+                                  ? Colors.red.shade200
+                                  : Colors.red.shade800,
                               fontSize: 13,
                             ),
                           ),

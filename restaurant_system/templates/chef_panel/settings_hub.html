@@ -1,0 +1,899 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Barcha Tizim Sozlamalari{% endblock %}
+{% block header_title %}Tizim Sozlamalari{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-nav-pills {
+        background: #ffffff;
+        padding: 8px;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-card);
+        border: 1px solid var(--border-subtle);
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        margin-bottom: 24px;
+    }
+    .settings-nav-pills .nav-link {
+        color: #64748b;
+        font-weight: 700;
+        font-size: 0.9rem;
+        padding: 10px 18px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+        border: none;
+        background: transparent;
+        transition: var(--transition-smooth);
+    }
+    .settings-nav-pills .nav-link:hover {
+        color: var(--brand-primary);
+        background: rgba(79, 70, 229, 0.06);
+    }
+    .settings-nav-pills .nav-link.active {
+        color: #ffffff;
+        background: var(--brand-gradient);
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+    }
+
+    .settings-hero-card {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        color: #ffffff;
+        border-radius: var(--radius-xl);
+        padding: 1.75rem 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    }
+    .settings-hero-card::after {
+        content: '\f013';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        position: absolute;
+        right: 1.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 8rem;
+        color: rgba(255, 255, 255, 0.04);
+        pointer-events: none;
+    }
+    .printer-station-card {
+        background: #ffffff;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-card);
+        box-shadow: var(--shadow-card);
+        padding: 1.5rem;
+        transition: var(--transition-smooth);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .printer-station-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-card-hover);
+        border-color: #cbd5e1;
+    }
+    .station-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.25rem;
+    }
+    .station-icon-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .station-icon-wrap {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    .category-row-badge {
+        font-size: 0.82rem;
+        font-weight: 700;
+        padding: 5px 12px;
+        border-radius: var(--radius-pill);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .switch-custom {
+        position: relative;
+        display: inline-block;
+        width: 48px;
+        height: 26px;
+    }
+    .switch-custom input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .slider-custom {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #cbd5e1;
+        transition: .3s;
+        border-radius: 34px;
+    }
+    .slider-custom:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .3s;
+        border-radius: 50%;
+    }
+    input:checked + .slider-custom {
+        background-color: #10b981;
+    }
+    input:checked + .slider-custom:before {
+        transform: translateX(22px);
+    }
+    .quick-stat-card {
+        background: #ffffff;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        transition: var(--transition-smooth);
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        text-decoration: none;
+        color: inherit;
+    }
+    .quick-stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-card-hover);
+        color: inherit;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+
+    <!-- NAV PILLS / TABS -->
+    <ul class="nav settings-nav-pills" id="settingsTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link {% if active_tab == 'printers' or not active_tab %}active{% endif %}" id="tab-printers-btn" data-bs-toggle="pill" data-bs-target="#tab-printers" type="button">
+                <i class="fas fa-print"></i> Chek Printerlari & Bo'limlar
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link {% if active_tab == 'staff' %}active{% endif %}" id="tab-staff-btn" data-bs-toggle="pill" data-bs-target="#tab-staff" type="button">
+                <i class="fas fa-users-cog"></i> Xodimlar (PIN & Rollar)
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link {% if active_tab == 'stoplist' %}active{% endif %}" id="tab-stoplist-btn" data-bs-toggle="pill" data-bs-target="#tab-stoplist" type="button">
+                <i class="fas fa-ban"></i> Stop-List (Taomlar)
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link {% if active_tab == 'menu' %}active{% endif %}" id="tab-menu-btn" data-bs-toggle="pill" data-bs-target="#tab-menu" type="button">
+                <i class="fas fa-layer-group"></i> Menyu & Katalog
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link {% if active_tab == 'delivery' %}active{% endif %}" id="tab-delivery-btn" data-bs-toggle="pill" data-bs-target="#tab-delivery" type="button">
+                <i class="fas fa-motorcycle"></i> Yetkazib berish & Vaqt
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link {% if active_tab == 'digital' %}active{% endif %}" id="tab-digital-btn" data-bs-toggle="pill" data-bs-target="#tab-digital" type="button">
+                <i class="fas fa-qrcode"></i> QR Kodlar & Mini App
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link {% if active_tab == 'reports' %}active{% endif %}" id="tab-reports-btn" data-bs-toggle="pill" data-bs-target="#tab-reports" type="button">
+                <i class="fas fa-chart-pie"></i> Statistika & Jurnal
+            </button>
+        </li>
+    </ul>
+
+    <!-- TAB CONTENTS -->
+    <div class="tab-content" id="settingsTabContent">
+
+        <!-- ================= TAB 1: PRINTERLAR & BO'LIMLAR ================= -->
+        <div class="tab-pane fade {% if active_tab == 'printers' or not active_tab %}show active{% endif %}" id="tab-printers" role="tabpanel">
+            <div class="settings-hero-card">
+                <h4 class="fw-bold mb-2 text-white">Avtomatik Chek Printerlari va Sexlar Marshrutizatsiyasi</h4>
+                <p class="text-light opacity-75 mb-3" style="max-width: 820px; font-size: 0.92rem; line-height: 1.5;">
+                    Ofitsiant buyurtma berganda: <b>Shashliklar</b> shashlikxona printeriga, <b>taomlar</b> oshxonaga, <b>desertlar va choylar</b> bar printeriga, hamda umumiy hisob kassaga avtomatik yo'naltiriladi.
+                </p>
+                <div class="p-3 rounded-3" style="background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); max-width: 860px;">
+                    <div class="d-flex align-items-center gap-2 text-warning fw-bold mb-1" style="font-size: 0.88rem;">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Hozirda printer ulanmagan bo'lsa:</span>
+                    </div>
+                    <p class="m-0 text-white opacity-90" style="font-size: 0.85rem;">
+                        Tizim to'liq ishlayveradi. Kelajakda termal printer (Xprinter, Rongta, Epson) ulanganda, uning IP manzilini shu yerda ko'rsatasiz.
+                    </p>
+                </div>
+            </div>
+
+            <form method="POST" action="{% url 'chef_panel:settings_hub' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="printers">
+
+                <!-- MASTER SWITCH -->
+                <div class="card mb-4 border-0 shadow-sm">
+                    <div class="card-body p-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(16, 185, 129, 0.15); color: #059669; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+                                <i class="fas fa-network-wired"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold m-0 text-heading">Tarmoq Printerlariga Avtomatik Yuborish (LAN / ESC-POS)</h6>
+                                <p class="text-muted m-0" style="font-size: 0.85rem;">
+                                    Yoqilsa, ofitsiant zakaz urishi bilan belgilangan IP manzillarga chek avtomatik boradi (9100 port orqali).
+                                </p>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-3">
+                            <label class="switch-custom m-0">
+                                <input type="checkbox" name="auto_print_network" {% if settings.auto_print_network %}checked{% endif %}>
+                                <span class="slider-custom"></span>
+                            </label>
+                            <span class="fw-bold" style="font-size: 0.9rem;">
+                                {% if settings.auto_print_network %}<span class="text-success">Faol</span>{% else %}<span class="text-muted">O'chiq</span>{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4 STATION CARDS -->
+                <div class="row g-4 mb-4">
+                    <div class="col-xl-3 col-md-6">
+                        <div class="printer-station-card">
+                            <div class="station-header">
+                                <div class="station-icon-title">
+                                    <div class="station-icon-wrap" style="background: #fee2e2; color: #ef4444;">🥩</div>
+                                    <div>
+                                        <h6 class="fw-bold m-0">Shashlikxona</h6>
+                                        <span class="text-muted" style="font-size: 0.75rem;">Mangal / Kabob cheki</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted fw-bold" style="font-size: 0.75rem;">PRINTER IP MANZILI</label>
+                                <input type="text" class="form-control font-monospace" name="printer_shashlik_ip" id="ip_shashlik" 
+                                       value="{{ settings.printer_shashlik_ip|default:'' }}" placeholder="Masalan: 192.168.1.101">
+                            </div>
+                            <button type="button" class="btn btn-outline-danger w-100 btn-sm mt-auto" onclick="testStationPrint('shashlik', 'ip_shashlik')">
+                                <i class="fas fa-paper-plane"></i> Sinov cheki (Test)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6">
+                        <div class="printer-station-card">
+                            <div class="station-header">
+                                <div class="station-icon-title">
+                                    <div class="station-icon-wrap" style="background: #fef3c7; color: #f59e0b;">🍲</div>
+                                    <div>
+                                        <h6 class="fw-bold m-0">Oshxona</h6>
+                                        <span class="text-muted" style="font-size: 0.75rem;">Issiq & Milliy taomlar</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted fw-bold" style="font-size: 0.75rem;">PRINTER IP MANZILI</label>
+                                <input type="text" class="form-control font-monospace" name="printer_kitchen_ip" id="ip_kitchen" 
+                                       value="{{ settings.printer_kitchen_ip|default:'' }}" placeholder="Masalan: 192.168.1.102">
+                            </div>
+                            <button type="button" class="btn btn-outline-warning text-dark w-100 btn-sm mt-auto" onclick="testStationPrint('kitchen', 'ip_kitchen')">
+                                <i class="fas fa-paper-plane"></i> Sinov cheki (Test)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6">
+                        <div class="printer-station-card">
+                            <div class="station-header">
+                                <div class="station-icon-title">
+                                    <div class="station-icon-wrap" style="background: #ede9fe; color: #8b5cf6;">☕</div>
+                                    <div>
+                                        <h6 class="fw-bold m-0">Desert & Bar</h6>
+                                        <span class="text-muted" style="font-size: 0.75rem;">Shirinlik & Ichimliklar</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted fw-bold" style="font-size: 0.75rem;">PRINTER IP MANZILI</label>
+                                <input type="text" class="form-control font-monospace" name="printer_bar_ip" id="ip_bar" 
+                                       value="{{ settings.printer_bar_ip|default:'' }}" placeholder="Masalan: 192.168.1.103">
+                            </div>
+                            <button type="button" class="btn btn-outline-primary w-100 btn-sm mt-auto" onclick="testStationPrint('bar', 'ip_bar')">
+                                <i class="fas fa-paper-plane"></i> Sinov cheki (Test)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6">
+                        <div class="printer-station-card">
+                            <div class="station-header">
+                                <div class="station-icon-title">
+                                    <div class="station-icon-wrap" style="background: #d1fae5; color: #10b981;">🧾</div>
+                                    <div>
+                                        <h6 class="fw-bold m-0">Kassa (Hisob)</h6>
+                                        <span class="text-muted" style="font-size: 0.75rem;">Umumiy hisob cheki</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-muted fw-bold" style="font-size: 0.75rem;">PRINTER IP MANZILI</label>
+                                <input type="text" class="form-control font-monospace" name="printer_kassa_ip" id="ip_kassa" 
+                                       value="{{ settings.printer_kassa_ip|default:'' }}" placeholder="Masalan: 192.168.1.100">
+                            </div>
+                            <button type="button" class="btn btn-outline-success w-100 btn-sm mt-auto" onclick="testStationPrint('kassa', 'ip_kassa')">
+                                <i class="fas fa-paper-plane"></i> Sinov cheki (Test)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CATEGORIES ROUTING TABLE -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <h6 class="fw-bold m-0">
+                            <i class="fas fa-layer-group text-primary me-2"></i>
+                            Taom Guruhlari (Kategoriyalar) Qaysi Sex Chekidan Chiqadi?
+                        </h6>
+                        <button type="submit" class="btn btn-primary px-4 fw-bold">
+                            <i class="fas fa-save me-1"></i> Saqlash
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table-custom align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Kategoriya Nomi</th>
+                                        <th>Taomlar</th>
+                                        <th>Sex / Printer Cheki</th>
+                                        <th class="text-end">Holati</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for cat in categories %}
+                                    <tr>
+                                        <td>
+                                            <strong class="text-dark">{{ cat.name }}</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-light text-dark border">{{ cat.prod_count|default:0 }} ta</span>
+                                        </td>
+                                        <td>
+                                            <select class="form-select form-select-sm fw-semibold" name="cat_dept_{{ cat.id }}" style="max-width: 320px;">
+                                                <option value="shashlik" {% if cat.department == 'shashlik' %}selected{% endif %}>🥩 Shashlikxona / Mangal</option>
+                                                <option value="kitchen" {% if cat.department == 'kitchen' or not cat.department %}selected{% endif %}>🍲 Oshxona (Issiq/Milliy taomlar)</option>
+                                                <option value="bar" {% if cat.department == 'bar' %}selected{% endif %}>☕ Desert & Bar (Ichimliklar)</option>
+                                                <option value="kassa" {% if cat.department == 'kassa' %}selected{% endif %}>🧾 Faqat Kassa hisob cheki</option>
+                                            </select>
+                                        </td>
+                                        <td class="text-end">
+                                            {% if cat.department == 'shashlik' %}
+                                                <span class="category-row-badge" style="background: #fee2e2; color: #ef4444;">🥩 Shashlikxona</span>
+                                            {% elif cat.department == 'bar' %}
+                                                <span class="category-row-badge" style="background: #ede9fe; color: #8b5cf6;">☕ Bar & Desert</span>
+                                            {% elif cat.department == 'kassa' %}
+                                                <span class="category-row-badge" style="background: #d1fae5; color: #10b981;">🧾 Kassa</span>
+                                            {% else %}
+                                                <span class="category-row-badge" style="background: #fef3c7; color: #f59e0b;">🍲 Oshxona</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light p-3 text-end">
+                        <button type="submit" class="btn btn-primary px-4 fw-bold">
+                            <i class="fas fa-save me-1"></i> Barcha Sozlamalarni Saqlash
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- ================= TAB 2: XODIMLAR (PIN & ROLLAR) ================= -->
+        <div class="tab-pane fade {% if active_tab == 'staff' %}show active{% endif %}" id="tab-staff" role="tabpanel">
+            <div class="row g-4">
+                <!-- FORM -->
+                <div class="col-lg-4">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white py-3">
+                            <h6 class="fw-bold m-0"><i class="fas fa-user-plus text-primary me-2"></i> Yangi Xodim Qo'shish</h6>
+                        </div>
+                        <div class="card-body p-4">
+                            <form method="POST" action="{% url 'chef_panel:settings_hub' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="staff_create">
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" style="font-size: 0.85rem;">Xodim Roli</label>
+                                    <select class="form-select fw-bold" name="role" required>
+                                        <option value="waiter">🤵 Ofitsiant (Stollar xizmati)</option>
+                                        <option value="courier">🛵 Kuryer (Yetkazib beruvchi)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" style="font-size: 0.85rem;">F.I.SH (Ismi)</label>
+                                    <input type="text" class="form-control" name="name" placeholder="Masalan: Sardor Aliyev" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" style="font-size: 0.85rem;">Telefon Raqami</label>
+                                    <input type="text" class="form-control" name="phone" placeholder="+998 90 123 45 67" required>
+                                </div>
+                                <div class="mb-4">
+                                    <label class="form-label fw-semibold" style="font-size: 0.85rem;">Ilovaga kirish PIN-kodi (4 xonali)</label>
+                                    <input type="text" class="form-control font-monospace fs-5 text-center fw-bold" name="pin_code" placeholder="1234" maxlength="6" required>
+                                    <div class="form-text text-muted">Ofitsiant/Kuryer mobil ilovaga ushbu PIN-kod orqali kiradi.</div>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100 fw-bold">
+                                    <i class="fas fa-plus-circle me-1"></i> Xodimni Saqlash
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LIST -->
+                <div class="col-lg-8">
+                    <!-- OFITSIANTLAR -->
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold m-0"><i class="fas fa-user-tie text-primary me-2"></i> Ofitsiantlar Ro'yxati</h6>
+                            <span class="badge bg-light text-dark font-monospace">{{ waiters.count }} nafar</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table-custom align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Ismi</th>
+                                            <th>Telefoni</th>
+                                            <th>Kirish PIN</th>
+                                            <th>Holati</th>
+                                            <th class="text-end">Amal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for w in waiters %}
+                                        <tr>
+                                            <td><strong>{{ w.name }}</strong></td>
+                                            <td><span class="text-muted">{{ w.phone }}</span></td>
+                                            <td><span class="badge bg-light text-primary border font-monospace fs-6 px-2 py-1">{{ w.pin_code }}</span></td>
+                                            <td>
+                                                {% if w.is_active %}
+                                                    <span class="badge-status tayor"><i class="fas fa-check"></i> Faol</span>
+                                                {% else %}
+                                                    <span class="badge-status bekor_qilingan"><i class="fas fa-times"></i> Nofaol</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-end">
+                                                <button class="btn btn-sm {% if w.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}" onclick="toggleStaff('waiter', {{ w.id }})">
+                                                    {% if w.is_active %}Nofaol qilish{% else %}Faollashtirish{% endif %}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="5" class="text-center py-4 text-muted">Ofitsiantlar mavjud emas</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KURYERLAR -->
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                            <h6 class="fw-bold m-0"><i class="fas fa-motorcycle text-info me-2"></i> Kuryerlar Ro'yxati</h6>
+                            <span class="badge bg-light text-dark font-monospace">{{ couriers.count }} nafar</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table-custom align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Ismi</th>
+                                            <th>Telefoni</th>
+                                            <th>Kirish PIN</th>
+                                            <th>Holati</th>
+                                            <th class="text-end">Amal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for c in couriers %}
+                                        <tr>
+                                            <td><strong>{{ c.name }}</strong></td>
+                                            <td><span class="text-muted">{{ c.phone }}</span></td>
+                                            <td><span class="badge bg-light text-info border font-monospace fs-6 px-2 py-1">{{ c.pin_code }}</span></td>
+                                            <td>
+                                                {% if c.is_active %}
+                                                    <span class="badge-status tayor"><i class="fas fa-check"></i> Faol</span>
+                                                {% else %}
+                                                    <span class="badge-status bekor_qilingan"><i class="fas fa-times"></i> Nofaol</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-end">
+                                                <button class="btn btn-sm {% if c.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}" onclick="toggleStaff('courier', {{ c.id }})">
+                                                    {% if c.is_active %}Nofaol qilish{% else %}Faollashtirish{% endif %}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="5" class="text-center py-4 text-muted">Kuryerlar mavjud emas</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 3: STOP-LIST ================= -->
+        <div class="tab-pane fade {% if active_tab == 'stoplist' %}show active{% endif %}" id="tab-stoplist" role="tabpanel">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <h6 class="fw-bold m-0"><i class="fas fa-ban text-danger me-2"></i> Stop-List (Taomlar Mavjudligini Boshqarish)</h6>
+                        <span class="text-muted" style="font-size: 0.8rem;">Tugagan taomni o'chirsangiz, ofitsiant va mijoz ilovasida darhol "Tugagan" deb belgilanadi.</span>
+                    </div>
+                    <div style="width: 280px;">
+                        <input type="text" class="form-control form-control-sm" id="stopListSearch" placeholder="🔍 Taom nomini qidirish...">
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                        <table class="table-custom align-middle mb-0" id="stopListTable">
+                            <thead class="sticky-top bg-light">
+                                <tr>
+                                    <th>Taom Nomi</th>
+                                    <th>Kategoriya</th>
+                                    <th>Narxi</th>
+                                    <th class="text-end">Holati (Bor / Tugagan)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for prod in products %}
+                                <tr class="stop-list-row" data-name="{{ prod.name|lower }}">
+                                    <td>
+                                        <strong class="text-dark">{{ prod.name }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-muted border">{{ prod.category.name|default:"Bo'limsiz" }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="font-monospace fw-bold">{{ prod.price|floatformat:0 }} so'm</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="d-flex align-items-center justify-content-end gap-2">
+                                            <span class="fw-semibold" id="status-label-{{ prod.id }}" style="font-size: 0.85rem;">
+                                                {% if prod.is_available %}
+                                                    <span class="text-success"><i class="fas fa-check-circle"></i> Mavjud (Bor)</span>
+                                                {% else %}
+                                                    <span class="text-danger"><i class="fas fa-ban"></i> Stop-List (Yo'q)</span>
+                                                {% endif %}
+                                            </span>
+                                            <label class="switch-custom m-0">
+                                                <input type="checkbox" {% if prod.is_available %}checked{% endif %} onchange="toggleDishAvailability({{ prod.id }}, this)">
+                                                <span class="slider-custom"></span>
+                                            </label>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 4: MENYU & KATALOG ================= -->
+        <div class="tab-pane fade {% if active_tab == 'menu' %}show active{% endif %}" id="tab-menu" role="tabpanel">
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm p-4 h-100">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h5 class="fw-bold m-0"><i class="fas fa-layer-group text-primary me-2"></i> Taom Kategoriyalari</h5>
+                            <a href="{% url 'chef_panel:add_category' %}" class="btn btn-primary btn-sm fw-bold">
+                                <i class="fas fa-plus"></i> Yangi Kategoriya
+                            </a>
+                        </div>
+                        <p class="text-muted" style="font-size: 0.88rem;">Menyudagi mavjud barcha toifalar va sexlar biriktirilishi.</p>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Nomi</th>
+                                        <th>Taomlar</th>
+                                        <th>Sex</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for c in categories %}
+                                    <tr>
+                                        <td><strong>{{ c.name }}</strong></td>
+                                        <td><span class="badge bg-light text-dark border">{{ c.prod_count|default:0 }} ta</span></td>
+                                        <td><span class="badge bg-light text-primary border">{{ c.department|upper }}</span></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm p-4 h-100">
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h5 class="fw-bold m-0"><i class="fas fa-burger text-warning me-2"></i> Taomlar & Narxlar</h5>
+                            <a href="{% url 'chef_panel:add_product' %}" class="btn btn-warning text-dark btn-sm fw-bold">
+                                <i class="fas fa-plus"></i> Yangi Taom Qo'shish
+                            </a>
+                        </div>
+                        <p class="text-muted" style="font-size: 0.88rem;">Menyuga yangi taom qo'shish, narxini o'zgartirish yoki rasm yuklash.</p>
+                        <div class="d-flex gap-2 mt-4">
+                            <a href="{% url 'chef_panel:product_list' %}" class="btn btn-outline-primary w-100 fw-bold">
+                                <i class="fas fa-list me-1"></i> Barcha Taomlar Ro'yxatiga O'tish
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 5: YETKAZIB BERISH & ISH VAQTI ================= -->
+        <div class="tab-pane fade {% if active_tab == 'delivery' %}show active{% endif %}" id="tab-delivery" role="tabpanel">
+            <div class="card border-0 shadow-sm" style="max-width: 760px;">
+                <div class="card-header bg-white py-3">
+                    <h6 class="fw-bold m-0"><i class="fas fa-motorcycle text-info me-2"></i> Yetkazib Berish Narxlari va Ish Vaqti</h6>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" action="{% url 'chef_panel:settings_hub' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delivery">
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" style="font-size: 0.85rem;">Xizmat Boshlanish Vaqti</label>
+                                <input type="time" class="form-control" name="service_start_time" value="{{ settings.service_start_time|time:'H:i' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold" style="font-size: 0.85rem;">Xizmat Tugash Vaqti</label>
+                                <input type="time" class="form-control" name="service_end_time" value="{{ settings.service_end_time|time:'H:i' }}" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" style="font-size: 0.85rem;">Minimal Yetkazib Berish Narxi (Boshlang'ich narx, so'm)</label>
+                            <input type="number" class="form-control" name="delivery_base_cost" value="{{ settings.delivery_base_cost|floatformat:0 }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold" style="font-size: 0.85rem;">Har 1 km uchun qo'shimcha narx (so'm)</label>
+                            <input type="number" class="form-control" name="delivery_cost_per_extra_km_block" value="{{ settings.delivery_cost_per_extra_km_block|floatformat:0 }}" required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold" style="font-size: 0.85rem;">Maksimal Yetkazib Berish Masofasi (km)</label>
+                            <input type="number" step="0.5" class="form-control" name="delivery_max_radius_km" value="{{ settings.delivery_max_radius_km }}" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary px-4 fw-bold">
+                            <i class="fas fa-save me-1"></i> Yetkazib Berish Sozlamalarini Saqlash
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 6: QR VA MINI APP ================= -->
+        <div class="tab-pane fade {% if active_tab == 'digital' %}show active{% endif %}" id="tab-digital" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <a href="{% url 'chef_panel:table_qrs' %}" target="_blank" class="quick-stat-card">
+                        <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(79, 70, 229, 0.15); color: #4f46e5; display: flex; align-items: center; justify-content: center; font-size: 1.8rem;">
+                            <i class="fas fa-qrcode"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold m-0 text-dark">Stollar QR Kodlari</h6>
+                            <span class="text-muted" style="font-size: 0.82rem;">Har bir stol uchun QR kodli chek va menyu kartochkalarini yuklab olish yoki chop etish</span>
+                        </div>
+                        <i class="fas fa-arrow-up-right-from-square ms-auto text-muted"></i>
+                    </a>
+                </div>
+
+                <div class="col-md-6">
+                    <a href="{% url 'chef_panel:menu_app' %}" target="_blank" class="quick-stat-card">
+                        <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(16, 185, 129, 0.15); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.8rem;">
+                            <i class="fas fa-mobile-screen"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold m-0 text-dark">Telegram Mini App (Veb menyu)</h6>
+                            <span class="text-muted" style="font-size: 0.82rem;">Mijozlar buyurtma beradigan Telegram Mini App oynasini veb-brauzerda ko'rish</span>
+                        </div>
+                        <i class="fas fa-arrow-up-right-from-square ms-auto text-muted"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= TAB 7: STATISTIKA VA ARXIV ================= -->
+        <div class="tab-pane fade {% if active_tab == 'reports' %}show active{% endif %}" id="tab-reports" role="tabpanel">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <a href="{% url 'chef_panel:dashboard' %}" class="quick-stat-card">
+                        <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(2, 132, 199, 0.15); color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 1.8rem;">
+                            <i class="fas fa-chart-pie"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold m-0 text-dark">Asosiy Dashboard (Statistika)</h6>
+                            <span class="text-muted" style="font-size: 0.82rem;">Kunlik, haftalik savdo aylanmasi, top mijozlar va tahlillar</span>
+                        </div>
+                        <i class="fas fa-arrow-right ms-auto text-muted"></i>
+                    </a>
+                </div>
+
+                <div class="col-md-6">
+                    <a href="{% url 'chef_panel:order_list' %}" class="quick-stat-card">
+                        <div style="width: 54px; height: 54px; border-radius: 14px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; display: flex; align-items: center; justify-content: center; font-size: 1.8rem;">
+                            <i class="fas fa-receipt"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold m-0 text-dark">Barcha Buyurtmalar Arxivi</h6>
+                            <span class="text-muted" style="font-size: 0.82rem;">Barcha vaqtlardagi buyurtmalar jurnali, filtrlash va qidiruv</span>
+                        </div>
+                        <i class="fas fa-arrow-right ms-auto text-muted"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- TOAST -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+    <div id="settingsToast" class="toast align-items-center text-white border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body d-flex align-items-center gap-2 fw-semibold" id="settingsToastMsg">
+                Xabar
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showSettingsToast(msg, isSuccess = true) {
+        const toastEl = document.getElementById('settingsToast');
+        const msgEl = document.getElementById('settingsToastMsg');
+        if (!toastEl || !msgEl) return;
+
+        toastEl.className = 'toast align-items-center text-white border-0 shadow-lg ' + (isSuccess ? 'bg-success' : 'bg-danger');
+        msgEl.innerHTML = (isSuccess ? '<i class="fas fa-check-circle fs-5"></i> ' : '<i class="fas fa-exclamation-circle fs-5"></i> ') + msg;
+        const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+        toast.show();
+    }
+
+    // Test print
+    function testStationPrint(dept, ipInputId) {
+        const ipInput = document.getElementById(ipInputId);
+        const ip = ipInput ? ipInput.value.trim() : '';
+
+        if (!ip) {
+            showSettingsToast("Iltimos, avval printer IP manzilini kiriting (hozirda printer yo'q bo'lsa shart emas).", false);
+            return;
+        }
+
+        showSettingsToast("Printerga sinov so'rovi yuborilmoqda: " + ip + " ...", true);
+
+        fetch('/chef_panel/api/cashier/printer-settings/test-print/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            },
+            body: JSON.stringify({ department: dept, ip: ip })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showSettingsToast("✅ Chek muvaffaqiyatli chop etildi!", true);
+            } else {
+                showSettingsToast("⚠️ Printerga ulanib bo'lmadi (" + ip + "). Kompyuterga yoki tarmoqqa printer ulanmagan.", false);
+            }
+        })
+        .catch(() => {
+            showSettingsToast("⚠️ Tarmoq xatosi: Printer bilan aloqa yo'q (" + ip + ").", false);
+        });
+    }
+
+    // Toggle staff active state
+    function toggleStaff(type, id) {
+        fetch(`/chef_panel/api/cashier/staff/${type}/${id}/toggle/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showSettingsToast(data.message, true);
+                setTimeout(() => window.location.reload(), 800);
+            } else {
+                showSettingsToast(data.message || 'Xatolik yuz berdi', false);
+            }
+        });
+    }
+
+    // Live search in Stop-List
+    const stopSearch = document.getElementById('stopListSearch');
+    if (stopSearch) {
+        stopSearch.addEventListener('input', function() {
+            const q = this.value.toLowerCase().trim();
+            document.querySelectorAll('.stop-list-row').forEach(row => {
+                const name = row.getAttribute('data-name') || '';
+                row.style.display = name.includes(q) ? '' : 'none';
+            });
+        });
+    }
+
+    // Toggle dish availability (Stop-list)
+    function toggleDishAvailability(prodId, checkbox) {
+        const labelEl = document.getElementById('status-label-' + prodId);
+        fetch(`/chef_panel/api/products/${prodId}/toggle-availability/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (data.is_available) {
+                    labelEl.innerHTML = '<span class="text-success"><i class="fas fa-check-circle"></i> Mavjud (Bor)</span>';
+                    showSettingsToast("Taom menyuda faollashtirildi (Bor)", true);
+                } else {
+                    labelEl.innerHTML = '<span class="text-danger"><i class="fas fa-ban"></i> Stop-List (Yo\'q)</span>';
+                    showSettingsToast("Taom Stop-Listga tushirildi (Tugagan)", false);
+                }
+            } else {
+                checkbox.checked = !checkbox.checked;
+                showSettingsToast("Xatolik yuz berdi", false);
+            }
+        })
+        .catch(() => {
+            checkbox.checked = !checkbox.checked;
+            showSettingsToast("Tarmoq xatosi", false);
+        });
+    }
+</script>
+{% endblock %}

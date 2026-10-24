@@ -413,8 +413,8 @@ class _OrderStationsSheetState extends State<OrderStationsSheet> {
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   shape: RoundedRectangleBorder(
                       borderRadius: StaffDesign.radiusSm),
-                  textStyle:
-                      const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  textStyle: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.bold),
                 ),
               ),
             ],

@@ -93,7 +93,8 @@ class _CartScreenState extends State<CartScreen> {
         customerName: _nameController.text.trim(),
         customerPhone: _phoneController.text.trim(),
         serviceType: _serviceType,
-        deliveryAddress: _serviceType == 'delivery' ? _addressController.text.trim() : '',
+        deliveryAddress:
+            _serviceType == 'delivery' ? _addressController.text.trim() : '',
         latitude: _serviceType == 'delivery' ? _selectedLat : null,
         longitude: _serviceType == 'delivery' ? _selectedLng : null,
         paymentMethod: _paymentMethod,
@@ -191,13 +192,17 @@ class _CartScreenState extends State<CartScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: isDark ? DilkashColors.surfaceDarkElevated : DilkashColors.primary50,
+                          color: isDark
+                              ? DilkashColors.surfaceDarkElevated
+                              : DilkashColors.primary50,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.map_rounded,
                           size: 20,
-                          color: isDark ? DilkashColors.primary400 : DilkashColors.primary500,
+                          color: isDark
+                              ? DilkashColors.primary400
+                              : DilkashColors.primary500,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -250,7 +255,8 @@ class _CartScreenState extends State<CartScreen> {
                             setSheetState(() {
                               tempLat = lat;
                               tempLng = lng;
-                              tempAddress = 'Toshkent sh., ${dist['name']} tumani';
+                              tempAddress =
+                                  'Toshkent sh., ${dist['name']} tumani';
                             });
                             pickerMapController.move(LatLng(lat, lng), 15.0);
                             reverseGeocode(lat, lng);
@@ -307,14 +313,18 @@ class _CartScreenState extends State<CartScreen> {
                         top: 12,
                         left: 16,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.75),
                             borderRadius: DilkashRadii.radiusFull,
                           ),
                           child: Text(
                             'GPS: ${tempLat.toStringAsFixed(4)}, ${tempLng.toStringAsFixed(4)}',
-                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold),
                           ),
                         ),
                       ),
@@ -329,7 +339,9 @@ class _CartScreenState extends State<CartScreen> {
                     color: DilkashColors.surface(isDark),
                     border: Border(
                       top: BorderSide(
-                        color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                        color: isDark
+                            ? DilkashColors.borderDark
+                            : DilkashColors.borderLight,
                       ),
                     ),
                   ),
@@ -350,14 +362,16 @@ class _CartScreenState extends State<CartScreen> {
                                       const SizedBox(
                                         width: 14,
                                         height: 14,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2),
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
                                         'Manzil aniqlanmoqda...',
                                         style: TextStyle(
                                           fontSize: 13,
-                                          color: DilkashColors.textSecondary(isDark),
+                                          color: DilkashColors.textSecondary(
+                                              isDark),
                                         ),
                                       ),
                                     ],
@@ -376,7 +390,6 @@ class _CartScreenState extends State<CartScreen> {
                         ],
                       ),
                       const SizedBox(height: 14),
-
                       DilkashButton(
                         label: 'Ushbu manzilni tasdiqlash',
                         leadingIcon: Icons.check_circle_outline_rounded,
@@ -414,7 +427,8 @@ class _CartScreenState extends State<CartScreen> {
         body: DilkashEmptyState(
           icon: Icons.shopping_bag_outlined,
           title: 'Savatchangiz hozircha boʻsh',
-          message: 'Menyudan xohlagan milliy taom yoki ichimliklarni tanlab, buyurtma bering',
+          message:
+              'Menyudan xohlagan milliy taom yoki ichimliklarni tanlab, buyurtma bering',
           actionLabel: 'Menyuga oʻtish',
           onAction: () {
             if (widget.isRootTab) {
@@ -456,10 +470,14 @@ class _CartScreenState extends State<CartScreen> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFFF1F5F9),
+                  color: isDark
+                      ? DilkashColors.surfaceDarkElevated
+                      : const Color(0xFFF1F5F9),
                   borderRadius: DilkashRadii.radiusMd,
                   border: Border.all(
-                    color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                    color: isDark
+                        ? DilkashColors.borderDark
+                        : DilkashColors.borderLight,
                   ),
                 ),
                 child: Row(
@@ -503,7 +521,9 @@ class _CartScreenState extends State<CartScreen> {
                   color: DilkashColors.surface(isDark),
                   borderRadius: DilkashRadii.radiusLg,
                   border: Border.all(
-                    color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                    color: isDark
+                        ? DilkashColors.borderDark
+                        : DilkashColors.borderLight,
                   ),
                 ),
                 child: ListView.separated(
@@ -512,7 +532,9 @@ class _CartScreenState extends State<CartScreen> {
                   itemCount: cart.items.length,
                   separatorBuilder: (_, __) => Divider(
                     height: 1,
-                    color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                    color: isDark
+                        ? DilkashColors.borderDark
+                        : DilkashColors.borderLight,
                   ),
                   itemBuilder: (context, index) {
                     final item = cart.items[index];
@@ -530,7 +552,8 @@ class _CartScreenState extends State<CartScreen> {
                                   ? Image.network(
                                       item.dish.imageUrl,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const Icon(Icons.restaurant),
+                                      errorBuilder: (_, __, ___) =>
+                                          const Icon(Icons.restaurant),
                                     )
                                   : const Icon(Icons.restaurant),
                             ),
@@ -543,7 +566,8 @@ class _CartScreenState extends State<CartScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  UzbekFormatters.fixUzbekApostrophes(item.dish.name),
+                                  UzbekFormatters.fixUzbekApostrophes(
+                                      item.dish.name),
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
@@ -560,11 +584,14 @@ class _CartScreenState extends State<CartScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  UzbekFormatters.formatCurrency(item.totalPrice),
+                                  UzbekFormatters.formatCurrency(
+                                      item.totalPrice),
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
-                                    color: isDark ? DilkashColors.primary400 : DilkashColors.primary600,
+                                    color: isDark
+                                        ? DilkashColors.primary400
+                                        : DilkashColors.primary600,
                                   ),
                                 ),
                               ],
@@ -656,7 +683,9 @@ class _CartScreenState extends State<CartScreen> {
                   decoration: BoxDecoration(
                     borderRadius: DilkashRadii.radiusMd,
                     border: Border.all(
-                      color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                      color: isDark
+                          ? DilkashColors.borderDark
+                          : DilkashColors.borderLight,
                     ),
                   ),
                   child: ClipRRect(
@@ -667,7 +696,8 @@ class _CartScreenState extends State<CartScreen> {
                           options: MapOptions(
                             initialCenter: LatLng(_selectedLat, _selectedLng),
                             initialZoom: 15.0,
-                            interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
+                            interactionOptions: const InteractionOptions(
+                                flags: InteractiveFlag.none),
                           ),
                           children: [
                             TileLayer(
@@ -697,7 +727,8 @@ class _CartScreenState extends State<CartScreen> {
                           child: InkWell(
                             onTap: _openInteractiveMapPicker,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
                                 color: Colors.black.withValues(alpha: 0.8),
                                 borderRadius: DilkashRadii.radiusFull,
@@ -705,11 +736,15 @@ class _CartScreenState extends State<CartScreen> {
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.crop_free_rounded, color: Colors.white, size: 14),
+                                  Icon(Icons.crop_free_rounded,
+                                      color: Colors.white, size: 14),
                                   SizedBox(width: 4),
                                   Text(
                                     'Xaritani ochish',
-                                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
@@ -789,18 +824,24 @@ class _CartScreenState extends State<CartScreen> {
                     label: cart.promoCode != null ? 'Oʻchirish' : 'Qoʻllash',
                     isFullWidth: false,
                     size: DilkashButtonSize.md,
-                    variant: cart.promoCode != null ? DilkashButtonVariant.outline : DilkashButtonVariant.primary,
+                    variant: cart.promoCode != null
+                        ? DilkashButtonVariant.outline
+                        : DilkashButtonVariant.primary,
                     onPressed: () {
                       if (cart.promoCode != null) {
                         cart.removePromoCode();
                         _promoController.clear();
-                        DilkashFeedback.showInfo(context, 'Promokod bekor qilindi');
+                        DilkashFeedback.showInfo(
+                            context, 'Promokod bekor qilindi');
                       } else {
-                        final success = cart.applyPromoCode(_promoController.text);
+                        final success =
+                            cart.applyPromoCode(_promoController.text);
                         if (success) {
-                          DilkashFeedback.showSuccess(context, 'Promokod muvaffaqiyatli qoʻllandi!');
+                          DilkashFeedback.showSuccess(
+                              context, 'Promokod muvaffaqiyatli qoʻllandi!');
                         } else {
-                          DilkashFeedback.showError(context, 'Notoʻgʻri promokod. Sinab koʻring: DILKASH5 yoki YANGI');
+                          DilkashFeedback.showError(context,
+                              'Notoʻgʻri promokod. Sinab koʻring: DILKASH5 yoki YANGI');
                         }
                       }
                     },
@@ -810,7 +851,8 @@ class _CartScreenState extends State<CartScreen> {
               if (cart.promoCode != null) ...[
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     color: DilkashColors.successLight,
                     borderRadius: DilkashRadii.radiusSm,
@@ -818,7 +860,8 @@ class _CartScreenState extends State<CartScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.check_circle_rounded, color: DilkashColors.success, size: 16),
+                      const Icon(Icons.check_circle_rounded,
+                          color: DilkashColors.success, size: 16),
                       const SizedBox(width: 6),
                       Text(
                         'Aksiya: ${cart.promoCode} (-${UzbekFormatters.formatCurrency(cart.promoDiscount)})',
@@ -850,7 +893,8 @@ class _CartScreenState extends State<CartScreen> {
                   spacing: 8,
                   children: _tipOptions.map((tip) {
                     final isSelected = _tipAmount == tip;
-                    final label = tip == 0 ? 'Yoʻq' : UzbekFormatters.formatCurrency(tip);
+                    final label =
+                        tip == 0 ? 'Yoʻq' : UzbekFormatters.formatCurrency(tip);
                     return ChoiceChip(
                       label: Text(label),
                       selected: isSelected,
@@ -914,17 +958,22 @@ class _CartScreenState extends State<CartScreen> {
                   color: DilkashColors.surface(isDark),
                   borderRadius: DilkashRadii.radiusLg,
                   border: Border.all(
-                    color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                    color: isDark
+                        ? DilkashColors.borderDark
+                        : DilkashColors.borderLight,
                   ),
                 ),
                 child: Column(
                   children: [
-                    _buildSummaryRow(isDark, 'Taomlar qiymati', UzbekFormatters.formatCurrency(cart.subtotalPrice)),
+                    _buildSummaryRow(isDark, 'Taomlar qiymati',
+                        UzbekFormatters.formatCurrency(cart.subtotalPrice)),
                     const SizedBox(height: 8),
                     _buildSummaryRow(
                       isDark,
                       'Yetkazib berish',
-                      _serviceType == 'delivery' ? UzbekFormatters.formatCurrency(deliveryCost) : 'Bepul',
+                      _serviceType == 'delivery'
+                          ? UzbekFormatters.formatCurrency(deliveryCost)
+                          : 'Bepul',
                     ),
                     if (cart.promoDiscount > 0) ...[
                       const SizedBox(height: 8),
@@ -947,7 +996,9 @@ class _CartScreenState extends State<CartScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       child: Divider(
                         height: 1,
-                        color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                        color: isDark
+                            ? DilkashColors.borderDark
+                            : DilkashColors.borderLight,
                       ),
                     ),
                     Row(
@@ -966,7 +1017,9 @@ class _CartScreenState extends State<CartScreen> {
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: isDark ? DilkashColors.primary400 : DilkashColors.primary600,
+                            color: isDark
+                                ? DilkashColors.primary400
+                                : DilkashColors.primary600,
                           ),
                         ),
                       ],
@@ -978,7 +1031,8 @@ class _CartScreenState extends State<CartScreen> {
 
               // Submit Order Button
               DilkashButton(
-                label: 'Buyurtmani Tasdiqlash • ${UzbekFormatters.formatCurrency(finalPayable)}',
+                label:
+                    'Buyurtmani Tasdiqlash • ${UzbekFormatters.formatCurrency(finalPayable)}',
                 leadingIcon: Icons.check_circle_rounded,
                 isLoading: _isSubmitting,
                 onPressed: () => _submitOrder(cart),
@@ -1016,7 +1070,9 @@ class _CartScreenState extends State<CartScreen> {
                 icon,
                 size: 18,
                 color: isSelected
-                    ? (isDark ? DilkashColors.primary400 : DilkashColors.primary500)
+                    ? (isDark
+                        ? DilkashColors.primary400
+                        : DilkashColors.primary500)
                     : DilkashColors.textSecondary(isDark),
               ),
               const SizedBox(width: 8),
@@ -1045,7 +1101,9 @@ class _CartScreenState extends State<CartScreen> {
   }) {
     return Material(
       color: isSelected
-          ? (isDark ? DilkashColors.surfaceDarkElevated : DilkashColors.primary50)
+          ? (isDark
+              ? DilkashColors.surfaceDarkElevated
+              : DilkashColors.primary50)
           : DilkashColors.surface(isDark),
       borderRadius: DilkashRadii.radiusSm,
       child: InkWell(
@@ -1058,7 +1116,9 @@ class _CartScreenState extends State<CartScreen> {
             border: Border.all(
               color: isSelected
                   ? DilkashColors.primary(isDark)
-                  : (isDark ? DilkashColors.borderDark : DilkashColors.borderLight),
+                  : (isDark
+                      ? DilkashColors.borderDark
+                      : DilkashColors.borderLight),
               width: isSelected ? 1.5 : 1.0,
             ),
           ),
@@ -1103,7 +1163,9 @@ class _CartScreenState extends State<CartScreen> {
   }) {
     return Material(
       color: isSelected
-          ? (isDark ? DilkashColors.surfaceDarkElevated : DilkashColors.primary50)
+          ? (isDark
+              ? DilkashColors.surfaceDarkElevated
+              : DilkashColors.primary50)
           : DilkashColors.surface(isDark),
       borderRadius: DilkashRadii.radiusSm,
       child: InkWell(
@@ -1116,7 +1178,9 @@ class _CartScreenState extends State<CartScreen> {
             border: Border.all(
               color: isSelected
                   ? DilkashColors.primary(isDark)
-                  : (isDark ? DilkashColors.borderDark : DilkashColors.borderLight),
+                  : (isDark
+                      ? DilkashColors.borderDark
+                      : DilkashColors.borderLight),
               width: isSelected ? 1.5 : 1.0,
             ),
           ),
@@ -1147,7 +1211,8 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  Widget _buildSummaryRow(bool isDark, String label, String value, {bool isGreen = false}) {
+  Widget _buildSummaryRow(bool isDark, String label, String value,
+      {bool isGreen = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [

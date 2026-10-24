@@ -68,7 +68,8 @@ class _DishDetailSheetState extends State<DishDetailSheet> {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF2A4235) : const Color(0xFFCBD5E1),
+                color:
+                    isDark ? const Color(0xFF2A4235) : const Color(0xFFCBD5E1),
                 borderRadius: DilkashRadii.radiusFull,
               ),
             ),
@@ -89,12 +90,15 @@ class _DishDetailSheetState extends State<DishDetailSheet> {
                         child: Container(
                           height: 200,
                           width: double.infinity,
-                          color: isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFFF1F5F9),
+                          color: isDark
+                              ? DilkashColors.surfaceDarkElevated
+                              : const Color(0xFFF1F5F9),
                           child: widget.dish.imageUrl.isNotEmpty
                               ? Image.network(
                                   widget.dish.imageUrl,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => _buildFallbackImage(isDark),
+                                  errorBuilder: (_, __, ___) =>
+                                      _buildFallbackImage(isDark),
                                 )
                               : _buildFallbackImage(isDark),
                         ),
@@ -104,7 +108,8 @@ class _DishDetailSheetState extends State<DishDetailSheet> {
                         top: 10,
                         right: 10,
                         child: Material(
-                          color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.85),
+                          color: (isDark ? Colors.black : Colors.white)
+                              .withValues(alpha: 0.85),
                           shape: const CircleBorder(),
                           child: InkWell(
                             customBorder: const CircleBorder(),
@@ -112,9 +117,15 @@ class _DishDetailSheetState extends State<DishDetailSheet> {
                             child: Padding(
                               padding: const EdgeInsets.all(8),
                               child: Icon(
-                                isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                isFav
+                                    ? Icons.favorite_rounded
+                                    : Icons.favorite_border_rounded,
                                 size: 20,
-                                color: isFav ? Colors.redAccent : (isDark ? Colors.white70 : Colors.black54),
+                                color: isFav
+                                    ? Colors.redAccent
+                                    : (isDark
+                                        ? Colors.white70
+                                        : Colors.black54),
                               ),
                             ),
                           ),
@@ -133,7 +144,8 @@ class _DishDetailSheetState extends State<DishDetailSheet> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              UzbekFormatters.fixUzbekApostrophes(widget.dish.name),
+                              UzbekFormatters.fixUzbekApostrophes(
+                                  widget.dish.name),
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w800,
@@ -167,7 +179,9 @@ class _DishDetailSheetState extends State<DishDetailSheet> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: isDark ? DilkashColors.primary400 : DilkashColors.primary600,
+                          color: isDark
+                              ? DilkashColors.primary400
+                              : DilkashColors.primary600,
                         ),
                       ),
                     ],
@@ -176,7 +190,8 @@ class _DishDetailSheetState extends State<DishDetailSheet> {
                   if (widget.dish.description.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Text(
-                      UzbekFormatters.fixUzbekApostrophes(widget.dish.description),
+                      UzbekFormatters.fixUzbekApostrophes(
+                          widget.dish.description),
                       style: TextStyle(
                         fontSize: 14,
                         color: DilkashColors.textSecondary(isDark),
@@ -206,7 +221,8 @@ class _DishDetailSheetState extends State<DishDetailSheet> {
                       return DilkashFilterChip(
                         label: portion,
                         isSelected: isSelected,
-                        onSelected: () => setState(() => _selectedPortion = portion),
+                        onSelected: () =>
+                            setState(() => _selectedPortion = portion),
                       );
                     }).toList(),
                   ),
@@ -242,13 +258,19 @@ class _DishDetailSheetState extends State<DishDetailSheet> {
                             }
                           });
                         },
-                        selectedColor: isDark ? DilkashColors.primary400 : DilkashColors.primary50,
-                        checkmarkColor: isDark ? Colors.black : DilkashColors.primary500,
+                        selectedColor: isDark
+                            ? DilkashColors.primary400
+                            : DilkashColors.primary50,
+                        checkmarkColor:
+                            isDark ? Colors.black : DilkashColors.primary500,
                         labelStyle: TextStyle(
                           color: isSelected
-                              ? (isDark ? Colors.black : DilkashColors.primary700)
+                              ? (isDark
+                                  ? Colors.black
+                                  : DilkashColors.primary700)
                               : DilkashColors.textPrimary(isDark),
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w500,
                           fontSize: 13,
                         ),
                       );
@@ -271,7 +293,8 @@ class _DishDetailSheetState extends State<DishDetailSheet> {
                   const SizedBox(height: 8),
                   DilkashTextField(
                     controller: _notesController,
-                    hintText: 'Masalan: piyoz kamroq boʻlsin, sirka alohida solinsin...',
+                    hintText:
+                        'Masalan: piyoz kamroq boʻlsin, sirka alohida solinsin...',
                     maxLines: 2,
                   ),
                 ],
@@ -286,7 +309,9 @@ class _DishDetailSheetState extends State<DishDetailSheet> {
               color: DilkashColors.surface(isDark),
               border: Border(
                 top: BorderSide(
-                  color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                  color: isDark
+                      ? DilkashColors.borderDark
+                      : DilkashColors.borderLight,
                 ),
               ),
             ),
@@ -303,7 +328,8 @@ class _DishDetailSheetState extends State<DishDetailSheet> {
                 // Add to Cart Button
                 Expanded(
                   child: DilkashButton(
-                    label: 'Savatga • ${UzbekFormatters.formatCurrency(currentTotal)}',
+                    label:
+                        'Savatga • ${UzbekFormatters.formatCurrency(currentTotal)}',
                     leadingIcon: Icons.shopping_bag_outlined,
                     onPressed: () {
                       cart.addItem(

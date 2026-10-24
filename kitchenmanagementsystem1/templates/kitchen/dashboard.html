@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Statistika - full width -->
+<div class="stats-grid">
+    <div class="stat-card" style="background-color: #3498db;">
+        <div style="font-size: 48px;">{{ new_orders_count }}</div>
+        <div style="font-size: 20px;">🆕 Yangi</div>
+    </div>
+    
+    <div class="stat-card" style="background-color: #f39c12;">
+        <div style="font-size: 48px;">{{ preparing_orders_count }}</div>
+        <div style="font-size: 20px;">👨‍🍳 Tayyorlanmoqda</div>
+    </div>
+    
+    <div class="stat-card" style="background-color: #9b59b6;">
+        <div style="font-size: 48px;">{{ ready_orders_count }}</div>
+        <div style="font-size: 20px;">🍽️ Tayyor</div>
+    </div>
+</div>
+
+<!-- So'nggi buyurtmalar - Grid ko'rinish -->
+<div class="card">
+    <div class="card-title">📋 So'nggi buyurtmalar</div>
+    
+    {% if recent_orders %}
+        <div class="orders-grid">
+            {% for order in recent_orders %}
+            <div class="order-card {% if order.status == 'yangi' %}new{% elif order.status == 'tayyorlanmoqda' %}preparing{% elif order.status == 'tayyor' %}ready{% endif %}" 
+                 onclick="window.location.href='{% url 'kitchen:order_detail' order.order_id %}'">
+                
+                <div class="order-header">
+                    <div style="font-size: 24px; font-weight: bold;">
+                        #{{ order.order_id }}
+                    </div>
+                    <div style="font-size: 16px; color: #7f8c8d;">
+                        {{ order.created_at|date:"H:i" }}
+                    </div>
+                </div>
+                
+                <div class="order-body">
+                    <div>
+                        <div style="font-size: 18px; margin-bottom: 5px;">
+                            👤 {{ order.customer_name|truncatewords:2 }}
+                        </div>
+                        <div style="font-size: 16px; color: #7f8c8d; margin-bottom: 8px;">
+                            📦 {{ order.items.count }} ta mahsulot
+                        </div>
+                        
+                        <!-- Mahsulotlar ro'yxati -->
+                        <div style="font-size: 14px; color: #495057; margin-bottom: 8px;">
+                            {% for item in order.items.all|slice:":2" %}
+                                <div>• {{ item.product.name }} ({{ item.quantity }}ta)</div>
+                            {% endfor %}
+                            {% if order.items.count > 2 %}
+                                <div style="color: #6c757d;">... +{{ order.items.count|add:"-2" }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="order-footer">
+                        <div style="margin-bottom: 8px;">
+                            <span class="status status-{{ order.status }}" style="font-size: 16px; padding: 5px 10px;">
+                                {{ order.get_status_display_with_icon }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center" style="padding: 30px 0;">
+            <div style="font-size: 48px; color: #bdc3c7;">📭</div>
+            <div style="font-size: 24px; color: #7f8c8d;">Buyurtmalar yo'q</div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Tezkor tugmalar -->
+<div class="flex flex-wrap flex-gap" style="margin-top: 10px;">
+    <a href="{% url 'kitchen:orders_list' %}?status=yangi" class="btn btn-primary" style="flex: 1;">
+        🆕 Yangi buyurtmalar
+    </a>
+    <a href="{% url 'kitchen:products_list' %}" class="btn btn-success" style="flex: 1;">
+        🍔 Mahsulotlar
+    </a>
+</div>
+{% endblock %}

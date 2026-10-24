@@ -1,0 +1,794 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Oshxona KDS - Yangi Buyurtmalar{% endblock %}
+{% block header_title %}Oshxona va Kassa Doskasi (KDS Live){% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 2026/2027 KITCHEN DISPLAY SYSTEM (KDS) AESTHETICS */
+    .kds-header-bar {
+        background: #ffffff;
+        border: 1px solid var(--border-card);
+        border-radius: var(--radius-lg);
+        padding: 18px 24px;
+        margin-bottom: 24px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        box-shadow: var(--shadow-card);
+    }
+
+    .kds-title-group h2 {
+        font-size: 1.45rem;
+        font-weight: 800;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .live-pulse-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(239, 68, 68, 0.12);
+        border: 1px solid rgba(239, 68, 68, 0.25);
+        color: #ef4444;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: var(--radius-pill);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .pulse-dot-red {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #ef4444;
+        animation: pulse-red 1.5s infinite;
+    }
+
+    @keyframes pulse-red {
+        0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+        70% { transform: scale(1.1); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+        100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    /* Filter Chips */
+    .kds-filters {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .filter-chip {
+        background: #f1f5f9;
+        border: 1px solid var(--border-subtle);
+        color: var(--text-body);
+        font-size: 0.82rem;
+        font-weight: 600;
+        padding: 6px 14px;
+        border-radius: var(--radius-pill);
+        cursor: pointer;
+        transition: var(--transition-smooth);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .filter-chip:hover, .filter-chip.active {
+        background: var(--brand-primary);
+        border-color: var(--brand-primary);
+        color: white;
+        transform: translateY(-1px);
+    }
+
+    /* Orders Grid */
+    .orders-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 20px;
+    }
+
+    .order-card-kds {
+        background: #ffffff;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-card);
+        box-shadow: var(--shadow-card);
+        display: flex;
+        flex-direction: column;
+        transition: var(--transition-smooth);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .order-card-kds:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-card-hover);
+    }
+
+    /* Status accent bar */
+    .card-accent-strip {
+        height: 6px;
+        width: 100%;
+    }
+
+    .accent-yangi { background: linear-gradient(90deg, #6366f1, #818cf8); }
+    .accent-tasdiqlangan { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .accent-tayor { background: linear-gradient(90deg, #10b981, #34d399); }
+
+    .order-card-header {
+        padding: 16px 20px 12px 20px;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .order-main-meta h3 {
+        font-size: 1.35rem;
+        font-weight: 800;
+        margin: 0;
+        color: var(--text-heading);
+    }
+
+    .order-time-badge {
+        font-size: 0.78rem;
+        color: #64748b;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 3px;
+    }
+
+    /* Channel / Table prominent badge */
+    .service-badge-kds {
+        font-family: 'Outfit', sans-serif;
+        font-size: 0.85rem;
+        font-weight: 700;
+        padding: 6px 12px;
+        border-radius: var(--radius-md);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .badge-dine {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        box-shadow: 0 4px 10px rgba(16, 185, 129, 0.25);
+    }
+
+    .badge-pickup {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        box-shadow: 0 4px 10px rgba(245, 158, 11, 0.25);
+    }
+
+    .badge-delivery {
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        color: white;
+        box-shadow: 0 4px 10px rgba(2, 132, 199, 0.25);
+    }
+
+    /* Customer details strip */
+    .order-customer-strip {
+        padding: 12px 20px;
+        background: #f8fafc;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.86rem;
+    }
+
+    .customer-name-bold {
+        font-weight: 700;
+        color: var(--text-heading);
+    }
+
+    .customer-phone-mono {
+        font-family: 'Courier New', monospace;
+        font-weight: 700;
+        color: #059669;
+        font-size: 0.88rem;
+    }
+
+    /* Products Item Box */
+    .order-items-wrapper {
+        padding: 16px 20px;
+        flex: 1;
+        background: #ffffff;
+    }
+
+    .items-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 10px;
+    }
+
+    .items-list-flow {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .kds-item-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 10px;
+        background: #f8fafc;
+        border-radius: var(--radius-sm);
+        border: 1px solid #f1f5f9;
+        font-size: 0.88rem;
+    }
+
+    .kds-qty-badge {
+        background: #e0e7ff;
+        color: #4338ca;
+        font-weight: 800;
+        font-size: 0.82rem;
+        padding: 2px 7px;
+        border-radius: 6px;
+        margin-right: 8px;
+    }
+
+    .kds-item-name {
+        font-weight: 600;
+        color: var(--text-heading);
+    }
+
+    .kds-item-price {
+        font-weight: 700;
+        color: #475569;
+        font-size: 0.85rem;
+    }
+
+    /* Card Footer & Actions */
+    .order-card-footer {
+        padding: 14px 20px;
+        background: #ffffff;
+        border-top: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .order-total-block {
+        line-height: 1.1;
+    }
+
+    .total-title {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+    }
+
+    .total-sum {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .card-actions-row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .btn-action-kds {
+        padding: 7px 12px;
+        border-radius: var(--radius-md);
+        font-size: 0.82rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        border: none;
+        cursor: pointer;
+        transition: var(--transition-smooth);
+    }
+
+    .btn-action-kds:hover {
+        transform: translateY(-2px);
+    }
+
+    /* Sound indicator */
+    .sound-toggle-btn {
+        background: #f1f5f9;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-pill);
+        padding: 6px 14px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-body);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: var(--transition-smooth);
+    }
+
+    .sound-toggle-btn.active {
+        background: #e0f2fe;
+        border-color: #7dd3fc;
+        color: #0369a1;
+    }
+
+    /* Spinning refresh icon */
+    .spinning {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        100% { transform: rotate(360deg); }
+    }
+
+    /* MODAL POPUP */
+    .popup-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(8px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .popup-overlay.active {
+        display: flex;
+    }
+
+    .popup-card {
+        background: white;
+        border-radius: var(--radius-xl);
+        width: 90%;
+        max-width: 540px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        animation: modalScale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalScale {
+        from { transform: scale(0.95); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- KDS HEADER CONTROLS BAR -->
+<div class="kds-header-bar">
+    <div class="kds-title-group">
+        <h2>
+            <i class="fas fa-fire-burner text-warning"></i>
+            Oshxona Navbati
+            <span class="live-pulse-indicator">
+                <span class="pulse-dot-red"></span>
+                <span>LIVE REJIM</span>
+            </span>
+        </h2>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="kds-filters">
+        <button class="filter-chip active" data-filter="all">
+            <i class="fas fa-layer-group"></i> Barchasi (<span id="orders-count">{{ orders.count }}</span>)
+        </button>
+        <button class="filter-chip" data-filter="dine_in">
+            <i class="fas fa-chair text-success"></i> Stollar (Dine-in)
+        </button>
+        <button class="filter-chip" data-filter="pickup">
+            <i class="fas fa-bag-shopping text-warning"></i> Olib ketish
+        </button>
+        <button class="filter-chip" data-filter="delivery">
+            <i class="fas fa-motorcycle text-info"></i> Yetkazish
+        </button>
+    </div>
+
+    <!-- AUDIO & CONTROLS -->
+    <div class="d-flex align-items-center gap-2">
+        <button class="sound-toggle-btn active" id="toggleSoundBtn">
+            <i class="fas fa-volume-high"></i>
+            <span>Ovoz: Yoqilgan</span>
+        </button>
+        <button class="btn btn-sm btn-outline-secondary" id="manualRefreshBtn" title="Yangilash">
+            <i class="fas fa-sync-alt" id="refresh-icon"></i>
+        </button>
+    </div>
+</div>
+
+<!-- ORDERS GRID CONTAINER -->
+<div class="orders-grid" id="new-orders-container">
+    {% for order in orders %}
+    <div class="order-card-kds filter-item-{{ order.service_type }}" data-order-id="{{ order.id }}">
+        <!-- Accent Strip -->
+        <div class="card-accent-strip accent-{{ order.status }}"></div>
+
+        <!-- Order Header -->
+        <div class="order-card-header">
+            <div class="order-main-meta">
+                <h3>#{{ order.order_number }}</h3>
+                <div class="order-time-badge">
+                    <i class="far fa-clock"></i>
+                    <span>{{ order.created_at|date:"H:i" }} ({{ order.created_at|date:"d-M" }})</span>
+                </div>
+            </div>
+
+            <!-- Service Badge -->
+            <div>
+                {% if order.service_type == 'dine_in' %}
+                    <span class="service-badge-kds badge-dine">
+                        <i class="fas fa-chair"></i> STOL #{{ order.table_number|default:"1" }}
+                    </span>
+                {% elif order.service_type == 'pickup' %}
+                    <span class="service-badge-kds badge-pickup">
+                        <i class="fas fa-bag-shopping"></i> Olib ketish
+                    </span>
+                {% else %}
+                    <span class="service-badge-kds badge-delivery">
+                        <i class="fas fa-motorcycle"></i> Yetkazish
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Customer Strip -->
+        <div class="order-customer-strip">
+            <div class="d-flex align-items-center gap-2">
+                <i class="far fa-user text-muted"></i>
+                <span class="customer-name-bold">{{ order.customer.full_name }}</span>
+            </div>
+            <div class="customer-phone-mono">
+                {{ order.customer.phone_number }}
+            </div>
+        </div>
+
+        <!-- Items Box -->
+        <div class="order-items-wrapper">
+            <div class="d-flex justify-content-between items-title">
+                <span>Taomlar ro'yxati ({{ order.items.count }} xil)</span>
+                <span class="badge-status {{ order.status }}">{{ order.get_status_display }}</span>
+            </div>
+            <div class="items-list-flow">
+                {% for item in order.items.all %}
+                <div class="kds-item-row">
+                    <div class="d-flex align-items-center">
+                        <span class="kds-qty-badge">{{ item.quantity }}x</span>
+                        <span class="kds-item-name">{{ item.product.name }}</span>
+                    </div>
+                    <span class="kds-item-price">{{ item.total|floatformat:0 }} so'm</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Footer / Actions -->
+        <div class="order-card-footer">
+            <div class="order-total-block">
+                <div class="total-title">Umumiy to'lov:</div>
+                <div class="total-sum">{{ order.total_amount|floatformat:0 }} <small style="font-size: 0.75rem;">so'm</small></div>
+            </div>
+
+            <div class="card-actions-row">
+                <!-- Chek chiqarish -->
+                <a href="{% url 'chef_panel:thermal_receipt' order.id %}" target="_blank" class="btn-action-kds btn-light border text-dark" title="Termal printer cheki">
+                    <i class="fas fa-print"></i> Chek
+                </a>
+
+                <!-- Ko'rish popup -->
+                <button class="btn-action-kds btn-light border view-order-details text-primary" data-order-id="{{ order.id }}">
+                    <i class="fas fa-eye"></i>
+                </button>
+
+                <!-- STATUS TUGMALARI -->
+                {% if order.status == 'yangi' %}
+                    <button class="btn-action-kds btn-success confirm-order" data-order-id="{{ order.id }}">
+                        <i class="fas fa-check"></i> Tasdiqlash
+                    </button>
+                {% elif order.status == 'tasdiqlangan' %}
+                    <button class="btn-action-kds btn-warning ready-order" data-order-id="{{ order.id }}">
+                        <i class="fas fa-utensils"></i> Tayor
+                    </button>
+                {% elif order.status == 'tayor' and order.service_type == 'pickup' %}
+                    <button class="btn-action-kds btn-success picked-up-order" data-order-id="{{ order.id }}">
+                        <i class="fas fa-hand-holding"></i> Olib ketildi
+                    </button>
+                {% elif order.status == 'tayor' and order.service_type == 'dine_in' %}
+                    <button class="btn-action-kds btn-success served-order" data-order-id="{{ order.id }}">
+                        <i class="fas fa-concierge-bell"></i> Stolga berildi
+                    </button>
+                {% endif %}
+
+                <!-- Kassir: Stolni yopish va to'lov -->
+                {% if order.service_type == 'dine_in' %}
+                    <button class="btn-action-kds btn-primary close-dinein-order" data-order-id="{{ order.id }}" data-table="{{ order.table_number }}" style="background: linear-gradient(135deg, #10b981, #059669); border:none; font-weight:700; color:white;" title="Kassir: To'lovni qabul qilib, stolni yopish">
+                        <i class="fas fa-cash-register"></i> To'lov & Yopish
+                    </button>
+                {% endif %}
+
+                <!-- Bekor qilish -->
+                <button class="btn-action-kds btn-outline-danger cancel-order" data-order-id="{{ order.id }}" title="Bekor qilish">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; background: white; border-radius: var(--radius-lg); border: 1px dashed var(--border-subtle);">
+        <i class="fas fa-champagne-glasses fa-3x text-muted mb-3 opacity-50"></i>
+        <h4 class="text-heading fw-bold">Yangi buyurtmalar navbati bo'sh</h4>
+        <p class="text-muted">Yangi buyurtmalar kelganda bu yerda darhol aks etadi va ovozli signal yangraydi.</p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- OVOZ ELEMENTI -->
+<audio id="new-order-sound" src="{% static 'sounds/new_order.mp3' %}" preload="auto"></audio>
+
+<!-- TAFSILOTLAR POPUP MODALI -->
+<div class="popup-overlay" id="order-detail-popup">
+    <div class="popup-card">
+        <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+            <h5 class="m-0 fw-bold"><i class="fas fa-receipt me-2 text-primary"></i>Buyurtma <span id="popup-order-number">#</span></h5>
+            <button class="btn-close" id="close-popup"></button>
+        </div>
+        <div class="p-3">
+            <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Holat:</span>
+                <span id="popup-status"></span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Mijoz:</span>
+                <strong id="popup-customer-name"></strong>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Telefon:</span>
+                <span id="popup-customer-phone" class="fw-bold text-success font-monospace"></span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Xizmat turi:</span>
+                <span id="popup-service-type" class="fw-semibold"></span>
+            </div>
+            <div class="d-flex justify-content-between mb-3">
+                <span class="text-muted">To'lov:</span>
+                <span id="popup-payment-method" class="fw-semibold"></span>
+            </div>
+
+            <div class="border-top pt-2 mb-3">
+                <div class="text-muted small fw-bold mb-2 uppercase">Mahsulotlar:</div>
+                <div id="popup-products-list" class="d-flex flex-column gap-1"></div>
+            </div>
+
+            <div class="border-top pt-2 d-flex justify-content-between align-items-center">
+                <strong class="text-heading">Jami Summa:</strong>
+                <h4 class="m-0 fw-bold text-primary font-monospace" id="popup-total-amount">0 so'm</h4>
+            </div>
+
+            <!-- Kassir uchun stolni yopish bloki -->
+            <div id="popup-dinein-actions" class="mt-3 pt-2 border-top d-grid gap-2" style="display:none;">
+                <button class="btn btn-success fw-bold py-2 close-dinein-order" id="popup-close-table-btn" style="background: linear-gradient(135deg, #10b981, #059669); border:none;">
+                    <i class="fas fa-cash-register me-2"></i>Kassir: To'lovni qabul qilish & Stolni yopish
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    let soundEnabled = true;
+    const soundEl = document.getElementById('new-order-sound');
+    let prevOrderCount = parseInt($('#orders-count').text()) || 0;
+
+    // Toggle Sound
+    $('#toggleSoundBtn').click(function() {
+        soundEnabled = !soundEnabled;
+        if (soundEnabled) {
+            $(this).addClass('active').html('<i class="fas fa-volume-high"></i> <span>Ovoz: Yoqilgan</span>');
+        } else {
+            $(this).removeClass('active').html('<i class="fas fa-volume-xmark"></i> <span>Ovoz: O\'chiq</span>');
+        }
+    });
+
+    // Filter Chips
+    $('.filter-chip').click(function() {
+        $('.filter-chip').removeClass('active');
+        $(this).addClass('active');
+        const filter = $(this).data('filter');
+
+        if (filter === 'all') {
+            $('.order-card-kds').show();
+        } else {
+            $('.order-card-kds').hide();
+            $('.filter-item-' + filter).show();
+        }
+    });
+
+    // Auto-refresh orders every 3 seconds
+    function pollNewOrders() {
+        $('#refresh-icon').addClass('spinning');
+        $.ajax({
+            url: '{% url "chef_panel:new_orders" %}',
+            type: 'GET',
+            success: function(data) {
+                const tempDiv = $('<div>').html(data);
+                const newGridHtml = tempDiv.find('#new-orders-container').html();
+                const newCount = parseInt(tempDiv.find('#orders-count').text()) || 0;
+
+                if (newCount > prevOrderCount && soundEnabled && soundEl) {
+                    soundEl.play().catch(e => console.log('Audio autoplay prevented'));
+                }
+                prevOrderCount = newCount;
+
+                $('#orders-count').text(newCount);
+                $('#sidebar-order-count').text(newCount);
+                $('#new-orders-container').html(newGridHtml);
+
+                // Re-apply active filter if needed
+                const activeFilter = $('.filter-chip.active').data('filter');
+                if (activeFilter && activeFilter !== 'all') {
+                    $('.order-card-kds').hide();
+                    $('.filter-item-' + activeFilter).show();
+                }
+            },
+            complete: function() {
+                $('#refresh-icon').removeClass('spinning');
+            }
+        });
+    }
+
+    setInterval(pollNewOrders, 3000);
+    $('#manualRefreshBtn').click(pollNewOrders);
+
+    // Order Action Handlers
+    function updateStatus(orderId, status, button, label) {
+        button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+        $.ajax({
+            url: '{% url "chef_panel:update_order_status" %}',
+            type: 'POST',
+            data: JSON.stringify({ order_id: orderId, status: status }),
+            contentType: 'application/json',
+            success: function(res) {
+                if (res.success) {
+                    button.html('<i class="fas fa-check"></i> ' + label);
+                    setTimeout(pollNewOrders, 500);
+                } else {
+                    alert(res.message || 'Xatolik yuz berdi');
+                    button.prop('disabled', false);
+                }
+            },
+            error: function(xhr) {
+                alert("Xato: " + (xhr.responseJSON ? xhr.responseJSON.message : "So'rovda xatolik"));
+                button.prop('disabled', false);
+            }
+        });
+    }
+
+    $(document).on('click', '.confirm-order', function(e) {
+        e.preventDefault();
+        updateStatus($(this).data('order-id'), 'tasdiqlangan', $(this), 'Tasdiqlandi');
+    });
+
+    $(document).on('click', '.ready-order', function(e) {
+        e.preventDefault();
+        updateStatus($(this).data('order-id'), 'tayor', $(this), 'Tayyor');
+    });
+
+    $(document).on('click', '.picked-up-order', function(e) {
+        e.preventDefault();
+        updateStatus($(this).data('order-id'), 'olib_ketildi', $(this), 'Olib ketildi');
+    });
+
+    $(document).on('click', '.served-order', function(e) {
+        e.preventDefault();
+        updateStatus($(this).data('order-id'), 'yetkazildi', $(this), 'Stolga berildi');
+    });
+
+    // Kassir: Stolni yopish va to'lovni tasdiqlash
+    $(document).on('click', '.close-dinein-order', function(e) {
+        e.preventDefault();
+        const orderId = $(this).data('order-id');
+        const tableNum = $(this).data('table') || '';
+        const promptMsg = tableNum ? `Stol #${tableNum} to'lovini qabul qilib, stolni yopishni tasdiqlaysizmi?` : "Buyurtma hisobini yopishni tasdiqlaysizmi?";
+        if (!confirm(promptMsg)) return;
+
+        const btn = $(this);
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+        $.ajax({
+            url: `/chef_panel/api/waiter/order/${orderId}/close/`,
+            type: 'POST',
+            success: function(res) {
+                if (res.success) {
+                    btn.html('<i class="fas fa-check"></i> To\'landi & Yopildi');
+                    $('#order-detail-popup').removeClass('active');
+                    setTimeout(pollNewOrders, 500);
+                } else {
+                    alert(res.message || 'Xatolik yuz berdi');
+                    btn.prop('disabled', false);
+                }
+            },
+            error: function() {
+                alert("Xatolik yuz berdi");
+                btn.prop('disabled', false);
+            }
+        });
+    });
+
+    $(document).on('click', '.cancel-order', function(e) {
+        e.preventDefault();
+        if (confirm("Ushbu buyurtmani bekor qilishni xohlaysizmi?")) {
+            updateStatus($(this).data('order-id'), 'bekor_qilingan', $(this), 'Bekor qilindi');
+        }
+    });
+
+    // View Details Modal Popup
+    $(document).on('click', '.view-order-details', function(e) {
+        e.preventDefault();
+        const orderId = $(this).data('order-id');
+        $.ajax({
+            url: '{% url "chef_panel:get_order_details_api" 0 %}'.replace('0', orderId),
+            type: 'GET',
+            success: function(res) {
+                if (res.success) {
+                    const order = res.order;
+                    $('#popup-order-number').text(order.order_number);
+                    $('#popup-status').text(order.status_display);
+                    $('#popup-customer-name').text(order.customer.full_name);
+                    $('#popup-customer-phone').text(order.customer.phone_number);
+                    $('#popup-service-type').text(order.service_type_display);
+                    $('#popup-payment-method').text(order.payment_method_display);
+                    $('#popup-total-amount').text(order.total_amount.toLocaleString() + " so'm");
+
+                    let itemsHtml = '';
+                    order.items.forEach(it => {
+                        itemsHtml += `<div class="d-flex justify-content-between p-2 rounded bg-light">
+                            <span><strong>${it.quantity}x</strong> ${it.product_name}</span>
+                            <span>${it.total.toLocaleString()} so'm</span>
+                        </div>`;
+                    });
+                    $('#popup-products-list').html(itemsHtml);
+
+                    if (order.service_type === 'dine_in') {
+                        $('#popup-dinein-actions').show();
+                        $('#popup-close-table-btn').data('order-id', order.id).data('table', order.table_number);
+                    } else {
+                        $('#popup-dinein-actions').hide();
+                    }
+
+                    $('#order-detail-popup').addClass('active');
+                }
+            }
+        });
+    });
+
+    $('#close-popup, #order-detail-popup').click(function(e) {
+        if (e.target === this) {
+            $('#order-detail-popup').removeClass('active');
+        }
+    });
+});
+</script>
+{% endblock %}

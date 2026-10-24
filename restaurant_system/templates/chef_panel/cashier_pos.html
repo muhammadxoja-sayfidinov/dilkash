@@ -1,0 +1,708 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Kassir Paneli (Stollar & POS){% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 2026/2027 Ultra-Productive Desktop POS */
+    .pos-top-toolbar {
+        background: #ffffff;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: 8px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        box-shadow: var(--shadow-subtle);
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+
+    .pos-brand-tag {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 800;
+        font-size: 1.15rem;
+        color: var(--text-heading);
+    }
+
+    /* Live Search Box */
+    .pos-search-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        border-radius: var(--radius-pill);
+        padding: 4px 12px;
+        transition: var(--transition-smooth);
+    }
+    .pos-search-box:focus-within {
+        border-color: var(--brand-primary);
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+    .pos-search-box input {
+        border: none;
+        background: transparent;
+        outline: none;
+        font-size: 0.84rem;
+        width: 140px;
+        font-weight: 600;
+        color: var(--text-heading);
+    }
+    .pos-search-box input::placeholder {
+        color: #94a3b8;
+    }
+
+    /* Inline Stats Badges Strip */
+    .pos-stats-strip {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .pos-stat-chip {
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: var(--radius-pill);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        user-select: none;
+        transition: var(--transition-smooth);
+        border: 1px solid transparent;
+    }
+    .pos-stat-chip:hover {
+        transform: translateY(-1px);
+    }
+    .chip-free {
+        background: rgba(16, 185, 129, 0.12);
+        color: #047857;
+        border-color: rgba(16, 185, 129, 0.25);
+    }
+    .chip-occupied {
+        background: rgba(245, 158, 11, 0.12);
+        color: #b45309;
+        border-color: rgba(245, 158, 11, 0.25);
+    }
+    .chip-calling {
+        background: #fee2e2;
+        color: #b91c1c;
+        border-color: #f87171;
+        animation: pulse-red 1.5s infinite;
+    }
+    .chip-bill {
+        background: #f3e8ff;
+        color: #7e22ce;
+        border-color: #c084fc;
+        animation: pulse-purple 1.5s infinite;
+    }
+
+    .chip-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .chip-free .chip-dot { background-color: #10b981; }
+    .chip-occupied .chip-dot { background-color: #f59e0b; }
+
+    @keyframes pulse-red {
+        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+        70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    @keyframes pulse-purple {
+        0% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.5); }
+        70% { box-shadow: 0 0 0 6px rgba(168, 85, 247, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
+    }
+
+    /* Floor Grid Layout */
+    .floor-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 10px;
+        transition: all 0.2s ease;
+    }
+    /* Compact / Dense Mode */
+    .floor-grid.dense-mode {
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 8px;
+    }
+
+    .table-cashier-card {
+        background: white;
+        border: 2px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: 12px;
+        cursor: pointer;
+        transition: var(--transition-smooth);
+        position: relative;
+        box-shadow: var(--shadow-subtle);
+        user-select: none;
+    }
+    .floor-grid.dense-mode .table-cashier-card {
+        padding: 8px 10px;
+        border-radius: var(--radius-sm);
+    }
+
+    .table-cashier-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-card);
+        border-color: var(--brand-primary);
+    }
+    .table-cashier-card.selected {
+        border-color: var(--brand-primary) !important;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.3) !important;
+        background: #fbfbfe;
+    }
+
+    /* Table states */
+    .table-cashier-card.free {
+        border-left: 5px solid #10b981;
+    }
+    .table-cashier-card.occupied {
+        border-left: 5px solid #f59e0b;
+        background: #fffdfa;
+    }
+    .table-cashier-card.calling {
+        border-left: 5px solid #ef4444;
+        background: #fff5f5;
+        animation: pulse-red 1.5s infinite;
+    }
+    .table-cashier-card.bill-requested {
+        border-left: 5px solid #8b5cf6;
+        background: #faf5ff;
+        animation: pulse-purple 1.5s infinite;
+    }
+
+    .t-card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+    }
+    .t-num-title {
+        font-size: 1.15rem;
+        font-weight: 800;
+        font-family: 'Outfit', sans-serif;
+        color: var(--text-heading);
+    }
+    .floor-grid.dense-mode .t-num-title {
+        font-size: 1.05rem;
+    }
+
+    .t-badge {
+        font-size: 0.68rem;
+        font-weight: 700;
+        padding: 2px 6px;
+        border-radius: var(--radius-pill);
+        text-transform: uppercase;
+    }
+    .t-waiter-info {
+        font-size: 0.78rem;
+        color: #475569;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-bottom: 6px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .floor-grid.dense-mode .t-waiter-info {
+        font-size: 0.72rem;
+        margin-bottom: 4px;
+    }
+
+    .t-amount-tag {
+        font-size: 1.05rem;
+        font-weight: 800;
+        font-family: 'Outfit', sans-serif;
+        color: #d97706;
+    }
+    .floor-grid.dense-mode .t-amount-tag {
+        font-size: 0.95rem;
+    }
+
+    /* POS Checkout Panel on the Right */
+    .pos-checkout-card {
+        background: white;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-card);
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 84px);
+        position: sticky;
+        top: 60px;
+    }
+    .pos-card-head {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border-subtle);
+        background: #f8fafc;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+    .pos-card-body {
+        padding: 12px 16px;
+        flex: 1;
+        overflow-y: auto;
+    }
+    .pos-card-foot {
+        padding: 14px 16px;
+        border-top: 1px solid var(--border-subtle);
+        background: #f8fafc;
+        border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    }
+
+    .pos-item-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px dashed var(--border-subtle);
+        font-size: 0.88rem;
+    }
+
+    .pay-btn-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        margin-bottom: 10px;
+    }
+    .pay-method-pill {
+        background: white;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        padding: 7px;
+        text-align: center;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        font-size: 0.82rem;
+    }
+    .pay-method-pill.active {
+        background: var(--brand-primary);
+        color: white;
+        border-color: var(--brand-primary);
+        box-shadow: var(--shadow-glow-primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- KASSA TOP COMPACT TOOLBAR (MAXIMUM WORKSPACE) -->
+<div class="pos-top-toolbar">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <!-- Title & badge -->
+        <div class="pos-brand-tag">
+            <i class="fas fa-cash-register text-warning"></i>
+            <span>Zal & POS</span>
+        </div>
+
+        <!-- Quick Table Search -->
+        <div class="pos-search-box">
+            <i class="fas fa-search text-muted me-1"></i>
+            <input type="text" id="tableSearchInput" placeholder="Stol raqami (#)..." autocomplete="off">
+            <button id="clearSearchBtn" class="btn btn-sm text-muted p-0" style="display:none;" onclick="clearTableSearch()">&times;</button>
+        </div>
+
+        <!-- Inline Live Stats Strip -->
+        <div class="pos-stats-strip">
+            <div class="pos-stat-chip chip-free" title="Faqat bo'sh stollarni ko'rsatish" onclick="setFilterByChip('free')">
+                <span class="chip-dot"></span>
+                <span>Bo'sh:</span>
+                <strong>{{ free_count }}</strong>
+            </div>
+            <div class="pos-stat-chip chip-occupied" title="Faqat band stollarni ko'rsatish" onclick="setFilterByChip('occupied')">
+                <span class="chip-dot"></span>
+                <span>Band:</span>
+                <strong>{{ occupied_count }}</strong>
+            </div>
+            {% if calling_count > 0 %}
+            <div class="pos-stat-chip chip-calling" title="Chaqiruv bo'lgan stollar" onclick="setFilterByChip('calling')">
+                <i class="fas fa-bell"></i>
+                <span>Chaqiruv:</span>
+                <strong>{{ calling_count }}</strong>
+            </div>
+            {% endif %}
+            {% if bill_requested_count > 0 %}
+            <div class="pos-stat-chip chip-bill" title="Hisob so'ralgan stollar" onclick="setFilterByChip('bill')">
+                <i class="fas fa-receipt"></i>
+                <span>Hisob:</span>
+                <strong>{{ bill_requested_count }}</strong>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right Controls -->
+    <div class="d-flex align-items-center gap-2 flex-wrap ms-auto">
+        <!-- Filter buttons -->
+        <div class="btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-light border filter-t-btn active" data-filter="all">Barchasi ({{ total_tables }})</button>
+            <button type="button" class="btn btn-light border filter-t-btn" data-filter="occupied">Band ({{ occupied_count }})</button>
+            <button type="button" class="btn btn-light border filter-t-btn" data-filter="free">Bo'sh ({{ free_count }})</button>
+        </div>
+
+        <!-- View Density Toggle -->
+        <div class="btn-group btn-group-sm" role="group" title="Zal ko'rinish zichligi">
+            <button type="button" class="btn btn-light border active" id="btnViewNormal" onclick="setGridDensity('normal')" title="Katta kartochkalar">
+                <i class="fas fa-grip me-1"></i> <span class="d-none d-sm-inline">Katta</span>
+            </button>
+            <button type="button" class="btn btn-light border" id="btnViewCompact" onclick="setGridDensity('compact')" title="Ixcham (Ko'proq stol ko'rish)">
+                <i class="fas fa-table-cells me-1"></i> <span class="d-none d-sm-inline">Ixcham</span>
+            </button>
+        </div>
+
+        <!-- Refresh -->
+        <button class="btn btn-sm btn-light border text-dark fw-bold" onclick="window.location.reload();" title="Zalni yangilash">
+            <i class="fas fa-rotate text-primary"></i>
+        </button>
+    </div>
+</div>
+
+<!-- MAIN FLOOR & POS CHECKOUT CONTAINER -->
+<div class="row g-2">
+    <!-- LEFT COLUMN: STOLLAR ZALI (FLOOR GRID) -->
+    <div class="col-xl-8 col-lg-7">
+        <div class="card p-2 mb-2 border-0 shadow-sm" style="background: transparent;">
+            <div class="floor-grid" id="tablesFloorGrid">
+                {% for item in table_cards %}
+                <div class="table-cashier-card {% if item.is_bill_requested %}bill-requested{% elif item.call %}calling{% elif item.is_occupied %}occupied{% else %}free{% endif %}"
+                     id="table-card-{{ item.table.number }}"
+                     data-table-num="{{ item.table.number }}"
+                     data-waiter="{{ item.waiter_name|lower }}"
+                     onclick="loadTableToPos('{{ item.table.number }}')">
+                    
+                    <div class="t-card-top">
+                        <div class="t-num-title">STOL #{{ item.table.number }}</div>
+                        {% if item.is_bill_requested %}
+                            <span class="t-badge text-white" style="background:#8b5cf6;">Hisob!</span>
+                        {% elif item.call %}
+                            <span class="t-badge bg-danger text-white">Chaqiruv</span>
+                        {% elif item.is_occupied %}
+                            <span class="t-badge bg-warning text-dark">Band</span>
+                        {% else %}
+                            <span class="t-badge bg-success text-white">Bo'sh</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="t-waiter-info">
+                        <i class="fas fa-user-tie text-primary"></i>
+                        <span>{{ item.waiter_name }}</span>
+                    </div>
+
+                    {% if item.is_occupied %}
+                        <div class="d-flex justify-content-between align-items-baseline">
+                            <span class="small text-muted" style="font-size: 0.72rem;">#{{ item.order.order_number }}</span>
+                            <div class="t-amount-tag">{{ item.total_amount|floatformat:0 }} so'm</div>
+                        </div>
+                    {% else %}
+                        <div class="text-muted small" style="font-size: 0.72rem;">Bo'sh stol</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT COLUMN: DESKTOP POS TERMINAL -->
+    <div class="col-xl-4 col-lg-5">
+        <div class="pos-checkout-card" id="posCheckoutPanel">
+            <!-- Header -->
+            <div class="pos-card-head d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="fw-bold m-0" id="posSelectedTableTitle">Stol Tanlanmagan</h6>
+                    <span class="small text-muted" style="font-size: 0.78rem;" id="posSelectedOrderNum">Chapdan stolni bosing</span>
+                </div>
+                <div class="d-flex align-items-center gap-1">
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle py-1 px-2" type="button" id="assignWaiterBtn" data-bs-toggle="dropdown" disabled>
+                            <i class="fas fa-user-tie me-1"></i> <span id="posWaiterNameText">Ofitsiant</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow">
+                            <li><h6 class="dropdown-header">Ofitsiantni biriktirish</h6></li>
+                            {% for w in waiters %}
+                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="assignWaiterToSelectedTable({{ w.id }}, '{{ w.name }}')">{{ w.name }}</a></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <button class="btn btn-sm btn-light border text-muted py-1 px-2" id="unselectBtn" onclick="unselectPosTable()" title="Tanlovni bekor qilish" style="display: none;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Items Body -->
+            <div class="pos-card-body" id="posItemsList">
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-receipt fa-2x mb-2 opacity-25"></i>
+                    <p class="small m-0">Stol ustiga bosing — bu yerda to'liq hisob va to'lov ochiladi.</p>
+                </div>
+            </div>
+
+            <!-- Footer: Actions & Payment -->
+            <div class="pos-card-foot" id="posFooterActions" style="display: none;">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="text-muted fw-bold small">JAMI TO'LOV:</span>
+                    <h4 class="fw-bold m-0 text-primary font-monospace" id="posTotalAmountText">0 so'm</h4>
+                </div>
+
+                <!-- To'lov usuli tanlash -->
+                <div class="pay-btn-grid">
+                    <div class="pay-method-pill active" data-method="naqd" onclick="setPaymentMethod('naqd', this)">
+                        <i class="fas fa-money-bill-wave me-1"></i> Naqd
+                    </div>
+                    <div class="pay-method-pill" data-method="karta" onclick="setPaymentMethod('karta', this)">
+                        <i class="fas fa-credit-card me-1"></i> Karta
+                    </div>
+                    <div class="pay-method-pill" data-method="click" onclick="setPaymentMethod('click', this)">
+                        <i class="fas fa-mobile-alt me-1"></i> Click
+                    </div>
+                    <div class="pay-method-pill" data-method="payme" onclick="setPaymentMethod('payme', this)">
+                        <i class="fas fa-wallet me-1"></i> Payme
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <div class="btn-group w-100">
+                        <button class="btn btn-outline-dark fw-bold btn-sm py-2" onclick="printReceiptForCurrentOrder('all')">
+                            <i class="fas fa-print me-1"></i> Cheklar (Barchasi)
+                        </button>
+                        <button type="button" class="btn btn-outline-dark dropdown-toggle dropdown-toggle-split btn-sm" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="visually-hidden">Bo'limlar</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow">
+                            <li><a class="dropdown-item fw-bold" href="javascript:void(0)" onclick="printReceiptForCurrentOrder('all')"><i class="fas fa-layer-group text-primary me-2"></i> Barcha cheklar (Ketma-ket)</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="printReceiptForCurrentOrder('shashlik')">🥩 Shashlikchi cheki (Mangal)</a></li>
+                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="printReceiptForCurrentOrder('kitchen')">🍲 Oshxona cheki (Taomlar)</a></li>
+                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="printReceiptForCurrentOrder('bar')">☕ Desert & Bar cheki</a></li>
+                            <li><a class="dropdown-item" href="javascript:void(0)" onclick="printReceiptForCurrentOrder('kassa')">🧾 Kassa hisob cheki</a></li>
+                        </ul>
+                    </div>
+                    <button class="btn btn-success fw-bold py-2 btn-sm" id="btnCloseTableSubmit" onclick="settleAndCloseTable()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        <i class="fas fa-check-double me-1"></i> To'lovni Qabul Qilish & Yopish
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let activeTableNumber = null;
+    let activeOrderId = null;
+    let activePayMethod = 'naqd';
+
+    // Density toggle (Normal vs Compact)
+    function setGridDensity(mode) {
+        const grid = document.getElementById('tablesFloorGrid');
+        const btnNormal = document.getElementById('btnViewNormal');
+        const btnCompact = document.getElementById('btnViewCompact');
+        if (mode === 'compact') {
+            grid.classList.add('dense-mode');
+            btnCompact.classList.add('active');
+            btnNormal.classList.remove('active');
+            localStorage.setItem('pos_grid_mode', 'compact');
+        } else {
+            grid.classList.remove('dense-mode');
+            btnNormal.classList.add('active');
+            btnCompact.classList.remove('active');
+            localStorage.setItem('pos_grid_mode', 'normal');
+        }
+    }
+    // Load saved density
+    if (localStorage.getItem('pos_grid_mode') === 'compact') {
+        setGridDensity('compact');
+    }
+
+    // Filter tables
+    document.querySelectorAll('.filter-t-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.filter-t-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            applyFilter(this.dataset.filter);
+        });
+    });
+
+    function setFilterByChip(chipType) {
+        document.querySelectorAll('.filter-t-btn').forEach(b => b.classList.remove('active'));
+        applyFilter(chipType);
+    }
+
+    function applyFilter(f) {
+        const query = (document.getElementById('tableSearchInput').value || '').trim().toLowerCase();
+        document.querySelectorAll('.table-cashier-card').forEach(card => {
+            const tableNum = card.dataset.tableNum.toLowerCase();
+            const waiter = (card.dataset.waiter || '').toLowerCase();
+            const matchesSearch = !query || tableNum.includes(query) || waiter.includes(query);
+
+            let matchesFilter = true;
+            if (f === 'all') matchesFilter = true;
+            else if (f === 'occupied') matchesFilter = card.classList.contains('occupied') || card.classList.contains('bill-requested') || card.classList.contains('calling');
+            else if (f === 'free') matchesFilter = card.classList.contains('free');
+            else if (f === 'calling') matchesFilter = card.classList.contains('calling');
+            else if (f === 'bill') matchesFilter = card.classList.contains('bill-requested');
+
+            card.style.display = (matchesSearch && matchesFilter) ? 'block' : 'none';
+        });
+    }
+
+    // Search table
+    const searchInput = document.getElementById('tableSearchInput');
+    const clearBtn = document.getElementById('clearSearchBtn');
+    searchInput.addEventListener('input', function() {
+        if (this.value.trim().length > 0) {
+            clearBtn.style.display = 'inline-block';
+        } else {
+            clearBtn.style.display = 'none';
+        }
+        const activeFilterBtn = document.querySelector('.filter-t-btn.active');
+        applyFilter(activeFilterBtn ? activeFilterBtn.dataset.filter : 'all');
+    });
+
+    function clearTableSearch() {
+        searchInput.value = '';
+        clearBtn.style.display = 'none';
+        const activeFilterBtn = document.querySelector('.filter-t-btn.active');
+        applyFilter(activeFilterBtn ? activeFilterBtn.dataset.filter : 'all');
+    }
+
+    // Unselect Table
+    function unselectPosTable() {
+        activeTableNumber = null;
+        activeOrderId = null;
+        document.querySelectorAll('.table-cashier-card').forEach(c => c.classList.remove('selected'));
+        document.getElementById('posSelectedTableTitle').innerText = "Stol Tanlanmagan";
+        document.getElementById('posSelectedOrderNum').innerText = "Chapdan stolni bosing";
+        document.getElementById('assignWaiterBtn').disabled = true;
+        document.getElementById('posWaiterNameText').innerText = "Ofitsiant";
+        document.getElementById('posItemsList').innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-receipt fa-2x mb-2 opacity-25"></i>
+                <p class="small m-0">Stol ustiga bosing — bu yerda to'liq hisob va to'lov ochiladi.</p>
+            </div>
+        `;
+        document.getElementById('posFooterActions').style.display = 'none';
+        document.getElementById('unselectBtn').style.display = 'none';
+    }
+
+    // Load table data into POS right panel
+    function loadTableToPos(tableNum) {
+        activeTableNumber = tableNum;
+        document.querySelectorAll('.table-cashier-card').forEach(c => c.classList.remove('selected'));
+        const selectedCard = document.getElementById(`table-card-${tableNum}`);
+        if (selectedCard) selectedCard.classList.add('selected');
+
+        document.getElementById('posSelectedTableTitle').innerText = `Stol #${tableNum}`;
+        document.getElementById('assignWaiterBtn').disabled = false;
+        document.getElementById('unselectBtn').style.display = 'inline-block';
+
+        fetch(`/api/cashier/table/${tableNum}/`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.is_occupied) {
+                activeOrderId = data.order_id;
+                document.getElementById('posSelectedOrderNum').innerText = `Buyurtma #${data.order_number} (${data.created_at}) • ${data.status_display}`;
+                document.getElementById('posWaiterNameText').innerText = data.waiter_name;
+                document.getElementById('posTotalAmountText').innerText = `${data.total_amount.toLocaleString()} so'm`;
+
+                let html = '<div class="d-flex flex-column">';
+                data.items.forEach(it => {
+                    html += `
+                        <div class="pos-item-row">
+                            <div>
+                                <span class="fw-bold">${it.quantity}x</span> ${it.name}
+                                <div class="small text-muted" style="font-size: 0.75rem;">${it.price.toLocaleString()} so'm</div>
+                            </div>
+                            <strong class="font-monospace">${it.total.toLocaleString()} so'm</strong>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+
+                document.getElementById('posItemsList').innerHTML = html;
+                document.getElementById('posFooterActions').style.display = 'block';
+            } else {
+                activeOrderId = null;
+                document.getElementById('posSelectedOrderNum').innerText = "Stol hozirda bo'sh";
+                document.getElementById('posWaiterNameText').innerText = data.waiter_name || "Ofitsiant";
+                document.getElementById('posItemsList').innerHTML = `
+                    <div class="text-center py-5 text-muted">
+                        <i class="fas fa-chair fa-2x mb-2 text-success opacity-50"></i>
+                        <h6 class="fw-bold text-dark">Stol Bo'sh</h6>
+                        <p class="small m-0">Mehmonlar kelganda ofitsiant bot yoki ilova orqali buyurtma beriladi.</p>
+                    </div>
+                `;
+                document.getElementById('posFooterActions').style.display = 'none';
+            }
+        });
+    }
+
+    // Set Payment Method
+    function setPaymentMethod(method, el) {
+        activePayMethod = method;
+        document.querySelectorAll('.pay-method-pill').forEach(p => p.classList.remove('active'));
+        el.classList.add('active');
+    }
+
+    // Print Receipt
+    function printReceiptForCurrentOrder(dept = 'all') {
+        if (!activeOrderId) return;
+        window.open(`/chef_panel/orders/${activeOrderId}/receipt/${dept}/`, '_blank');
+    }
+
+    // Settle & Close Table (Kassir vakolatida)
+    function settleAndCloseTable() {
+        if (!activeOrderId || !activeTableNumber) return;
+        if (!confirm(`Stol #${activeTableNumber} to'lovini qabul qilib, stolni yopishni tasdiqlaysizmi?`)) return;
+
+        const btn = document.getElementById('btnCloseTableSubmit');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Yopilmoqda...';
+
+        fetch(`/chef_panel/api/waiter/order/${activeOrderId}/close/`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message || 'Stol hisobi muvaffaqiyatli yopildi!');
+            window.location.reload();
+        })
+        .catch(() => {
+            alert('Xatolik yuz berdi');
+            btn.disabled = false;
+        });
+    }
+
+    // Assign Waiter to Table
+    function assignWaiterToSelectedTable(waiterId, waiterName) {
+        if (!activeTableNumber) return;
+        fetch('/api/cashier/assign-waiter/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ table_number: activeTableNumber, waiter_id: waiterId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('posWaiterNameText').innerText = waiterName;
+            loadTableToPos(activeTableNumber);
+        });
+    }
+
+    // Auto-refresh active table every 6 seconds
+    setInterval(() => {
+        if (activeTableNumber) {
+            loadTableToPos(activeTableNumber);
+        }
+    }, 6000);
+</script>
+{% endblock %}

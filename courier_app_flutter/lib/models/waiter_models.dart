@@ -27,8 +27,11 @@ class RestaurantTableModel {
       isOccupied: json['is_occupied'] ?? false,
       assignedWaiterId: json['assigned_waiter_id'],
       assignedWaiterName: json['assigned_waiter_name'],
-      order: json['order'] != null ? WaiterOrderModel.fromJson(json['order']) : null,
-      call: json['call'] != null ? WaiterCallModel.fromJson(json['call']) : null,
+      order: json['order'] != null
+          ? WaiterOrderModel.fromJson(json['order'])
+          : null,
+      call:
+          json['call'] != null ? WaiterCallModel.fromJson(json['call']) : null,
     );
   }
 }

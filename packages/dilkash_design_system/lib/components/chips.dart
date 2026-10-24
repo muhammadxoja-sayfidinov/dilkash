@@ -25,11 +25,15 @@ class DilkashFilterChip extends StatelessWidget {
 
     final Color bgColor = isSelected
         ? (isDark ? DilkashColors.primary400 : DilkashColors.primary500)
-        : (isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFFF1F5F9));
+        : (isDark
+            ? DilkashColors.surfaceDarkElevated
+            : const Color(0xFFF1F5F9));
 
     final Color fgColor = isSelected
         ? (isDark ? Colors.black : Colors.white)
-        : (isDark ? DilkashColors.textPrimaryDark : DilkashColors.textSecondaryLight);
+        : (isDark
+            ? DilkashColors.textPrimaryDark
+            : DilkashColors.textSecondaryLight);
 
     final BorderSide border = BorderSide(
       color: isSelected
@@ -69,11 +73,16 @@ class DilkashFilterChip extends StatelessWidget {
               if (count != null) ...[
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? (isDark ? Colors.black.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.25))
-                        : (isDark ? DilkashColors.borderDark : const Color(0xFFE2E8F0)),
+                        ? (isDark
+                            ? Colors.black.withValues(alpha: 0.2)
+                            : Colors.white.withValues(alpha: 0.25))
+                        : (isDark
+                            ? DilkashColors.borderDark
+                            : const Color(0xFFE2E8F0)),
                     borderRadius: DilkashRadii.radiusFull,
                   ),
                   child: Text(
@@ -170,8 +179,12 @@ class DilkashStatusBadge extends StatelessWidget {
         break;
 
       default:
-        bg = isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFFF1F5F9);
-        fg = isDark ? DilkashColors.textSecondaryDark : DilkashColors.textSecondaryLight;
+        bg = isDark
+            ? DilkashColors.surfaceDarkElevated
+            : const Color(0xFFF1F5F9);
+        fg = isDark
+            ? DilkashColors.textSecondaryDark
+            : DilkashColors.textSecondaryLight;
         icon = Icons.info_outline_rounded;
     }
 

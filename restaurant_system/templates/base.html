@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block page_title %}Restoran Boshqaruv Tizimi{% endblock %} - Dilkash POS</title>
+    
+    <!-- Google Fonts: Outfit & Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5.3 & Font Awesome 6.4 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            /* 2026/2027 Curated Hospitality Color System */
+            --brand-primary: #4f46e5;
+            --brand-primary-light: #818cf8;
+            --brand-primary-dark: #3730a3;
+            --brand-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            
+            --brand-emerald: #10b981;
+            --emerald-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            
+            --brand-amber: #f59e0b;
+            --amber-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+            
+            --brand-rose: #f43f5e;
+            --rose-gradient: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+            
+            --brand-cyan: #06b6d4;
+            --cyan-gradient: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
+
+            /* Surfaces & Typography */
+            --bg-canvas: #f8fafc;
+            --sidebar-bg: #090d16;
+            --sidebar-card: rgba(255, 255, 255, 0.04);
+            --card-bg: #ffffff;
+            --text-heading: #0f172a;
+            --text-body: #334155;
+            --text-muted: #64748b;
+            --border-subtle: #e2e8f0;
+            --border-card: rgba(226, 232, 240, 0.9);
+
+            /* Shadows & Radii */
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 18px;
+            --radius-xl: 24px;
+            --radius-pill: 9999px;
+
+            --shadow-subtle: 0 1px 3px rgba(15, 23, 42, 0.05);
+            --shadow-card: 0 10px 30px -5px rgba(15, 23, 42, 0.05), 0 4px 6px -2px rgba(15, 23, 42, 0.02);
+            --shadow-card-hover: 0 20px 35px -5px rgba(15, 23, 42, 0.09), 0 8px 12px -3px rgba(15, 23, 42, 0.03);
+            --shadow-glow-primary: 0 8px 24px -4px rgba(79, 70, 229, 0.35);
+
+            --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-canvas);
+            color: var(--text-body);
+            min-height: 100vh;
+            overflow-x: hidden;
+            letter-spacing: -0.01em;
+        }
+
+        h1, h2, h3, h4, h5, h6, .brand-font {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            color: var(--text-heading);
+            letter-spacing: -0.02em;
+        }
+
+        .wrapper {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ================= SIDEBAR ================= */
+        .sidebar {
+            width: 240px;
+            min-width: 240px;
+            background: var(--sidebar-bg);
+            color: white;
+            padding: 1.25rem 1rem;
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            border-right: 1px solid rgba(255, 255, 255, 0.06);
+            z-index: 1000;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .wrapper.sidebar-collapsed .sidebar {
+            margin-left: -240px;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0.5rem 0.5rem 1.5rem 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 1.5rem;
+            text-decoration: none;
+        }
+
+        .brand-logo-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--brand-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: white;
+            box-shadow: var(--shadow-glow-primary);
+        }
+
+        .brand-text h3 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .brand-text .brand-tagline {
+            font-size: 0.72rem;
+            color: #94a3b8;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .system-status-badge {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 6px 12px;
+            border-radius: var(--radius-pill);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 1.5rem;
+        }
+
+        .status-dot-pulse {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: #10b981;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: pulse-green 2s infinite;
+        }
+
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .sidebar-section-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #64748b;
+            letter-spacing: 1px;
+            margin: 0.75rem 0.75rem 0.5rem 0.75rem;
+        }
+
+        .sidebar-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sidebar-nav .nav-link {
+            color: #94a3b8;
+            padding: 0.85rem 1rem;
+            border-radius: var(--radius-md);
+            font-size: 0.92rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            transition: var(--transition-smooth);
+            position: relative;
+        }
+
+        .sidebar-nav .nav-link i {
+            font-size: 1.15rem;
+            width: 22px;
+            text-align: center;
+            transition: var(--transition-smooth);
+        }
+
+        .sidebar-nav .nav-link:hover {
+            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.06);
+            transform: translateX(4px);
+        }
+
+        .sidebar-nav .nav-link:hover i {
+            color: var(--brand-primary-light);
+        }
+
+        .sidebar-nav .nav-link.active {
+            background: var(--brand-gradient);
+            color: #ffffff;
+            font-weight: 700;
+            box-shadow: var(--shadow-glow-primary);
+        }
+
+        .sidebar-nav .nav-link.active i {
+            color: #ffffff;
+        }
+
+        .sidebar-nav .nav-link .badge-counter {
+            margin-left: auto;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: var(--radius-pill);
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .sidebar-quick-card {
+            background: var(--sidebar-card);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .sidebar-quick-card .title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .sidebar-quick-card .desc {
+            font-size: 0.72rem;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+
+        /* Secondary sections auto-hide */
+        .sidebar-secondary-toggle-wrap {
+            margin-top: 1rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .sidebar-secondary-toggle {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #94a3b8;
+            padding: 0.65rem 0.85rem;
+            border-radius: var(--radius-md);
+            font-size: 0.82rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            user-select: none;
+        }
+
+        .sidebar-secondary-toggle:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.16);
+        }
+
+        .sidebar-secondary-toggle .toggle-icon {
+            font-size: 0.75rem;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .sidebar-secondary-toggle.open .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .sidebar-secondary-content {
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+            max-height: 0;
+            opacity: 0;
+            display: none;
+        }
+
+        .sidebar-secondary-content.show {
+            max-height: 2500px;
+            opacity: 1;
+            display: block;
+        }
+
+        /* ================= MAIN CONTENT ================= */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            background-color: var(--bg-canvas);
+        }
+
+        /* Top Bar */
+        .top-navbar {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 0.5rem 1.25rem;
+            min-height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 99;
+            box-shadow: var(--shadow-subtle);
+        }
+
+        .top-left-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .top-page-heading {
+            font-size: 1.25rem;
+            font-weight: 800;
+            margin: 0;
+            color: var(--text-heading);
+        }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .clock-widget {
+            background: #f1f5f9;
+            padding: 5px 12px;
+            border-radius: var(--radius-pill);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-top-action {
+            background: #f1f5f9;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-body);
+            border-radius: var(--radius-md);
+            padding: 6px 12px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            transition: var(--transition-smooth);
+            cursor: pointer;
+        }
+
+        .btn-top-action:hover {
+            background: #e2e8f0;
+            color: var(--text-heading);
+            transform: translateY(-1px);
+        }
+
+        .btn-top-action.btn-tma {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+        }
+
+        .btn-top-action.btn-tma:hover {
+            box-shadow: 0 6px 18px rgba(2, 132, 199, 0.35);
+            color: white;
+        }
+
+        /* Container & Cards */
+        .page-body {
+            padding: 0.85rem 1.25rem;
+            flex: 1;
+        }
+
+        .card {
+            border: 1px solid var(--border-card);
+            border-radius: var(--radius-lg);
+            background: var(--card-bg);
+            box-shadow: var(--shadow-card);
+            transition: var(--transition-smooth);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-card-hover);
+        }
+
+        .card-header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-header h5, .card-header .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin: 0;
+            color: var(--text-heading);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        /* Buttons */
+        .btn {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 600;
+            border-radius: var(--radius-md);
+            padding: 0.65rem 1.25rem;
+            transition: var(--transition-smooth);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background: var(--brand-gradient);
+            border: none;
+            color: white;
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--emerald-gradient);
+            border: none;
+            color: white;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--amber-gradient);
+            border: none;
+            color: #78350f;
+            font-weight: 700;
+            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-danger {
+            background: var(--rose-gradient);
+            border: none;
+            color: white;
+            box-shadow: 0 4px 14px rgba(244, 63, 94, 0.3);
+        }
+
+        /* Form Controls */
+        .form-control, .form-select {
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            background-color: #f8fafc;
+            color: var(--text-heading);
+            transition: var(--transition-smooth);
+        }
+
+        .form-control:focus, .form-select:focus {
+            background-color: #ffffff;
+            border-color: var(--brand-primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+        }
+
+        /* Badges */
+        .badge {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: var(--radius-pill);
+            letter-spacing: 0.3px;
+        }
+
+        .badge-status {
+            padding: 6px 14px;
+            border-radius: var(--radius-pill);
+            font-size: 0.78rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+        }
+
+        .badge-status.yangi {
+            background: rgba(99, 102, 241, 0.15);
+            color: #4f46e5;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .badge-status.tasdiqlangan {
+            background: rgba(245, 158, 11, 0.15);
+            color: #d97706;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .badge-status.tayor {
+            background: rgba(16, 185, 129, 0.15);
+            color: #059669;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-status.yolda {
+            background: rgba(6, 182, 212, 0.15);
+            color: #0284c7;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .badge-status.yetkazildi, .badge-status.olib_ketildi {
+            background: rgba(16, 185, 129, 0.2);
+            color: #047857;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .badge-status.bekor_qilingan {
+            background: rgba(244, 63, 94, 0.15);
+            color: #e11d48;
+            border: 1px solid rgba(244, 63, 94, 0.3);
+        }
+
+        /* Modern Tables */
+        .table-custom {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .table-custom th {
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .table-custom td {
+            padding: 1.1rem 1.25rem;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.9rem;
+            font-weight: 500;
+            background: #ffffff;
+            transition: var(--transition-smooth);
+        }
+
+        .table-custom tbody tr:hover td {
+            background: #f8fafc;
+        }
+
+        /* Mobile drawer */
+        @media (max-width: 992px) {
+            .wrapper {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+            .page-body {
+                padding: 1rem;
+            }
+            .top-navbar {
+                padding: 0.75rem 1rem;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="wrapper">
+        <!-- SIDEBAR -->
+        <nav class="sidebar">
+            <a href="{% url 'chef_panel:dashboard' %}" class="sidebar-brand">
+                <div class="brand-logo-icon">
+                    <i class="fas fa-utensils"></i>
+                </div>
+                <div class="brand-text">
+                    <h3>DILKASH</h3>
+                    <div class="brand-tagline">Restoran POS & KDS</div>
+                </div>
+            </a>
+
+            <div class="system-status-badge">
+                <div class="status-dot-pulse"></div>
+                <span>Server & Bot Faol</span>
+            </div>
+
+            <div class="sidebar-section-title">Asosiy Rollar</div>
+            <ul class="sidebar-nav">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'cashier_pos' %}active{% endif %}" href="{% url 'chef_panel:cashier_pos' %}">
+                        <i class="fas fa-cash-register text-warning"></i>
+                        <span>Kassir (Stollar & POS)</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'cashier_delivery' %}active{% endif %}" href="{% url 'chef_panel:cashier_delivery' %}">
+                        <i class="fas fa-motorcycle text-info"></i>
+                        <span>Dastavka & Olib ketish</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'kitchen_kds' %}active{% endif %}" href="{% url 'chef_panel:kitchen_kds' %}">
+                        <i class="fas fa-fire-burner text-danger"></i>
+                        <span>Oshxona (Faqat Dastavka)</span>
+                        <span class="badge-counter" id="sidebar-order-count">KDS</span>
+                    </a>
+                </li>
+            </ul>
+
+            <!-- SOZLAMALAR (YAGONA VA TOZA HAVOLA) -->
+            <div class="sidebar-settings-wrap mt-auto pt-3 border-top" style="border-color: rgba(255,255,255,0.08) !important;">
+                <div class="sidebar-section-title">Boshqaruv</div>
+                <ul class="sidebar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'settings' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'chef_panel:settings_hub' %}">
+                            <i class="fas fa-gear text-primary"></i>
+                            <span>Barcha Sozlamalar</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- MAIN CONTENT AREA -->
+        <div class="main-content">
+            <!-- TOP BAR -->
+            <header class="top-navbar">
+                <div class="top-left-title">
+                    <button class="btn-top-action me-1" id="sidebarCollapseBtn" title="Menyuni yashirish / ko'rsatish (Foydali ish maydonini kengaytirish)">
+                        <i class="fas fa-bars"></i>
+                        <span class="d-none d-md-inline small fw-bold">Menyu</span>
+                    </button>
+                    <h1 class="top-page-heading">{% block header_title %}Restoran Boshqaruvi{% endblock %}</h1>
+                </div>
+
+                <div class="top-actions">
+                    <div class="clock-widget" id="live-time-display">
+                        <i class="far fa-clock"></i>
+                        <span id="live-clock">--:--:--</span>
+                    </div>
+
+                    <button class="btn-top-action" id="fullscreenToggleBtn" title="To'liq ekranga o'tish (Butun ekran)">
+                        <i class="fas fa-expand me-1"></i>
+                        <span class="d-none d-md-inline small fw-bold">Kengaytirish</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- BODY CONTENT -->
+            <main class="page-body">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show d-flex align-items-center gap-2 mb-4" role="alert" style="border-radius: var(--radius-md); box-shadow: var(--shadow-subtle);">
+                            <i class="fas fa-info-circle"></i>
+                            <div>{{ message }}</div>
+                            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Live Clock
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('uz-UZ', { hour12: false });
+            const clockEl = document.getElementById('live-clock');
+            if (clockEl) {
+                clockEl.textContent = timeStr;
+            }
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Fullscreen Toggle
+        const fsBtn = document.getElementById('fullscreenToggleBtn');
+        if (fsBtn) {
+            fsBtn.addEventListener('click', function() {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.error('Fullscreen error:', err);
+                    });
+                    fsBtn.innerHTML = '<i class="fas fa-compress me-1"></i><span class="d-none d-md-inline small fw-bold">Kichraytirish</span>';
+                } else {
+                    document.exitFullscreen();
+                    fsBtn.innerHTML = '<i class="fas fa-expand me-1"></i><span class="d-none d-md-inline small fw-bold">Kengaytirish</span>';
+                }
+            });
+        }
+
+        // Sidebar Collapse Toggle (Full screen mode)
+        const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
+        const appWrapper = document.querySelector('.wrapper');
+        if (sidebarCollapseBtn && appWrapper) {
+            if (localStorage.getItem('dilkash_sidebar_collapsed') === 'true') {
+                appWrapper.classList.add('sidebar-collapsed');
+            }
+            sidebarCollapseBtn.addEventListener('click', function() {
+                appWrapper.classList.toggle('sidebar-collapsed');
+                localStorage.setItem('dilkash_sidebar_collapsed', appWrapper.classList.contains('sidebar-collapsed'));
+            });
+        }
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

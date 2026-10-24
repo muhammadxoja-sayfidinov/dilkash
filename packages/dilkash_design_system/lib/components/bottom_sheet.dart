@@ -48,7 +48,8 @@ class DilkashBottomSheet extends StatelessWidget {
         borderRadius: DilkashRadii.sheet,
         border: Border(
           top: BorderSide(
-            color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+            color:
+                isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
             width: 1.0,
           ),
         ),
@@ -71,12 +72,13 @@ class DilkashBottomSheet extends StatelessWidget {
                     width: 36,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF2A4235) : const Color(0xFFCBD5E1),
+                      color: isDark
+                          ? const Color(0xFF2A4235)
+                          : const Color(0xFFCBD5E1),
                       borderRadius: DilkashRadii.radiusFull,
                     ),
                   ),
                 ),
-
               if (title != null) ...[
                 Row(
                   children: [
@@ -112,14 +114,15 @@ class DilkashBottomSheet extends StatelessWidget {
                     else
                       IconButton(
                         icon: const Icon(Icons.close_rounded, size: 22),
-                        color: isDark ? DilkashColors.textSecondaryDark : DilkashColors.textSecondaryLight,
+                        color: isDark
+                            ? DilkashColors.textSecondaryDark
+                            : DilkashColors.textSecondaryLight,
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                   ],
                 ),
                 const SizedBox(height: 16),
               ],
-
               child,
             ],
           ),

@@ -43,7 +43,9 @@ class DilkashQuantityStepper extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFFF1F5F9),
+        color: isDark
+            ? DilkashColors.surfaceDarkElevated
+            : const Color(0xFFF1F5F9),
         borderRadius: DilkashRadii.radiusFull,
         border: Border.all(
           color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
@@ -67,11 +69,17 @@ class DilkashQuantityStepper extends StatelessWidget {
                 borderRadius: DilkashRadii.radiusFull,
                 child: Center(
                   child: Icon(
-                    value <= 1 && minValue == 0 ? Icons.delete_outline_rounded : Icons.remove_rounded,
+                    value <= 1 && minValue == 0
+                        ? Icons.delete_outline_rounded
+                        : Icons.remove_rounded,
                     size: iconSize,
                     color: value <= minValue
-                        ? (isDark ? DilkashColors.textMutedDark : DilkashColors.textMutedLight)
-                        : (isDark ? DilkashColors.textPrimaryDark : DilkashColors.textPrimaryLight),
+                        ? (isDark
+                            ? DilkashColors.textMutedDark
+                            : DilkashColors.textMutedLight)
+                        : (isDark
+                            ? DilkashColors.textPrimaryDark
+                            : DilkashColors.textPrimaryLight),
                   ),
                 ),
               ),
@@ -100,7 +108,9 @@ class DilkashQuantityStepper extends StatelessWidget {
             child: Material(
               color: value >= maxValue
                   ? Colors.transparent
-                  : (isDark ? DilkashColors.primary400 : DilkashColors.primary500),
+                  : (isDark
+                      ? DilkashColors.primary400
+                      : DilkashColors.primary500),
               borderRadius: DilkashRadii.radiusFull,
               child: InkWell(
                 onTap: value >= maxValue ? null : _increment,
@@ -110,7 +120,9 @@ class DilkashQuantityStepper extends StatelessWidget {
                     Icons.add_rounded,
                     size: iconSize,
                     color: value >= maxValue
-                        ? (isDark ? DilkashColors.textMutedDark : DilkashColors.textMutedLight)
+                        ? (isDark
+                            ? DilkashColors.textMutedDark
+                            : DilkashColors.textMutedLight)
                         : (isDark ? Colors.black : Colors.white),
                   ),
                 ),
@@ -161,11 +173,15 @@ class DilkashStatusStepper extends StatelessWidget {
             ? DilkashColors.primary500
             : isCurrent
                 ? (isDark ? DilkashColors.primary400 : DilkashColors.primary500)
-                : (isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFFE2E8F0));
+                : (isDark
+                    ? DilkashColors.surfaceDarkElevated
+                    : const Color(0xFFE2E8F0));
 
         final Color iconColor = isDone || isCurrent
             ? Colors.white
-            : (isDark ? DilkashColors.textMutedDark : DilkashColors.textMutedLight);
+            : (isDark
+                ? DilkashColors.textMutedDark
+                : DilkashColors.textMutedLight);
 
         return IntrinsicHeight(
           child: Row(
@@ -183,7 +199,9 @@ class DilkashStatusStepper extends StatelessWidget {
                       boxShadow: isCurrent
                           ? [
                               BoxShadow(
-                                color: (isDark ? DilkashColors.primary400 : DilkashColors.primary500)
+                                color: (isDark
+                                        ? DilkashColors.primary400
+                                        : DilkashColors.primary500)
                                     .withValues(alpha: 0.35),
                                 blurRadius: 10,
                                 spreadRadius: 1,
@@ -193,7 +211,8 @@ class DilkashStatusStepper extends StatelessWidget {
                     ),
                     child: Center(
                       child: isDone
-                          ? const Icon(Icons.check_rounded, color: Colors.white, size: 20)
+                          ? const Icon(Icons.check_rounded,
+                              color: Colors.white, size: 20)
                           : Icon(step.icon, color: iconColor, size: 18),
                     ),
                   ),
@@ -204,7 +223,9 @@ class DilkashStatusStepper extends StatelessWidget {
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         color: isDone
                             ? DilkashColors.primary500
-                            : (isDark ? DilkashColors.borderDark : const Color(0xFFCBD5E1)),
+                            : (isDark
+                                ? DilkashColors.borderDark
+                                : const Color(0xFFCBD5E1)),
                       ),
                     ),
                 ],
@@ -222,9 +243,12 @@ class DilkashStatusStepper extends StatelessWidget {
                         step.title,
                         style: TextStyle(
                           fontSize: 15,
-                          fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w600,
+                          fontWeight:
+                              isCurrent ? FontWeight.w700 : FontWeight.w600,
                           color: isCurrent
-                              ? (isDark ? DilkashColors.primary400 : DilkashColors.primary500)
+                              ? (isDark
+                                  ? DilkashColors.primary400
+                                  : DilkashColors.primary500)
                               : DilkashColors.textPrimary(isDark),
                           letterSpacing: -0.2,
                         ),

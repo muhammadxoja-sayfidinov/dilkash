@@ -124,18 +124,24 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text('Tezkor tanlash:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+            const Text('Tezkor tanlash:',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey)),
             const SizedBox(height: 6),
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: [
                 ActionChip(
-                  label: const Text('10.40.4.94:8000 (Wi-Fi)', style: TextStyle(fontSize: 11)),
+                  label: const Text('10.40.4.94:8000 (Wi-Fi)',
+                      style: TextStyle(fontSize: 11)),
                   onPressed: () => controller.text = 'http://10.40.4.94:8000',
                 ),
                 ActionChip(
-                  label: const Text('127.0.0.1:8000 (ADB/USB)', style: TextStyle(fontSize: 11)),
+                  label: const Text('127.0.0.1:8000 (ADB/USB)',
+                      style: TextStyle(fontSize: 11)),
                   onPressed: () => controller.text = 'http://127.0.0.1:8000',
                 ),
               ],
@@ -184,11 +190,16 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
                   alignment: Alignment.centerRight,
                   child: IconButton(
                     icon: Icon(
-                      StaffThemeController.instance.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                      StaffThemeController.instance.isDarkMode
+                          ? Icons.light_mode_rounded
+                          : Icons.dark_mode_rounded,
                       color: Colors.white,
                     ),
-                    tooltip: StaffThemeController.instance.isDarkMode ? 'Kunduzgi rejim (Yorug\')' : 'Tungi rejim (Qorong\'i)',
-                    onPressed: () => setState(() => StaffThemeController.instance.toggleTheme()),
+                    tooltip: StaffThemeController.instance.isDarkMode
+                        ? 'Kunduzgi rejim (Yorug\')'
+                        : 'Tungi rejim (Qorong\'i)',
+                    onPressed: () => setState(
+                        () => StaffThemeController.instance.toggleTheme()),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -249,9 +260,7 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
                 const SizedBox(height: 20),
 
                 Text(
-                  isCourier
-                      ? 'Kuryer Ilovasi'
-                      : 'Ofitsiant Terminali',
+                  isCourier ? 'Kuryer Ilovasi' : 'Ofitsiant Terminali',
                   style: const TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,

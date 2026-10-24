@@ -33,13 +33,17 @@ class DilkashEmptyState extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFFF1F5F9),
+                color: isDark
+                    ? DilkashColors.surfaceDarkElevated
+                    : const Color(0xFFF1F5F9),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
                 size: 48,
-                color: isDark ? DilkashColors.primary400 : DilkashColors.primary500,
+                color: isDark
+                    ? DilkashColors.primary400
+                    : DilkashColors.primary500,
               ),
             ),
             const SizedBox(height: 20),
@@ -105,7 +109,8 @@ class DilkashErrorState extends StatelessWidget {
             color: DilkashColors.surface(isDark),
             borderRadius: DilkashRadii.radiusLg,
             border: Border.all(
-              color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+              color:
+                  isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
             ),
           ),
           child: Column(

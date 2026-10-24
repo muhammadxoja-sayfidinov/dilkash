@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Barcha Buyurtmalar Ro'yxati{% endblock %}
+{% block header_title %}Buyurtmalar Tarixi & Arxiv{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-card {
+        background: #ffffff;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-card);
+        padding: 20px 24px;
+        box-shadow: var(--shadow-card);
+        margin-bottom: 24px;
+    }
+
+    .service-pill {
+        font-family: 'Outfit', sans-serif;
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: var(--radius-pill);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    .service-pill.dine { background: rgba(16, 185, 129, 0.15); color: #059669; }
+    .service-pill.pickup { background: rgba(245, 158, 11, 0.15); color: #b45309; }
+    .service-pill.delivery { background: rgba(2, 132, 199, 0.15); color: #0284c7; }
+
+    .avatar-circle {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--brand-gradient);
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- FILTER BAR -->
+<div class="filter-card">
+    <form method="GET" class="row g-3 align-items-end">
+        <div class="col-lg-3 col-md-6">
+            <label class="form-label small fw-bold text-muted text-uppercase">Holati bo'yicha</label>
+            <select name="status" class="form-select">
+                <option value="">Barcha holatlar</option>
+                {% for status_value, status_label in status_choices %}
+                    <option value="{{ status_value }}" {% if status_filter == status_value %}selected{% endif %}>{{ status_label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+            <label class="form-label small fw-bold text-muted text-uppercase">Xizmat turi</label>
+            <select name="service_type" class="form-select">
+                <option value="">Barcha xizmatlar</option>
+                {% for service_value, service_label in service_type_choices %}
+                    <option value="{{ service_value }}" {% if service_type_filter == service_value %}selected{% endif %}>{{ service_label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-lg-4 col-md-8">
+            <label class="form-label small fw-bold text-muted text-uppercase">Qidiruv</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" name="search" class="form-control border-start-0" placeholder="Buyurtma #, mijoz ismi, telefon raqam..." value="{{ search }}">
+            </div>
+        </div>
+
+        <div class="col-lg-2 col-md-4">
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-fill">
+                    Filtr
+                </button>
+                <a href="{% url 'chef_panel:order_list' %}" class="btn btn-outline-secondary" title="Tozalash">
+                    <i class="fas fa-rotate-left"></i>
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- ORDERS TABLE CARD -->
+<div class="card">
+    <div class="card-header">
+        <h5>
+            <i class="fas fa-receipt text-primary"></i>
+            Buyurtmalar ro'yxati
+        </h5>
+        {% if page_obj %}
+            <span class="badge bg-light text-dark font-monospace">Jami: {{ page_obj.paginator.count }} ta</span>
+        {% endif %}
+    </div>
+
+    <div class="card-body p-0">
+        {% if page_obj %}
+            <div class="table-responsive">
+                <table class="table-custom">
+                    <thead>
+                        <tr>
+                            <th>Buyurtma #</th>
+                            <th>Mijoz</th>
+                            <th>Xizmat Turi</th>
+                            <th>To'lov Usuli</th>
+                            <th>Umumiy Summa</th>
+                            <th>Holati</th>
+                            <th>Vaqt</th>
+                            <th class="text-end">Amallar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in page_obj %}
+                        <tr>
+                            <td>
+                                <strong class="text-dark font-monospace" style="font-size: 0.95rem;">#{{ order.order_number }}</strong>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="avatar-circle">
+                                        {{ order.customer.full_name|slice:":1"|upper }}
+                                    </div>
+                                    <div>
+                                        <div class="fw-semibold text-heading">{{ order.customer.full_name }}</div>
+                                        <div class="text-muted font-monospace" style="font-size: 0.78rem;">{{ order.customer.phone_number }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if order.service_type == 'dine_in' %}
+                                    <span class="service-pill dine">
+                                        <i class="fas fa-chair"></i> Stol #{{ order.table_number|default:"1" }}
+                                    </span>
+                                {% elif order.service_type == 'pickup' %}
+                                    <span class="service-pill pickup">
+                                        <i class="fas fa-bag-shopping"></i> Olib ketish
+                                    </span>
+                                {% else %}
+                                    <span class="service-pill delivery">
+                                        <i class="fas fa-motorcycle"></i> Yetkazish
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">
+                                    {{ order.get_payment_method_display }}
+                                </span>
+                                {% if order.is_paid %}
+                                    <span class="badge bg-success text-white ms-1" title="To'langan">✓</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="fw-bold text-dark font-monospace">{{ order.total_amount|floatformat:0 }}</span>
+                                <small class="text-muted">so'm</small>
+                            </td>
+                            <td>
+                                <span class="badge-status {{ order.status }}">
+                                    {{ order.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="text-muted" style="font-size: 0.85rem;">{{ order.created_at|date:"d.m.Y H:i" }}</span>
+                            </td>
+                            <td class="text-end">
+                                <div class="d-flex justify-content-end gap-1">
+                                    <a href="{% url 'chef_panel:thermal_receipt' order.id %}" target="_blank" class="btn btn-sm btn-light border" title="POS Printer Cheki">
+                                        <i class="fas fa-print"></i> Chek
+                                    </a>
+                                    <a href="{% url 'chef_panel:order_detail' order.id %}" class="btn btn-sm btn-primary" title="Batafsil">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- PAGINATION -->
+            {% if page_obj.has_other_pages %}
+            <div class="p-3 border-top d-flex justify-content-between align-items-center">
+                <span class="text-muted small">
+                    Sahifa {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}
+                </span>
+                <nav>
+                    <ul class="pagination pagination-sm m-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&status={{ status_filter }}&service_type={{ service_type_filter }}&search={{ search }}">
+                                    « Oldingi
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_obj.number }}</span>
+                        </li>
+
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}&status={{ status_filter }}&service_type={{ service_type_filter }}&search={{ search }}">
+                                    Keyingi »
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-box-open fa-3x text-muted mb-3 opacity-50"></i>
+                <h5 class="text-heading fw-bold">Buyurtmalar topilmadi</h5>
+                <p class="text-muted small">Qidiruv yoki filter mezonlarini o'zgartirib ko'ring.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,311 @@
+{% extends 'base.html' %}
+
+{% block page_title %}Taomlar & Mahsulotlar{% endblock %}
+{% block header_title %}Taomlar Katalogi & Stop-List{% endblock %}
+
+{% block extra_css %}
+<style>
+    .catalog-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .products-grid-modern {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+        gap: 24px;
+    }
+
+    .dish-card {
+        background: #ffffff;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-card);
+        overflow: hidden;
+        box-shadow: var(--shadow-card);
+        transition: var(--transition-smooth);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .dish-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-card-hover);
+    }
+
+    .dish-thumb-box {
+        position: relative;
+        height: 190px;
+        background: #f1f5f9;
+        overflow: hidden;
+    }
+
+    .dish-thumb {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.4s ease;
+    }
+
+    .dish-card:hover .dish-thumb {
+        transform: scale(1.06);
+    }
+
+    .no-thumb {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #94a3b8;
+        background: #f8fafc;
+    }
+
+    .dish-category-chip {
+        position: absolute;
+        top: 14px;
+        left: 14px;
+        background: rgba(15, 23, 42, 0.75);
+        backdrop-filter: blur(8px);
+        color: white;
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: var(--radius-pill);
+    }
+
+    .dish-edit-floating {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(8px);
+        color: #0f172a;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        transition: var(--transition-smooth);
+    }
+
+    .dish-edit-floating:hover {
+        background: var(--brand-primary);
+        color: white;
+    }
+
+    .dish-body {
+        padding: 18px 20px;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+
+    .dish-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text-heading);
+        margin-bottom: 6px;
+    }
+
+    .dish-price {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 16px;
+    }
+
+    .dish-footer {
+        margin-top: auto;
+        padding-top: 14px;
+        border-top: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .toggle-availability-btn {
+        width: 100%;
+        padding: 8px 14px;
+        border-radius: var(--radius-md);
+        font-size: 0.85rem;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: var(--transition-smooth);
+    }
+
+    .toggle-availability-btn.is-available {
+        background: rgba(16, 185, 129, 0.12);
+        color: #059669;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .toggle-availability-btn.is-available:hover {
+        background: #10b981;
+        color: white;
+    }
+
+    .toggle-availability-btn.not-available {
+        background: rgba(239, 68, 68, 0.12);
+        color: #dc2626;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .toggle-availability-btn.not-available:hover {
+        background: #ef4444;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="message-container"></div>
+
+<!-- CATALOG TOP BAR -->
+<div class="catalog-header">
+    <!-- Category Filter -->
+    <form method="GET" class="d-flex align-items-center gap-2">
+        <select name="category" class="form-select" onchange="this.form.submit()" style="min-width: 220px;">
+            <option value="">Barcha kategoriyalar</option>
+            {% for category in categories %}
+                <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>{{ category.name }}</option>
+            {% endfor %}
+        </select>
+        {% if selected_category %}
+            <a href="{% url 'chef_panel:product_list' %}" class="btn btn-outline-secondary" title="Filtrni tozalash">
+                <i class="fas fa-rotate-left"></i>
+            </a>
+        {% endif %}
+    </form>
+
+    <!-- Add Product Button -->
+    <a href="{% url 'chef_panel:add_product' %}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Yangi Taom Qo'shish
+    </a>
+</div>
+
+{% if products %}
+    <div class="products-grid-modern">
+        {% for product in products %}
+        <div class="dish-card">
+            <!-- Thumbnail Box -->
+            <div class="dish-thumb-box">
+                {% if product.image %}
+                    <img src="{{ product.image.url }}" alt="{{ product.name }}" class="dish-thumb">
+                {% else %}
+                    <div class="no-thumb">
+                        <i class="fas fa-utensils fa-2x opacity-50"></i>
+                    </div>
+                {% endif %}
+
+                <span class="dish-category-chip">
+                    {{ product.category.name }}
+                </span>
+
+                <a href="{% url 'chef_panel:edit_product' product.id %}" class="dish-edit-floating" title="Tahrirlash">
+                    <i class="fas fa-pen fa-xs"></i>
+                </a>
+            </div>
+
+            <!-- Content -->
+            <div class="dish-body">
+                <h4 class="dish-title">{{ product.name }}</h4>
+                <div class="dish-price">
+                    {{ product.price|floatformat:0 }} <small style="font-size: 0.8rem; font-weight: 600; color: #64748b;">so'm</small>
+                </div>
+
+                <!-- Footer Availability Toggle -->
+                <div class="dish-footer">
+                    <button type="button" 
+                            class="toggle-availability-btn js-toggle-availability {% if product.is_available %}is-available{% else %}not-available{% endif %}"
+                            data-product-id="{{ product.id }}"
+                            data-is-available="{{ product.is_available|yesno:'true,false' }}">
+                        {% if product.is_available %}
+                            <i class="fas fa-check-circle"></i> Menyuda Mavjud (Aktiv)
+                        {% else %}
+                            <i class="fas fa-ban"></i> Stop-List (Mavjud Emas)
+                        {% endif %}
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="text-center py-5 bg-white rounded p-5" style="border: 1px dashed var(--border-subtle);">
+        <i class="fas fa-bowl-food fa-3x text-muted mb-3 opacity-50"></i>
+        <h4 class="fw-bold text-heading">Taomlar mavjud emas</h4>
+        <p class="text-muted">Tanlangan kategoriya bo'yicha taomlar topilmadi.</p>
+        <a href="{% url 'chef_panel:add_product' %}" class="btn btn-primary mt-2">
+            <i class="fas fa-plus me-1"></i> Taom qo'shish
+        </a>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleButtons = document.querySelectorAll('.js-toggle-availability');
+    const messageContainer = document.getElementById('message-container');
+
+    toggleButtons.forEach(button => {
+        button.addEventListener('click', async function() {
+            const productId = this.dataset.productId;
+            const isAvailable = this.dataset.isAvailable === 'true';
+            const newStatus = !isAvailable;
+
+            const url = `/chef_panel/api/products/${productId}/toggle-availability/`;
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_available: newStatus })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server xatosi: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.dataset.isAvailable = newStatus ? 'true' : 'false';
+                    this.classList.remove(newStatus ? 'not-available' : 'is-available');
+                    this.classList.add(newStatus ? 'is-available' : 'not-available');
+                    this.innerHTML = newStatus 
+                        ? '<i class="fas fa-check-circle"></i> Menyuda Mavjud (Aktiv)' 
+                        : '<i class="fas fa-ban"></i> Stop-List (Mavjud Emas)';
+                    
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'alert alert-success alert-dismissible fade show mb-3';
+                    msgDiv.innerHTML = `
+                        <i class="fas fa-check me-2"></i>${data.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    messageContainer.prepend(msgDiv);
+                    setTimeout(() => msgDiv.remove(), 2500);
+                } else {
+                    alert('Xato: ' + data.message);
+                }
+            } catch (error) {
+                alert('Server bilan bog\'lanishda xato: ' + error.message);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -46,7 +46,9 @@ class CustomerOrder {
       orderNumber: orderNum,
       serviceType: json['service_type'] ?? 'delivery',
       serviceTypeDisplay: json['service_type_display'] ??
-          (json['service_type'] == 'delivery' ? 'Yetkazib berish' : 'Olib ketish'),
+          (json['service_type'] == 'delivery'
+              ? 'Yetkazib berish'
+              : 'Olib ketish'),
       status: json['status'] ?? 'yangi',
       statusDisplay: json['status_display'] ?? 'Qabul qilindi',
       totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0.0,

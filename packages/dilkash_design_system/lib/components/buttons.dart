@@ -3,6 +3,7 @@ import '../tokens/colors.dart';
 import '../tokens/radii.dart';
 
 enum DilkashButtonVariant { primary, secondary, outline, text, danger }
+
 enum DilkashButtonSize { sm, md, lg }
 
 /// Production-Grade Dilkash Button with all states (normal, pressed, disabled, loading)
@@ -63,18 +64,24 @@ class DilkashButton extends StatelessWidget {
             ? (isDark ? const Color(0xFF1E3529) : const Color(0xFFCBD5E1))
             : (isDark ? DilkashColors.primary400 : DilkashColors.primary500);
         fgColor = isDisabled
-            ? (isDark ? DilkashColors.textMutedDark : DilkashColors.textMutedLight)
+            ? (isDark
+                ? DilkashColors.textMutedDark
+                : DilkashColors.textMutedLight)
             : (isDark ? Colors.black : Colors.white);
         break;
 
       case DilkashButtonVariant.secondary:
-        bgColor = isDark ? DilkashColors.surfaceDarkElevated : DilkashColors.primary50;
+        bgColor = isDark
+            ? DilkashColors.surfaceDarkElevated
+            : DilkashColors.primary50;
         fgColor = isDark ? DilkashColors.primary300 : DilkashColors.primary700;
         break;
 
       case DilkashButtonVariant.outline:
         bgColor = Colors.transparent;
-        fgColor = isDark ? DilkashColors.textPrimaryDark : DilkashColors.textPrimaryLight;
+        fgColor = isDark
+            ? DilkashColors.textPrimaryDark
+            : DilkashColors.textPrimaryLight;
         border = BorderSide(
           color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
           width: 1.5,
@@ -144,7 +151,9 @@ class DilkashButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
               borderRadius: DilkashRadii.radiusMd,
-              border: border != BorderSide.none ? Border.fromBorderSide(border) : null,
+              border: border != BorderSide.none
+                  ? Border.fromBorderSide(border)
+                  : null,
             ),
             child: content,
           ),

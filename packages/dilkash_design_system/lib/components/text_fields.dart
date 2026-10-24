@@ -87,22 +87,29 @@ class DilkashTextField extends StatelessWidget {
                 ? Icon(
                     prefixIcon,
                     size: 20,
-                    color: isDark ? DilkashColors.textSecondaryDark : DilkashColors.textSecondaryLight,
+                    color: isDark
+                        ? DilkashColors.textSecondaryDark
+                        : DilkashColors.textSecondaryLight,
                   )
                 : null,
             suffixIcon: suffixIcon,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: DilkashRadii.radiusSm,
               borderSide: BorderSide(
-                color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                color: isDark
+                    ? DilkashColors.borderDark
+                    : DilkashColors.borderLight,
                 width: 1.0,
               ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: DilkashRadii.radiusSm,
               borderSide: BorderSide(
-                color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                color: isDark
+                    ? DilkashColors.borderDark
+                    : DilkashColors.borderLight,
                 width: 1.0,
               ),
             ),

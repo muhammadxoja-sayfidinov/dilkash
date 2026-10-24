@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Oshxona (KDS) - Faqat Dastavka va Olib ketish{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 2026/2027 Kitchen Display System (KDS) Theme */
+    .kds-container {
+        padding: 4px 0;
+    }
+    .kds-top-toolbar {
+        background: #ffffff;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: 8px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        box-shadow: var(--shadow-subtle);
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+    .kds-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+    }
+    .kds-ticket {
+        background: #ffffff;
+        border: 2px solid var(--border-subtle);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-card);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: transform 0.2s ease;
+    }
+    .kds-ticket:hover {
+        transform: translateY(-2px);
+    }
+    .kds-ticket.yangi {
+        border-color: #f59e0b;
+    }
+    .kds-ticket.tasdiqlangan {
+        border-color: #3b82f6;
+    }
+    .kds-ticket.tayor {
+        border-color: #10b981;
+        opacity: 0.85;
+    }
+
+    .kds-ticket-head {
+        padding: 14px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #f1f5f9;
+    }
+    .kds-ticket-head.head-yangi {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    .kds-ticket-head.head-tasdiqlangan {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    .kds-ticket-head.head-tayor {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .kds-items-body {
+        padding: 16px;
+        flex: 1;
+        background: #ffffff;
+    }
+    .kds-item-line {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px dashed #e2e8f0;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--text-heading);
+    }
+    .kds-item-qty {
+        background: #f1f5f9;
+        color: var(--brand-primary);
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.25rem;
+        padding: 2px 10px;
+        border-radius: 8px;
+        margin-right: 8px;
+    }
+
+    .kds-ticket-actions {
+        padding: 12px 16px;
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="kds-container">
+    <div class="kds-top-toolbar">
+        <div class="d-flex align-items-center gap-2">
+            <h4 class="fw-bold m-0 text-heading d-flex align-items-center gap-2">
+                <i class="fas fa-fire-burner text-danger"></i>
+                <span>Oshxona (KDS) Paneli</span>
+            </h4>
+            <span class="badge bg-danger rounded-pill px-3 py-1 font-monospace" id="kdsActiveCount">
+                {{ orders_count }} ta faol
+            </span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-sm btn-light border" onclick="window.location.reload();" title="Yangilash">
+                <i class="fas fa-rotate text-primary"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- KDS GRID -->
+    <div class="kds-grid" id="kdsOrdersGrid">
+        {% for ord in orders %}
+        <div class="kds-ticket {{ ord.status }}" id="kds-order-{{ ord.id }}">
+            <!-- Ticket Head -->
+            <div class="kds-ticket-head head-{{ ord.status }}">
+                <div>
+                    {% if ord.service_type == 'delivery' %}
+                        <span class="badge bg-primary text-white"><i class="fas fa-motorcycle me-1"></i> Yetkazib berish</span>
+                    {% else %}
+                        <span class="badge bg-success text-white"><i class="fas fa-store me-1"></i> Olib ketish</span>
+                    {% endif %}
+                    <span class="fw-bold fs-5 ms-2 font-monospace">#{{ ord.order_number }}</span>
+                </div>
+                <div class="fw-bold small font-monospace">
+                    <i class="far fa-clock me-1"></i>{{ ord.created_at|date:"H:i" }}
+                </div>
+            </div>
+
+            <!-- Items -->
+            <div class="kds-items-body">
+                {% for it in ord.items.all %}
+                <div class="kds-item-line">
+                    <div>
+                        <span class="kds-item-qty">{{ it.quantity }}x</span>
+                        <span>{{ it.product.name }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+
+                {% if ord.notes %}
+                <div class="p-2 mt-3 bg-danger-subtle text-danger rounded border border-danger-subtle small fw-bold">
+                    <i class="fas fa-exclamation-triangle me-1"></i> Izoh: {{ ord.notes }}
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Actions -->
+            <div class="kds-ticket-actions">
+                {% if ord.status == 'yangi' %}
+                <button class="btn btn-primary fw-bold py-2" onclick="updateKdsOrderStatus({{ ord.id }}, 'tasdiqlangan')">
+                    <i class="fas fa-utensils me-2"></i> 👨‍🍳 Tayyorlanmoqda (Tasdiqlash)
+                </button>
+                {% elif ord.status == 'tasdiqlangan' %}
+                <button class="btn btn-success fw-bold py-2" onclick="updateKdsOrderStatus({{ ord.id }}, 'tayor')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <i class="fas fa-check-double me-2"></i> 🍽️ TAYYOR BO'LDI!
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div style="grid-column: 1 / -1;" class="text-center py-5 bg-white rounded border">
+            <i class="fas fa-clipboard-check fa-4x text-success opacity-50 mb-3"></i>
+            <h4 class="fw-bold text-dark">Hozirda yangi dastavka yoki olib ketish navbati bo'sh</h4>
+            <p class="text-muted small">Yangi buyurtma tushishi bilan bu yerda aks etadi.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- TAYYOR BO'LGANLAR (SO'NGGI 8 TA) -->
+    {% if ready_orders %}
+    <div class="mt-5">
+        <h5 class="fw-bold text-muted mb-3"><i class="fas fa-check-circle text-success me-2"></i>Oshxonada Tayyorlangan (Kuryer / Mijoz Kutmoqda):</h5>
+        <div class="row g-2">
+            {% for r_ord in ready_orders %}
+            <div class="col-md-3">
+                <div class="p-3 bg-white border rounded shadow-sm d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-success mb-1">{{ r_ord.get_service_type_display }}</span>
+                        <div class="fw-bold">#{{ r_ord.order_number }} - {{ r_ord.customer.full_name }}</div>
+                        <div class="small text-muted">{{ r_ord.items.count }} ta taom</div>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-light text-dark border">Tayyor</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    function updateKdsOrderStatus(orderId, newStatus) {
+        fetch('/chef_panel/api/orders/update-status/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ order_id: orderId, status: newStatus })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Xatolik yuz berdi');
+            }
+        });
+    }
+
+    // Auto-refresh KDS every 4 seconds
+    setInterval(() => {
+        // Fetch background refresh if needed
+    }, 4000);
+</script>
+{% endblock %}

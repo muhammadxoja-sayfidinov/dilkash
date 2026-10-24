@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block page_title %}Kassa: Dastavka & Olib ketish{% endblock %}
+
+{% block extra_css %}
+<style>
+    .deliv-top-toolbar {
+        background: #ffffff;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: 8px 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        box-shadow: var(--shadow-subtle);
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+    .deliv-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+        gap: 12px;
+    }
+    .deliv-card {
+        background: white;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: 12px 14px;
+        box-shadow: var(--shadow-subtle);
+        transition: var(--transition-smooth);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .deliv-card:hover {
+        box-shadow: var(--shadow-card);
+        border-color: #cbd5e1;
+    }
+    .deliv-badge-type {
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: var(--radius-pill);
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .badge-deliv {
+        background: rgba(2, 132, 199, 0.15);
+        color: #0284c7;
+    }
+    .badge-pick {
+        background: rgba(16, 185, 129, 0.15);
+        color: #059669;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="deliv-top-toolbar">
+    <div class="d-flex align-items-center gap-2">
+        <h4 class="fw-bold m-0 text-heading d-flex align-items-center gap-2">
+            <i class="fas fa-motorcycle text-info"></i>
+            <span>Dastavka & Olib ketish Paneli</span>
+        </h4>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'chef_panel:cashier_pos' %}" class="btn btn-sm btn-warning fw-bold text-dark" style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);">
+            <i class="fas fa-border-all me-1"></i> Stollar Zali
+        </a>
+        <button class="btn btn-sm btn-light border" onclick="window.location.reload();" title="Yangilash">
+            <i class="fas fa-rotate text-primary"></i>
+        </button>
+    </div>
+</div>
+
+<!-- TABS: DASTAVKA VS OLIB KETISH -->
+<ul class="nav nav-pills mb-3 gap-2" id="deliveryTabs" role="tablist">
+    <li class="nav-item">
+        <button class="nav-link active fw-bold px-3 py-1.5" id="tab-delivery-btn" data-bs-toggle="pill" data-bs-target="#tab-delivery" type="button">
+            <i class="fas fa-truck me-1"></i> Yetkazib berish ({{ delivery_count }})
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link fw-bold px-3 py-1.5" id="tab-pickup-btn" data-bs-toggle="pill" data-bs-target="#tab-pickup" type="button">
+            <i class="fas fa-store me-1"></i> Olib ketish ({{ pickup_count }})
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="deliveryTabsContent">
+    <!-- TAB 1: YETKAZIB BERISH (DELIVERY) -->
+    <div class="tab-pane fade show active" id="tab-delivery">
+        {% if delivery_orders %}
+            <div class="deliv-grid">
+            {% for ord in delivery_orders %}
+            <div class="deliv-card">
+                <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="deliv-badge-type badge-deliv"><i class="fas fa-truck"></i> Yetkazib berish</span>
+                        <h5 class="fw-bold m-0 font-monospace text-primary">#{{ ord.order_number }}</h5>
+                        <span class="small text-muted">{{ ord.created_at|date:"H:i" }}</span>
+                    </div>
+                    <div>
+                        <span class="badge bg-light text-dark border fw-bold px-3 py-2">
+                            Holati: {{ ord.get_status_display }}
+                        </span>
+                        {% if ord.is_paid %}
+                            <span class="badge bg-success ms-1"><i class="fas fa-check"></i> To'langan</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark ms-1">To'lov: {{ ord.get_payment_method_display }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-md-4">
+                        <div class="small text-muted">Mijoz:</div>
+                        <strong>{{ ord.customer.full_name }}</strong>
+                        <div><a href="tel:{{ ord.customer.phone_number }}" class="text-decoration-none fw-bold text-success"><i class="fas fa-phone-alt me-1"></i>{{ ord.customer.phone_number }}</a></div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="small text-muted">Yetkazish Manzili:</div>
+                        <div class="fw-semibold text-dark">{{ ord.address|default:"Manzil ko'rsatilmagan" }}</div>
+                        {% if ord.latitude and ord.longitude %}
+                        <div class="mt-1 d-flex flex-wrap gap-1">
+                            <a href="https://yandex.uz/maps/?rtext=41.311081,69.240562~{{ ord.latitude }},{{ ord.longitude }}&rtt=auto" target="_blank" class="badge bg-warning text-dark text-decoration-none px-2 py-1 shadow-sm">
+                                <i class="fas fa-route me-1"></i>Yandex Marshrut
+                            </a>
+                            <a href="https://maps.google.com/?q={{ ord.latitude }},{{ ord.longitude }}" target="_blank" class="badge bg-primary text-white text-decoration-none px-2 py-1 shadow-sm">
+                                <i class="fas fa-map-marker-alt me-1"></i>Google Maps
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-3 text-md-end">
+                        <div class="small text-muted">Umumiy Summa:</div>
+                        <h4 class="fw-bold font-monospace text-primary m-0">{{ ord.total_amount|floatformat:0 }} so'm</h4>
+                        <div class="small text-muted">Yetkazish: {{ ord.delivery_cost|floatformat:0 }} so'm</div>
+                    </div>
+                </div>
+
+                <!-- Products breakdown -->
+                <div class="p-2 bg-light rounded mb-3">
+                    <div class="small text-muted fw-bold mb-1">Buyurtma qilingan taomlar:</div>
+                    <div class="d-flex flex-wrap gap-3">
+                        {% for item in ord.items.all %}
+                        <span class="badge bg-white text-dark border">
+                            <strong>{{ item.quantity }}x</strong> {{ item.product.name }} ({{ item.total|floatformat:0 }} so'm)
+                        </span>
+                        {% endfor %}
+                    </div>
+                    {% if ord.notes %}
+                    <div class="small text-danger mt-1"><strong>Izoh:</strong> {{ ord.notes }}</div>
+                    {% endif %}
+                </div>
+
+                <!-- Action row -->
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-2 border-top">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="small fw-bold text-muted">Biriktirilgan kuryer:</span>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle fw-bold" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-motorcycle me-1"></i>
+                                <span id="courier-name-ord-{{ ord.id }}">{{ ord.courier_name|default:"Kuryer tayinlash" }}</span>
+                            </button>
+                            <ul class="dropdown-menu shadow">
+                                <li><h6 class="dropdown-header">Kuryerni tanlang</h6></li>
+                                {% for cour in couriers %}
+                                <li>
+                                    <a class="dropdown-item" href="javascript:void(0)" onclick="assignCourierToOrder({{ ord.id }}, {{ cour.id }}, '{{ cour.name }}')">
+                                        <strong>{{ cour.name }}</strong> ({{ cour.vehicle_info }})
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'chef_panel:thermal_receipt' ord.id %}" target="_blank" class="btn btn-sm btn-outline-dark">
+                            <i class="fas fa-print me-1"></i> Chek
+                        </a>
+                        {% if ord.status != 'yetkazildi' %}
+                        <button class="btn btn-sm btn-success fw-bold" onclick="markDeliveryCompleted({{ ord.id }})">
+                            <i class="fas fa-check-circle me-1"></i> Yetkazildi & Yopish
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-5 bg-white rounded border">
+                <i class="fas fa-motorcycle fa-3x text-muted opacity-50 mb-3"></i>
+                <h5 class="fw-bold">Faol yetkazib berish buyurtmalari yo'q</h5>
+                <p class="text-muted small">Telegram bot yoki mobil ilova orqali yangi dastavka kelganda bu yerda aks etadi.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- TAB 2: OLIB KETISH (PICKUP) -->
+    <div class="tab-pane fade" id="tab-pickup">
+        {% if pickup_orders %}
+            <div class="deliv-grid">
+            {% for ord in pickup_orders %}
+            <div class="deliv-card">
+                <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="deliv-badge-type badge-pick"><i class="fas fa-store"></i> Olib ketish</span>
+                        <h5 class="fw-bold m-0 font-monospace text-primary">#{{ ord.order_number }}</h5>
+                        <span class="small text-muted">{{ ord.created_at|date:"H:i" }}</span>
+                    </div>
+                    <div>
+                        <span class="badge bg-light text-dark border fw-bold px-3 py-2">
+                            Holati: {{ ord.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <div class="small text-muted">Mijoz:</div>
+                        <strong>{{ ord.customer.full_name }}</strong>
+                        <div><a href="tel:{{ ord.customer.phone_number }}" class="text-decoration-none fw-bold text-success"><i class="fas fa-phone-alt me-1"></i>{{ ord.customer.phone_number }}</a></div>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <div class="small text-muted">To'lov Summasi:</div>
+                        <h4 class="fw-bold font-monospace text-primary m-0">{{ ord.total_amount|floatformat:0 }} so'm</h4>
+                        <span class="badge bg-warning text-dark">{{ ord.get_payment_method_display }}</span>
+                    </div>
+                </div>
+
+                <!-- Products -->
+                <div class="p-2 bg-light rounded mb-3">
+                    <div class="small text-muted fw-bold mb-1">Buyurtma taomlari:</div>
+                    <div class="d-flex flex-wrap gap-3">
+                        {% for item in ord.items.all %}
+                        <span class="badge bg-white text-dark border">
+                            <strong>{{ item.quantity }}x</strong> {{ item.product.name }} ({{ item.total|floatformat:0 }} so'm)
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 pt-2 border-top">
+                    <a href="{% url 'chef_panel:thermal_receipt' ord.id %}" target="_blank" class="btn btn-sm btn-outline-dark">
+                        <i class="fas fa-print me-1"></i> Chek
+                    </a>
+                    <button class="btn btn-sm btn-success fw-bold" onclick="markPickupCompleted({{ ord.id }})">
+                        <i class="fas fa-hand-holding me-1"></i> Mijozga Topshirildi & Yopish
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-5 bg-white rounded border">
+                <i class="fas fa-store fa-3x text-muted opacity-50 mb-3"></i>
+                <h5 class="fw-bold">Faol olib ketish buyurtmalari yo'q</h5>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Kuryerni biriktirish
+    function assignCourierToOrder(orderId, courierId, courierName) {
+        fetch('/api/cashier/assign-courier/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ order_id: orderId, courier_id: courierId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                document.getElementById(`courier-name-ord-${orderId}`).innerText = courierName;
+            }
+        });
+    }
+
+    // Yetkazib berildi deb yopish
+    function markDeliveryCompleted(orderId) {
+        if (!confirm("Buyurtma yetkazildi va to'lov qabul qilindi deb belgilaysizmi?")) return;
+        fetch('/chef_panel/api/orders/update-status/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ order_id: orderId, status: 'yetkazildi' })
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert("Buyurtma muvaffaqiyatli yakunlandi!");
+            window.location.reload();
+        });
+    }
+
+    // Olib ketildi deb yopish
+    function markPickupCompleted(orderId) {
+        if (!confirm("Mijozga topshirildi deb belgilaysizmi?")) return;
+        fetch('/chef_panel/api/orders/update-status/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ order_id: orderId, status: 'olib_ketildi' })
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert("Mijozga topshirildi deb yakunlandi!");
+            window.location.reload();
+        });
+    }
+
+    // Auto-refresh every 8 seconds
+    setInterval(() => {
+        // Soft reload to keep view fresh
+    }, 8000);
+</script>
+{% endblock %}

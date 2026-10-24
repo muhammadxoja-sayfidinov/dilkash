@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stol #{{ table_number }} Cheki — Dilkash Restaurant</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            /* Dilkash Emerald Green & Minimal Gold */
+            --brand-primary: #0d6b4e;
+            --brand-primary-light: #10866a;
+            --brand-primary-dark: #08523b;
+            --brand-primary-soft: rgba(13, 107, 78, 0.08);
+            --brand-gradient: linear-gradient(135deg, #10866a 0%, #0d6b4e 100%);
+            
+            --accent-gold: #c0a36f;
+            --accent-gold-soft: rgba(192, 163, 111, 0.12);
+
+            --bg-page: #f2f5f3;
+            --bg-receipt: #ffffff;
+            --border-receipt: #e2e8e4;
+            --text-main: #0a1f16;
+            --text-secondary: #3d5a4c;
+            --text-muted: #6b8577;
+
+            --radius-sm: 10px;
+            --radius-md: 16px;
+            --radius-lg: 24px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 18px 14px 40px;
+        }
+
+        .receipt-wrapper {
+            width: 100%;
+            max-width: 440px;
+            margin: 0 auto;
+        }
+
+        /* Top Brand Bar */
+        .brand-top {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            text-align: center;
+        }
+
+        .brand-logo-img {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-sm);
+            object-fit: cover;
+            border: 1.5px solid var(--accent-gold);
+            box-shadow: 0 4px 12px rgba(13, 107, 78, 0.2);
+        }
+
+        .brand-title-wrap h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 19px;
+            font-weight: 800;
+            color: var(--brand-primary-dark);
+            letter-spacing: -0.02em;
+            line-height: 1.15;
+        }
+
+        .brand-title-wrap p {
+            font-size: 11px;
+            color: var(--accent-gold);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Digital Receipt Container */
+        .receipt-card {
+            background: var(--bg-receipt);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-receipt);
+            box-shadow: 0 10px 30px rgba(10, 31, 22, 0.08);
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        /* Receipt Top Header Bar */
+        .receipt-accent-bar {
+            height: 6px;
+            background: var(--brand-gradient);
+            width: 100%;
+        }
+
+        .receipt-head {
+            padding: 20px 22px 14px;
+            text-align: center;
+            border-bottom: 1px dashed var(--border-receipt);
+            position: relative;
+        }
+
+        .table-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--brand-primary-soft);
+            color: var(--brand-primary);
+            border: 1px solid rgba(13, 107, 78, 0.2);
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            padding: 6px 18px;
+            border-radius: 999px;
+            margin-bottom: 8px;
+        }
+
+        .table-pill i {
+            color: var(--accent-gold);
+            font-size: 16px;
+        }
+
+        .receipt-doc-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        /* Meta Information Grid */
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 12px;
+            font-size: 12px;
+            text-align: left;
+            background: var(--bg-page);
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(13, 107, 78, 0.08);
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .meta-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .meta-val {
+            font-weight: 700;
+            color: var(--text-main);
+            margin-top: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11.5px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 999px;
+            margin-top: 10px;
+        }
+
+        .status-badge.active-prep {
+            background: rgba(192, 163, 111, 0.15);
+            color: #8b6820;
+            border: 1px solid rgba(192, 163, 111, 0.3);
+        }
+
+        .status-badge.active-served {
+            background: rgba(13, 107, 78, 0.12);
+            color: var(--brand-primary);
+            border: 1px solid rgba(13, 107, 78, 0.25);
+        }
+
+        /* Items Section */
+        .receipt-body {
+            padding: 18px 22px;
+        }
+
+        .items-table-head {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding-bottom: 8px;
+            border-bottom: 1.5px solid var(--border-receipt);
+            margin-bottom: 10px;
+        }
+
+        .item-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .receipt-item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            font-size: 13.5px;
+            line-height: 1.35;
+        }
+
+        .item-left {
+            flex: 1;
+            padding-right: 12px;
+        }
+
+        .item-name {
+            font-weight: 700;
+            color: var(--text-main);
+            display: block;
+        }
+
+        .item-subcalc {
+            font-size: 11.5px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 2px;
+        }
+
+        .item-price-total {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: 14.5px;
+            color: var(--text-main);
+            white-space: nowrap;
+        }
+
+        /* Totals Block */
+        .receipt-summary {
+            margin-top: 16px;
+            padding-top: 14px;
+            border-top: 1.5px dashed var(--border-receipt);
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12.5px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .summary-total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--brand-primary-soft);
+            border: 1px solid rgba(13, 107, 78, 0.2);
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            margin-top: 12px;
+        }
+
+        .total-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--brand-primary-dark);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .total-amount {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 900;
+            color: var(--brand-primary);
+        }
+
+        /* Empty State */
+        .empty-receipt {
+            text-align: center;
+            padding: 36px 20px 28px;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--brand-primary-soft);
+            color: var(--brand-primary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        .empty-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 6px;
+        }
+
+        .empty-desc {
+            font-size: 12px;
+            line-height: 1.45;
+            max-width: 280px;
+            margin: 0 auto;
+        }
+
+        /* Receipt Footer Barcode Mock */
+        .receipt-foot {
+            background: #fafcfb;
+            padding: 12px 20px;
+            border-top: 1px dashed var(--border-receipt);
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .barcode-bars {
+            height: 28px;
+            background: repeating-linear-gradient(
+                90deg,
+                #111 0px,
+                #111 2px,
+                transparent 2px,
+                transparent 4px,
+                #111 4px,
+                #111 7px,
+                transparent 7px,
+                transparent 9px
+            );
+            max-width: 220px;
+            margin: 8px auto 6px;
+            opacity: 0.6;
+        }
+
+        /* Action Buttons */
+        .action-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .btn-call-waiter {
+            width: 100%;
+            background: var(--brand-gradient);
+            color: white;
+            border: none;
+            padding: 14px 18px;
+            border-radius: var(--radius-md);
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 8px 20px rgba(13, 107, 78, 0.25);
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .btn-call-waiter:active {
+            transform: scale(0.97);
+        }
+
+        .btn-call-waiter.called {
+            background: #059669;
+        }
+
+        .btn-print-bill {
+            width: 100%;
+            background: white;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-receipt);
+            padding: 11px 16px;
+            border-radius: var(--radius-md);
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn-print-bill:hover {
+            background: var(--bg-page);
+        }
+
+        /* Live Sync Pulse */
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            font-size: 10.5px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-top: 14px;
+        }
+
+        .live-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--brand-primary);
+            animation: pulse-dot 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.4); opacity: 0.4; }
+        }
+
+        /* Print Mode */
+        @media print {
+            body {
+                background: white !important;
+                padding: 0 !important;
+            }
+            .action-stack, .live-indicator, .btn-print-bill, .btn-call-waiter {
+                display: none !important;
+            }
+            .receipt-card {
+                box-shadow: none !important;
+                border: 1px solid #000 !important;
+                max-width: 100% !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="receipt-wrapper">
+    <!-- Top Brand Header -->
+    <div class="brand-top">
+        <img class="brand-logo-img" src="/media/logo/logo.jpg" alt="Dilkash" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=100&q=80';">
+        <div class="brand-title-wrap">
+            <h1>Dilkash Restaurant</h1>
+            <p>Raqamli Stol Cheki</p>
+        </div>
+    </div>
+
+    <!-- Receipt Card -->
+    <div class="receipt-card">
+        <div class="receipt-accent-bar"></div>
+
+        <!-- Receipt Header -->
+        <div class="receipt-head">
+            <div class="table-pill">
+                <i class="fas fa-chair"></i>
+                <span>Stol #{{ table_number }}</span>
+            </div>
+            <div class="receipt-doc-title">Elektron Hisob Cheki</div>
+
+            <!-- Meta Data -->
+            <div class="meta-grid">
+                <div class="meta-item">
+                    <span class="meta-label">Buyurtma</span>
+                    <span class="meta-val" id="receipt-order-no">{{ order_number_str|default:"Kutilmoqda" }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Vaqt</span>
+                    <span class="meta-val">{{ now|date:"d.m.Y · H:i" }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">Ofitsiant</span>
+                    <span class="meta-val" id="receipt-waiter">{{ waiter_name|default:"Biriktirilgan ofitsiant" }}</span>
+                </div>
+                <div class="meta-item">
+                    <span class="meta-label">To'lov holati</span>
+                    <span class="meta-val" id="receipt-payment-status">Kassada to'lanadi</span>
+                </div>
+            </div>
+
+            <!-- Kitchen Status -->
+            <div id="receipt-status-badge">
+                {% if has_order %}
+                    <span class="status-badge active-prep">
+                        <i class="fas fa-spinner fa-spin"></i> Oshxonada tayyorlanmoqda
+                    </span>
+                {% else %}
+                    <span class="status-badge active-served">
+                        <i class="fas fa-check-circle"></i> Stol bo'sh
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="receipt-body">
+            <div class="items-table-head">
+                <span>Taom & Miqdor</span>
+                <span>Summa</span>
+            </div>
+
+            <div class="item-list" id="itemsListContainer">
+                {% if has_order %}
+                    {% for it in items %}
+                    <div class="receipt-item-row">
+                        <div class="item-left">
+                            <span class="item-name">{{ it.product.name }}</span>
+                            <span class="item-subcalc">{{ it.quantity }} dona × {{ it.price|floatformat:0 }} so'm</span>
+                        </div>
+                        <div class="item-price-total">{{ it.total|floatformat:0 }} so'm</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-receipt">
+                        <div class="empty-icon">
+                            <i class="fas fa-receipt"></i>
+                        </div>
+                        <div class="empty-title">Hozircha buyurtma yo'q</div>
+                        <p class="empty-desc">
+                            Ushbu stolda hali faol buyurtma mavjud emas. Buyurtma berish uchun ofitsiantni chaqirishingiz mumkin.
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Receipt Summary Totals -->
+            <div class="receipt-summary" id="receiptSummaryBlock" style="{% if not has_order %}display:none;{% endif %}">
+                <div class="summary-row">
+                    <span>Taomlar summasi:</span>
+                    <span id="subtotalVal">{{ total_amount|floatformat:0 }} so'm</span>
+                </div>
+                <div class="summary-row">
+                    <span>Xizmat haqi:</span>
+                    <span>Kiritilgan</span>
+                </div>
+
+                <div class="summary-total-row">
+                    <span class="total-label">Jami to'lov:</span>
+                    <span class="total-amount" id="grandTotalVal">{{ total_amount|floatformat:0 }} so'm</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Receipt Foot Barcode -->
+        <div class="receipt-foot">
+            <p>Dilkash Restaurant & Lounge · Toshkent shahri</p>
+            <div class="barcode-bars"></div>
+            <p style="font-size: 10px; color: var(--text-muted);">Chek raqamli tizim orqali avtomatik yangilanadi</p>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-stack">
+        <button class="btn-call-waiter" id="btnCallWaiter" onclick="callWaiter()">
+            <i class="fas fa-bell"></i>
+            <span id="btnCallText">Ofitsiantni chaqirish</span>
+        </button>
+
+        <button class="btn-print-bill" onclick="window.print()">
+            <i class="fas fa-print"></i>
+            <span>Chekni chop etish / Saqlash</span>
+        </button>
+    </div>
+
+    <!-- Live Polling Indicator -->
+    <div class="live-indicator">
+        <span class="live-dot"></span>
+        <span id="liveStatusText">Jonli chek tizimi faol</span>
+    </div>
+</div>
+
+<script>
+    const tableNumber = "{{ table_number }}";
+    let lastTotal = parseFloat("{{ total_amount|default:'0' }}") || 0;
+
+    function callWaiter() {
+        const btn = document.getElementById('btnCallWaiter');
+        const btnText = document.getElementById('btnCallText');
+        btn.disabled = true;
+        btnText.innerText = "Ofitsiantga xabar yuborilmoqda...";
+
+        fetch('/api/waiter/call/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                table_number: tableNumber,
+                reason: "Hisob-kitob / Chek bo'yicha chaqiruv"
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btnText.innerText = "✅ Ofitsiant ogohlantirildi!";
+            btn.classList.add('called');
+            setTimeout(() => {
+                btnText.innerText = "Ofitsiantni chaqirish";
+                btn.classList.remove('called');
+                btn.disabled = false;
+            }, 5000);
+        })
+        .catch(() => {
+            btnText.innerText = "✅ Ofitsiantga xabar ketdi";
+            setTimeout(() => {
+                btnText.innerText = "Ofitsiantni chaqirish";
+                btn.disabled = false;
+            }, 3000);
+        });
+    }
+
+    // Format number to currency
+    function formatSum(num) {
+        return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " so'm";
+    }
+
+    // Auto-sync polling every 3 seconds
+    setInterval(() => {
+        fetch(`/api/table/${tableNumber}/status/`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) return;
+
+                if (data.has_active_order && data.order) {
+                    const ord = data.order;
+                    const container = document.getElementById('itemsListContainer');
+                    const summary = document.getElementById('receiptSummaryBlock');
+                    const orderNoEl = document.getElementById('receipt-order-no');
+                    const waiterEl = document.getElementById('receipt-waiter');
+                    const badgeEl = document.getElementById('receipt-status-badge');
+
+                    if (orderNoEl) orderNoEl.innerText = ord.order_number || "—";
+                    if (waiterEl && ord.waiter_name) waiterEl.innerText = ord.waiter_name;
+
+                    if (badgeEl) {
+                        badgeEl.innerHTML = `
+                            <span class="status-badge active-prep">
+                                <i class="fas fa-check-circle"></i> ${ord.status_display || 'Oshxonada'}
+                            </span>
+                        `;
+                    }
+
+                    // Render items list
+                    if (ord.items && ord.items.length > 0) {
+                        let html = '';
+                        ord.items.forEach(it => {
+                            html += `
+                                <div class="receipt-item-row">
+                                    <div class="item-left">
+                                        <span class="item-name">${it.name}</span>
+                                        <span class="item-subcalc">${it.quantity} dona × ${formatSum(it.price)}</span>
+                                    </div>
+                                    <div class="item-price-total">${formatSum(it.total)}</div>
+                                </div>
+                            `;
+                        });
+                        container.innerHTML = html;
+                        summary.style.display = 'block';
+
+                        document.getElementById('subtotalVal').innerText = formatSum(ord.total_amount);
+                        document.getElementById('grandTotalVal').innerText = formatSum(ord.total_amount);
+                    }
+                } else {
+                    // No active order on table
+                    const container = document.getElementById('itemsListContainer');
+                    const summary = document.getElementById('receiptSummaryBlock');
+                    const badgeEl = document.getElementById('receipt-status-badge');
+
+                    if (badgeEl) {
+                        badgeEl.innerHTML = `
+                            <span class="status-badge active-served">
+                                <i class="fas fa-chair"></i> Stol bo'sh
+                            </span>
+                        `;
+                    }
+                    if (summary) summary.style.display = 'none';
+                    if (container && !container.querySelector('.empty-receipt')) {
+                        container.innerHTML = `
+                            <div class="empty-receipt">
+                                <div class="empty-icon"><i class="fas fa-receipt"></i></div>
+                                <div class="empty-title">Hozircha buyurtma yo'q</div>
+                                <p class="empty-desc">
+                                    Ushbu stolda hali faol buyurtma mavjud emas. Buyurtma berish uchun ofitsiantni chaqirishingiz mumkin.
+                                </p>
+                            </div>
+                        `;
+                    }
+                }
+            })
+            .catch(() => {});
+    }, 3000);
+</script>
+
+</body>
+</html>

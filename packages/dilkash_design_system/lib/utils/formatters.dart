@@ -8,7 +8,10 @@ class UzbekFormatters {
 
   /// Formats currency into production Uzbek standard: "45 000 soʻm"
   static String formatCurrency(num amount) {
-    final formatted = _currencyFormatter.format(amount).replaceAll(',', ' ').replaceAll('\u00A0', ' ');
+    final formatted = _currencyFormatter
+        .format(amount)
+        .replaceAll(',', ' ')
+        .replaceAll('\u00A0', ' ');
     return '$formatted soʻm';
   }
 

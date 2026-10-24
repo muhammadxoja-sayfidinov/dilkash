@@ -83,7 +83,24 @@ New Folder With Items/
 ---
 
 ## 5. Definition of Done & Quality Gate
-1. `flutter analyze` passes with 0 errors and 0 warnings on all packages and apps.
+1. `flutter analyze` passes with 0 errors and 0 warnings on all packages and apps (`dilkash_design_system`, `customer_app_flutter`, `courier_app_flutter`).
 2. All 89 QA backend tests in `qa_engine_test.py` pass 100%.
 3. Full light and dark theme support across all screens.
 4. Tap targets >= 48x48 dp with high contrast AA compliance.
+
+---
+
+## 6. Phase 3 & 4 Architectural Decisions
+
+### Pure Dart Mapping Engine vs Native SDKs
+- **Decision:** Pinned `flutter_map: ^7.0.2` and `latlong2: ^0.9.1` using CartoDB Voyager raster tiles (`https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png`).
+- **Rationale:** Native Google Maps or Yandex MapKit SDKs require platform API keys with billing and frequently crash in cross-platform development environments or trigger FFI asset loading errors (such as `DOBJC_initializeApi` in objective_c.dylib). CartoDB Voyager delivers high-DPI, ultra-fast tiles, eliminates OpenStreetMap Foundation rate limit warnings, and is 100% pure Dart, running seamlessly across iOS, Android, and Web without any external native dependencies.
+- **External Navigation Integration:** In addition to the in-app interactive map, couriers have one-tap access to launch Yandex Navigator (`yandexnavi://build_route_on_map`) or Google Maps (`https://www.google.com/maps/dir/`), providing turn-by-turn spoken directions when needed.
+
+### Tactile Courier Status Progression (`DilkashSwipeButton`)
+- **Decision:** State transitions (`accepted` -> `preparing` -> `delivering` -> `delivered`) in the Courier app use a physical drag slider rather than simple touch buttons.
+- **Rationale:** Couriers operate on motorcycles or bicycles with one hand or with gloves. Accidental taps on delivery completion buttons cause severe real-world operational issues. A deliberate 80% swipe threshold eliminates accidental triggers.
+
+### Reverse Geocoding & Localized Map Address Picker
+- **Decision:** The customer address picker allows both pinpointing on the interactive map sheet and automatic reverse geocoding via OpenStreetMap Nominatim with Uzbek language headers (`Accept-Language: uz,en`).
+- **Rationale:** Provides familiar Wolt/Yandex Eda user experience where dragging the map instantly fills in the street name and building number.

@@ -137,15 +137,21 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: isDark ? DilkashColors.surfaceDarkElevated : DilkashColors.primary50,
+                color: isDark
+                    ? DilkashColors.surfaceDarkElevated
+                    : DilkashColors.primary50,
                 borderRadius: DilkashRadii.radiusSm,
                 border: Border.all(
-                  color: isDark ? DilkashColors.borderDark : DilkashColors.primary200,
+                  color: isDark
+                      ? DilkashColors.borderDark
+                      : DilkashColors.primary200,
                 ),
               ),
               child: Icon(
                 Icons.restaurant_rounded,
-                color: isDark ? DilkashColors.primary400 : DilkashColors.primary500,
+                color: isDark
+                    ? DilkashColors.primary400
+                    : DilkashColors.primary500,
                 size: 20,
               ),
             ),
@@ -155,7 +161,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    auth.user != null ? 'Salom, ${auth.user!.fullName}!' : 'Dilkash Restorani',
+                    auth.user != null
+                        ? 'Salom, ${auth.user!.fullName}!'
+                        : 'Dilkash Restorani',
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 16,
@@ -170,7 +178,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       Icon(
                         Icons.location_on_outlined,
                         size: 13,
-                        color: isDark ? DilkashColors.primary400 : DilkashColors.primary500,
+                        color: isDark
+                            ? DilkashColors.primary400
+                            : DilkashColors.primary500,
                       ),
                       const SizedBox(width: 3),
                       Expanded(
@@ -196,8 +206,12 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: Icon(
-              themeProv.isDarkMode ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-              color: themeProv.isDarkMode ? DilkashColors.amber400 : const Color(0xFF334155),
+              themeProv.isDarkMode
+                  ? Icons.light_mode_rounded
+                  : Icons.dark_mode_rounded,
+              color: themeProv.isDarkMode
+                  ? DilkashColors.amber400
+                  : const Color(0xFF334155),
             ),
             tooltip: 'Mavzuni almashtirish',
             onPressed: () => themeProv.toggleTheme(),
@@ -205,7 +219,9 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: Icon(
               Icons.manage_search_rounded,
-              color: isDark ? DilkashColors.textPrimaryDark : const Color(0xFF334155),
+              color: isDark
+                  ? DilkashColors.textPrimaryDark
+                  : const Color(0xFF334155),
             ),
             tooltip: 'Buyurtmani kuzatish',
             onPressed: _showTrackOrderDialog,
@@ -237,14 +253,16 @@ class _HomeScreenState extends State<HomeScreen> {
                                 prefixIcon: Icons.search_rounded,
                                 suffixIcon: _searchQuery.isNotEmpty
                                     ? IconButton(
-                                        icon: const Icon(Icons.clear_rounded, size: 18),
+                                        icon: const Icon(Icons.clear_rounded,
+                                            size: 18),
                                         onPressed: () {
                                           _searchController.clear();
                                           setState(() => _searchQuery = '');
                                         },
                                       )
                                     : null,
-                                onChanged: (val) => setState(() => _searchQuery = val),
+                                onChanged: (val) =>
+                                    setState(() => _searchQuery = val),
                               ),
                               const SizedBox(height: 12),
 
@@ -288,20 +306,26 @@ class _HomeScreenState extends State<HomeScreen> {
                             margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                             padding: const EdgeInsets.all(18),
                             decoration: BoxDecoration(
-                              color: isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFF0D6B4E),
+                              color: isDark
+                                  ? DilkashColors.surfaceDarkElevated
+                                  : const Color(0xFF0D6B4E),
                               borderRadius: DilkashRadii.radiusLg,
                               border: Border.all(
-                                color: isDark ? DilkashColors.borderDark : Colors.transparent,
+                                color: isDark
+                                    ? DilkashColors.borderDark
+                                    : Colors.transparent,
                               ),
                             ),
                             child: Row(
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(
                                           color: DilkashColors.amber500,
                                           borderRadius: DilkashRadii.radiusXs,
@@ -331,7 +355,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       Text(
                                         'Buyurtma bering va ballar yigʻing',
                                         style: TextStyle(
-                                          color: Colors.white.withValues(alpha: 0.8),
+                                          color: Colors.white
+                                              .withValues(alpha: 0.8),
                                           fontSize: 12,
                                         ),
                                       ),
@@ -377,7 +402,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color: isDark ? DilkashColors.primary400 : DilkashColors.primary500,
+                                    color: isDark
+                                        ? DilkashColors.primary400
+                                        : DilkashColors.primary500,
                                   ),
                                 ),
                               ],
@@ -389,7 +416,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             height: 185,
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
                               itemCount: popularDishes.length,
                               itemBuilder: (context, i) {
                                 final dish = popularDishes[i];
@@ -398,10 +426,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                   name: dish.name,
                                   price: dish.price,
                                   imageUrl: dish.imageUrl,
-                                  onTap: () => DishDetailSheet.show(context, dish),
+                                  onTap: () =>
+                                      DishDetailSheet.show(context, dish),
                                   onAddToCart: () {
                                     cart.addItem(dish);
-                                    DilkashFeedback.showSuccess(context, '${dish.name} savatga qoʻshildi');
+                                    DilkashFeedback.showSuccess(context,
+                                        '${dish.name} savatga qoʻshildi');
                                   },
                                 );
                               },
@@ -424,18 +454,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                 label: 'Hammasi',
                                 count: _dishes.length,
                                 isSelected: _selectedCategoryId == 0,
-                                onSelected: () => setState(() => _selectedCategoryId = 0),
+                                onSelected: () =>
+                                    setState(() => _selectedCategoryId = 0),
                               ),
                               const SizedBox(width: 8),
                               ..._categories.map((cat) {
-                                final count = _dishes.where((d) => d.category == cat.name).length;
+                                final count = _dishes
+                                    .where((d) => d.category == cat.name)
+                                    .length;
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 8),
                                   child: DilkashFilterChip(
                                     label: cat.name,
                                     count: count,
                                     isSelected: _selectedCategoryId == cat.id,
-                                    onSelected: () => setState(() => _selectedCategoryId = cat.id),
+                                    onSelected: () => setState(
+                                        () => _selectedCategoryId = cat.id),
                                   ),
                                 );
                               }),
@@ -454,7 +488,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               Text(
                                 _selectedCategoryId == 0
                                     ? 'Barcha Taomlar'
-                                    : _categories.firstWhere((c) => c.id == _selectedCategoryId).name,
+                                    : _categories
+                                        .firstWhere(
+                                            (c) => c.id == _selectedCategoryId)
+                                        .name,
                                 style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w800,
@@ -482,7 +519,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: DilkashEmptyState(
                                   icon: Icons.search_off_rounded,
                                   title: 'Taom topilmadi',
-                                  message: 'Qidiruv soʻrovini oʻzgartiring yoki boshqa toifani tanlang',
+                                  message:
+                                      'Qidiruv soʻrovini oʻzgartiring yoki boshqa toifani tanlang',
                                   actionLabel: 'Barcha taomlarni koʻrish',
                                   onAction: () {
                                     _searchController.clear();
@@ -497,7 +535,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           : SliverPadding(
                               padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
                               sliver: SliverGrid(
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 2,
                                   childAspectRatio: 0.69,
                                   crossAxisSpacing: 12,
@@ -506,9 +545,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 delegate: SliverChildBuilderDelegate(
                                   (context, index) {
                                     final dish = filteredDishes[index];
-                                    final isInCart = cart.items.any((i) => i.dish.id == dish.id);
+                                    final isInCart = cart.items
+                                        .any((i) => i.dish.id == dish.id);
                                     final cartItem = isInCart
-                                        ? cart.items.firstWhere((i) => i.dish.id == dish.id)
+                                        ? cart.items.firstWhere(
+                                            (i) => i.dish.id == dish.id)
                                         : null;
                                     final isFav = auth.isFavorite(dish.id);
 
@@ -521,7 +562,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       isAvailable: dish.isAvailable,
                                       isFavorite: isFav,
                                       cartQuantity: cartItem?.quantity ?? 0,
-                                      onTap: () => DishDetailSheet.show(context, dish),
+                                      onTap: () =>
+                                          DishDetailSheet.show(context, dish),
                                       onAddToCart: () {
                                         cart.addItem(dish);
                                         DilkashFeedback.showSuccess(
@@ -532,7 +574,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       onQuantityChanged: (newQty) {
                                         cart.updateQuantity(dish.id, newQty);
                                       },
-                                      onToggleFavorite: () => auth.toggleFavorite(dish.id),
+                                      onToggleFavorite: () =>
+                                          auth.toggleFavorite(dish.id),
                                     );
                                   },
                                   childCount: filteredDishes.length,
@@ -545,11 +588,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildMetaChip(bool isDark, {required IconData icon, required Color iconColor, required String text}) {
+  Widget _buildMetaChip(bool isDark,
+      {required IconData icon,
+      required Color iconColor,
+      required String text}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFFF1F5F9),
+        color: isDark
+            ? DilkashColors.surfaceDarkElevated
+            : const Color(0xFFF1F5F9),
         borderRadius: DilkashRadii.radiusFull,
         border: Border.all(
           color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,

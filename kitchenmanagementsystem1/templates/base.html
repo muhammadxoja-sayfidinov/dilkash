@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Oshxona Boshqaruv Tizimi{% endblock %}</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+            line-height: 1.4;
+            background-color: #f5f5f5;
+            color: #333;
+            height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* Header - minimal */
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 10px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            height: 80px;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 100%;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        .nav {
+            display: flex;
+            gap: 5px;
+        }
+        
+        /* Main content - full width */
+        .main-content {
+            margin-top: 80px;
+            padding: 10px;
+            min-height: calc(100vh - 80px);
+        }
+        
+        /* Tugmalar - katta va to'liq */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 120px;
+            min-height: 80px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 22px;
+            font-weight: bold;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            margin: 2px;
+            transition: all 0.1s;
+            text-decoration: none;
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
+        }
+        
+        .btn-primary { background-color: #3498db; color: white; }
+        .btn-success { background-color: #2ecc71; color: white; }
+        .btn-danger { background-color: #e74c3c; color: white; }
+        .btn-warning { background-color: #f39c12; color: white; }
+        .btn-info { background-color: #9b59b6; color: white; }
+        .btn-gray { background-color: #7f8c8d; color: white; }
+        
+        /* Karta - minimal padding */
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .card-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        
+        /* Grid - tight */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 10px;
+        }
+        
+        /* Orders grid - 4 ta bir qatorda */
+        .orders-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 10px;
+        }
+
+        @media (min-width: 1200px) {
+            .orders-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .orders-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .orders-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Stats cards - full width */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .stat-card {
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            color: white;
+        }
+        
+        /* Buyurtma kartasi - compact */
+        .order-card {
+            border: 3px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            background-color: white;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            height: 200px;
+            position: relative;
+        }
+
+        .order-card.new { border-color: #3498db; background-color: #f8f9fa; }
+        .order-card.preparing { border-color: #f39c12; background-color: #fefefe; }
+        .order-card.ready { border-color: #9b59b6; background-color: #f9f9f9; }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .order-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .order-footer {
+            margin-top: auto;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        
+        /* Status */
+        .status {
+            display: inline-block;
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-weight: bold;
+            color: white;
+            font-size: 20px;
+        }
+        
+        .status-yangi { background-color: #3498db; }
+        .status-tasdiqlangan { background-color: #2ecc71; }
+        .status-tayyorlanmoqda { background-color: #f39c12; }
+        .status-tayyor { background-color: #9b59b6; }
+        .status-yetkazildi { background-color: #7f8c8d; }
+        .status-bekor { background-color: #e74c3c; }
+        
+        /* Forma elementlari - compact */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 15px;
+            font-size: 22px;
+            border: 2px solid #bdc3c7;
+            border-radius: 6px;
+        }
+        
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+        
+        /* Messages - compact */
+        .message {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .message-success { background-color: #d5f5e3; color: #2ecc71; }
+        .message-error { background-color: #fadbd8; color: #e74c3c; }
+        
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 90px;
+            right: 10px;
+            z-index: 1000;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: bold;
+            min-width: 250px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .notification.success { background-color: #2ecc71; color: white; }
+        .notification.error { background-color: #e74c3c; color: white; }
+        .notification.info { background-color: #3498db; color: white; }
+        
+        /* Flex utilities */
+        .flex { display: flex; }
+        .flex-between { justify-content: space-between; }
+        .flex-center { align-items: center; }
+        .flex-wrap { flex-wrap: wrap; }
+        .flex-gap { gap: 10px; }
+        
+        /* Text utilities */
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-large { font-size: 28px; font-weight: bold; }
+        .text-xl { font-size: 32px; font-weight: bold; }
+        .text-gray { color: #7f8c8d; }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav { flex-direction: column; gap: 2px; }
+            .btn { min-width: 80px; min-height: 60px; font-size: 18px; }
+            .logo { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header - minimal -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">🍽️ Oshxona</div>
+            <div class="nav">
+                <a href="{% url 'kitchen:dashboard' %}" class="btn btn-primary">🏠</a>
+                <a href="{% url 'kitchen:orders_list' %}" class="btn btn-success">📋</a>
+                <a href="{% url 'kitchen:products_list' %}" class="btn btn-info">🍔</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content - full width -->
+    <div class="main-content">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="message message-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container"></div>
+
+    <!-- JavaScript -->
+    <script>
+        // WebSocket connection
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/kitchen/`;
+        const socket = new WebSocket(wsUrl);
+
+        socket.onopen = function(e) {
+            console.log('WebSocket connection established');
+        };
+
+        socket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            
+            if (data.type === 'order_update') {
+                showNotification(`🔄 ${data.message}`, 'info');
+                if (window.location.pathname.includes('orders')) {
+                    setTimeout(() => window.location.reload(), 2000);
+                }
+            } else if (data.type === 'product_update') {
+                showNotification(`📦 ${data.message}`, 'info');
+            }
+        };
+
+        socket.onclose = function(e) {
+            console.log('WebSocket connection closed');
+            setTimeout(() => window.location.reload(), 5000);
+        };
+
+        // Notification function
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notification-container');
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <div class="flex flex-between flex-center">
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;color:white;font-size:24px;cursor:pointer;margin-left:10px;">&times;</button>
+                </div>
+            `;
+            
+            container.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 4000);
+        }
+
+        // Auto refresh
+        setInterval(() => {
+            if (window.location.pathname.includes('dashboard')) {
+                window.location.reload();
+            }
+        }, 30000);
+    </script>
+
+    {% block extra_js %}
+    {% endblock %}
+</body>
+</html>

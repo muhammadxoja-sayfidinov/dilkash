@@ -54,7 +54,8 @@ class _DilkashSwipeButtonState extends State<DilkashSwipeButton> {
             color: track,
             borderRadius: DilkashRadii.radiusFull,
             border: Border.all(
-              color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+              color:
+                  isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
               width: 1.0,
             ),
           ),
@@ -88,7 +89,9 @@ class _DilkashSwipeButtonState extends State<DilkashSwipeButton> {
                       letterSpacing: -0.2,
                       color: _isCompleted
                           ? DilkashColors.success
-                          : (isDark ? DilkashColors.textPrimaryDark : DilkashColors.textPrimaryLight),
+                          : (isDark
+                              ? DilkashColors.textPrimaryDark
+                              : DilkashColors.textPrimaryLight),
                     ),
                   ),
                 ),
@@ -102,7 +105,8 @@ class _DilkashSwipeButtonState extends State<DilkashSwipeButton> {
                       ? null
                       : (details) {
                           setState(() {
-                            _dragPosition = (_dragPosition + details.delta.dx).clamp(0.0, maxDrag);
+                            _dragPosition = (_dragPosition + details.delta.dx)
+                                .clamp(0.0, maxDrag);
                           });
                         },
                   onHorizontalDragEnd: (_isLoading || _isCompleted)
@@ -160,11 +164,14 @@ class _DilkashSwipeButtonState extends State<DilkashSwipeButton> {
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
                           : Icon(
-                              _isCompleted ? Icons.check_rounded : widget.thumbIcon,
+                              _isCompleted
+                                  ? Icons.check_rounded
+                                  : widget.thumbIcon,
                               color: isDark ? Colors.black : Colors.white,
                               size: 24,
                             ),

@@ -158,7 +158,8 @@ class _WaiterOrderSheetState extends State<WaiterOrderSheet> {
 
     if (_searchQuery.isNotEmpty) {
       allProducts = allProducts
-          .where((p) => p.name.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .where(
+              (p) => p.name.toLowerCase().contains(_searchQuery.toLowerCase()))
           .toList();
     }
 
@@ -205,14 +206,17 @@ class _WaiterOrderSheetState extends State<WaiterOrderSheet> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: StaffColors.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+                            color: StaffColors.primary
+                                .withValues(alpha: isDark ? 0.20 : 0.12),
                             borderRadius: StaffDesign.radiusXs,
                           ),
                           child: Text(
                             'Stol #${widget.tableNumber}',
                             style: TextStyle(
                               fontWeight: FontWeight.w800,
-                              color: isDark ? StaffColors.primaryLight : StaffColors.primary,
+                              color: isDark
+                                  ? StaffColors.primaryLight
+                                  : StaffColors.primary,
                               fontSize: 15,
                             ),
                           ),
@@ -360,7 +364,8 @@ class _WaiterOrderSheetState extends State<WaiterOrderSheet> {
                                         style: TextStyle(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 15,
-                                          color: StaffColors.textPrimary(isDark),
+                                          color:
+                                              StaffColors.textPrimary(isDark),
                                         ),
                                       ),
                                       const SizedBox(height: 3),
@@ -419,7 +424,8 @@ class _WaiterOrderSheetState extends State<WaiterOrderSheet> {
                                             fontWeight: FontWeight.w800,
                                             fontSize: 15,
                                             color: qty > 0
-                                                ? StaffColors.textPrimary(isDark)
+                                                ? StaffColors.textPrimary(
+                                                    isDark)
                                                 : StaffColors.textMuted(isDark),
                                           ),
                                         ),
@@ -552,18 +558,16 @@ class _WaiterOrderSheetState extends State<WaiterOrderSheet> {
                 : StaffColors.cardSecondary(isDark),
             borderRadius: StaffDesign.radiusSm,
             border: Border.all(
-              color: isSelected
-                  ? StaffColors.accent
-                  : StaffColors.border(isDark),
+              color:
+                  isSelected ? StaffColors.accent : StaffColors.border(isDark),
               width: StaffDesign.borderStandard,
             ),
           ),
           child: Text(
             title,
             style: TextStyle(
-              color: isSelected
-                  ? Colors.white
-                  : StaffColors.textSecondary(isDark),
+              color:
+                  isSelected ? Colors.white : StaffColors.textSecondary(isDark),
               fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
               fontSize: 12,
             ),

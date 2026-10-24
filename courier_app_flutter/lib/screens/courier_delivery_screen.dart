@@ -38,7 +38,8 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
   }
 
   // Haversine distance calculation in km
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+  double _calculateDistance(
+      double lat1, double lon1, double lat2, double lon2) {
     const double p = 0.017453292519943295;
     final a = 0.5 -
         math.cos((lat2 - lat1) * p) / 2 +
@@ -60,9 +61,12 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
   }
 
   Future<void> _openYandexNavigator(double lat, double lon) async {
-    final yandexNaviUri = Uri.parse('yandexnavi://build_route_on_map?lat_to=$lat&lon_to=$lon');
-    final yandexMapsUri = Uri.parse('yandexmaps://build_route_on_map?lat_to=$lat&lon_to=$lon');
-    final webUri = Uri.parse('https://yandex.uz/maps/?rtext=$restaurantLat,$restaurantLng~$lat,$lon&rtt=auto');
+    final yandexNaviUri =
+        Uri.parse('yandexnavi://build_route_on_map?lat_to=$lat&lon_to=$lon');
+    final yandexMapsUri =
+        Uri.parse('yandexmaps://build_route_on_map?lat_to=$lat&lon_to=$lon');
+    final webUri = Uri.parse(
+        'https://yandex.uz/maps/?rtext=$restaurantLat,$restaurantLng~$lat,$lon&rtt=auto');
 
     try {
       if (await canLaunchUrl(yandexNaviUri)) {
@@ -112,7 +116,9 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
       widget.onStatusChanged();
       DilkashFeedback.showSuccess(
         context,
-        newStatus == 'yolda' ? 'Oshxonadan olindi! Yoʻlga chiqdingiz' : 'Buyurtma yetkazildi!',
+        newStatus == 'yolda'
+            ? 'Oshxonadan olindi! Yoʻlga chiqdingiz'
+            : 'Buyurtma yetkazildi!',
       );
 
       if (newStatus == 'yetkazildi') {
@@ -129,7 +135,8 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
 
     final double destLat = widget.order.latitude ?? 41.2825;
     final double destLng = widget.order.longitude ?? 69.2155;
-    final double distanceKm = _calculateDistance(restaurantLat, restaurantLng, destLat, destLng);
+    final double distanceKm =
+        _calculateDistance(restaurantLat, restaurantLng, destLat, destLng);
     final int estimatedMinutes = (distanceKm * 3.5).round().clamp(10, 50);
 
     return Scaffold(
@@ -138,9 +145,12 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
         title: Text('Yetkazish #${widget.order.orderNumber}'),
         actions: [
           IconButton(
-            icon: Icon(_isFullscreenMap ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded),
+            icon: Icon(_isFullscreenMap
+                ? Icons.fullscreen_exit_rounded
+                : Icons.fullscreen_rounded),
             tooltip: 'Xaritani toʻliq ekranda koʻrish',
-            onPressed: () => setState(() => _isFullscreenMap = !_isFullscreenMap),
+            onPressed: () =>
+                setState(() => _isFullscreenMap = !_isFullscreenMap),
           ),
         ],
       ),
@@ -220,7 +230,8 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                   top: 12,
                   left: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.8),
                       borderRadius: DilkashRadii.radiusFull,
@@ -228,7 +239,8 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.navigation_rounded, color: Colors.white, size: 14),
+                        const Icon(Icons.navigation_rounded,
+                            color: Colors.white, size: 14),
                         const SizedBox(width: 6),
                         Text(
                           '${distanceKm.toStringAsFixed(1)} km • ~$estimatedMinutes daqiqa',
@@ -262,9 +274,11 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                           label: const Text('Yandex Navigator'),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: DilkashRadii.radiusSm),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: DilkashRadii.radiusSm),
                           ),
-                          onPressed: () => _openYandexNavigator(destLat, destLng),
+                          onPressed: () =>
+                              _openYandexNavigator(destLat, destLng),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -274,7 +288,8 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                           label: const Text('Google Maps'),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: DilkashRadii.radiusSm),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: DilkashRadii.radiusSm),
                           ),
                           onPressed: () => _openGoogleMaps(destLat, destLng),
                         ),
@@ -290,7 +305,9 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                       color: DilkashColors.surface(isDark),
                       borderRadius: DilkashRadii.radiusLg,
                       border: Border.all(
-                        color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                        color: isDark
+                            ? DilkashColors.borderDark
+                            : DilkashColors.borderLight,
                       ),
                     ),
                     child: Row(
@@ -299,7 +316,9 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: isDark ? DilkashColors.surfaceDarkElevated : DilkashColors.primary50,
+                            color: isDark
+                                ? DilkashColors.surfaceDarkElevated
+                                : DilkashColors.primary50,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -323,7 +342,8 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                UzbekFormatters.formatPhone(widget.order.customerPhone),
+                                UzbekFormatters.formatPhone(
+                                    widget.order.customerPhone),
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: DilkashColors.textSecondary(isDark),
@@ -338,7 +358,8 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                           style: IconButton.styleFrom(
                             backgroundColor: DilkashColors.success,
                           ),
-                          onPressed: () => _makePhoneCall(widget.order.customerPhone),
+                          onPressed: () =>
+                              _makePhoneCall(widget.order.customerPhone),
                         ),
                       ],
                     ),
@@ -352,7 +373,9 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                       color: DilkashColors.surface(isDark),
                       borderRadius: DilkashRadii.radiusLg,
                       border: Border.all(
-                        color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                        color: isDark
+                            ? DilkashColors.borderDark
+                            : DilkashColors.borderLight,
                       ),
                     ),
                     child: Column(
@@ -360,7 +383,8 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.place_rounded, size: 18, color: DilkashColors.primary(isDark)),
+                            Icon(Icons.place_rounded,
+                                size: 18, color: DilkashColors.primary(isDark)),
                             const SizedBox(width: 8),
                             Text(
                               'Yetkazish manzili',
@@ -387,17 +411,23 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFFF1F5F9),
+                              color: isDark
+                                  ? DilkashColors.surfaceDarkElevated
+                                  : const Color(0xFFF1F5F9),
                               borderRadius: DilkashRadii.radiusSm,
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.info_outline_rounded, size: 16, color: DilkashColors.amber600),
+                                const Icon(Icons.info_outline_rounded,
+                                    size: 16, color: DilkashColors.amber600),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     widget.order.notes,
-                                    style: TextStyle(fontSize: 12, color: DilkashColors.textPrimary(isDark)),
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color:
+                                            DilkashColors.textPrimary(isDark)),
                                   ),
                                 ),
                               ],
@@ -416,7 +446,9 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                       color: DilkashColors.surface(isDark),
                       borderRadius: DilkashRadii.radiusLg,
                       border: Border.all(
-                        color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                        color: isDark
+                            ? DilkashColors.borderDark
+                            : DilkashColors.borderLight,
                       ),
                     ),
                     child: Column(
@@ -434,14 +466,19 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                         ...widget.order.items.map((it) => Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     '${it.quantity}x ${it.dishName}',
-                                    style: TextStyle(fontSize: 13, color: DilkashColors.textPrimary(isDark)),
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color:
+                                            DilkashColors.textPrimary(isDark)),
                                   ),
                                   Text(
-                                    UzbekFormatters.formatCurrency(it.price * it.quantity),
+                                    UzbekFormatters.formatCurrency(
+                                        it.price * it.quantity),
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
@@ -455,13 +492,17 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Jami summa', style: TextStyle(fontWeight: FontWeight.bold)),
+                            const Text('Jami summa',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
                             Text(
-                              UzbekFormatters.formatCurrency(widget.order.totalAmount),
+                              UzbekFormatters.formatCurrency(
+                                  widget.order.totalAmount),
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
-                                color: isDark ? DilkashColors.primary400 : DilkashColors.primary600,
+                                color: isDark
+                                    ? DilkashColors.primary400
+                                    : DilkashColors.primary600,
                               ),
                             ),
                           ],
@@ -482,7 +523,9 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
               color: DilkashColors.surface(isDark),
               border: Border(
                 top: BorderSide(
-                  color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+                  color: isDark
+                      ? DilkashColors.borderDark
+                      : DilkashColors.borderLight,
                 ),
               ),
             ),
@@ -505,11 +548,15 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle_rounded, color: DilkashColors.success, size: 20),
+            Icon(Icons.check_circle_rounded,
+                color: DilkashColors.success, size: 20),
             SizedBox(width: 8),
             Text(
               'Buyurtma Muvaffaqiyatli Yetkazildi',
-              style: TextStyle(color: DilkashColors.success, fontWeight: FontWeight.bold, fontSize: 14),
+              style: TextStyle(
+                  color: DilkashColors.success,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14),
             ),
           ],
         ),

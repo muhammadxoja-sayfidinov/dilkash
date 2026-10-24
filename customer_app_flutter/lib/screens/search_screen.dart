@@ -60,7 +60,8 @@ class _SearchScreenState extends State<SearchScreen> {
     var list = _allDishes.where((dish) {
       final matchesQuery = dish.name.toLowerCase().contains(query) ||
           dish.description.toLowerCase().contains(query);
-      final matchesCat = _selectedCategory == 'Hammasi' || dish.category == _selectedCategory;
+      final matchesCat =
+          _selectedCategory == 'Hammasi' || dish.category == _selectedCategory;
       return matchesQuery && matchesCat;
     }).toList();
 
@@ -140,12 +141,15 @@ class _SearchScreenState extends State<SearchScreen> {
           // Results Grid
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: DilkashColors.primary500))
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        color: DilkashColors.primary500))
                 : _filteredDishes.isEmpty
                     ? DilkashEmptyState(
                         icon: Icons.search_off_rounded,
                         title: 'Hech narsa topilmadi',
-                        message: 'Qidiruv soʻrovini oʻzgartiring yoki filtrlarni tozalang',
+                        message:
+                            'Qidiruv soʻrovini oʻzgartiring yoki filtrlarni tozalang',
                         actionLabel: 'Tozalash',
                         onAction: () {
                           _searchController.clear();
@@ -155,7 +159,8 @@ class _SearchScreenState extends State<SearchScreen> {
                       )
                     : GridView.builder(
                         padding: const EdgeInsets.all(16),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           childAspectRatio: 0.69,
                           crossAxisSpacing: 12,
@@ -164,9 +169,12 @@ class _SearchScreenState extends State<SearchScreen> {
                         itemCount: _filteredDishes.length,
                         itemBuilder: (context, index) {
                           final dish = _filteredDishes[index];
-                          final isInCart = cart.items.any((i) => i.dish.id == dish.id);
-                          final cartItem =
-                              isInCart ? cart.items.firstWhere((i) => i.dish.id == dish.id) : null;
+                          final isInCart =
+                              cart.items.any((i) => i.dish.id == dish.id);
+                          final cartItem = isInCart
+                              ? cart.items
+                                  .firstWhere((i) => i.dish.id == dish.id)
+                              : null;
                           final isFav = auth.isFavorite(dish.id);
 
                           return DilkashDishCard(
@@ -186,8 +194,10 @@ class _SearchScreenState extends State<SearchScreen> {
                                 '${dish.name} savatga qoʻshildi',
                               );
                             },
-                            onQuantityChanged: (qty) => cart.updateQuantity(dish.id, qty),
-                            onToggleFavorite: () => auth.toggleFavorite(dish.id),
+                            onQuantityChanged: (qty) =>
+                                cart.updateQuantity(dish.id, qty),
+                            onToggleFavorite: () =>
+                                auth.toggleFavorite(dish.id),
                           );
                         },
                       ),

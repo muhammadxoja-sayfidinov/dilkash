@@ -72,12 +72,17 @@ class DilkashColors {
   static Color primary(bool isDark) => isDark ? primary400 : primary500;
   static Color background(bool isDark) => isDark ? bgDark : bgLight;
   static Color surface(bool isDark) => isDark ? surfaceDark : surfaceLight;
-  static Color surfaceElevated(bool isDark) => isDark ? surfaceDarkElevated : surfaceLightElevated;
+  static Color surfaceElevated(bool isDark) =>
+      isDark ? surfaceDarkElevated : surfaceLightElevated;
   static Color border(bool isDark) => isDark ? borderDark : borderLight;
-  static Color borderSubtle(bool isDark) => isDark ? borderDarkSubtle : borderLightSubtle;
+  static Color borderSubtle(bool isDark) =>
+      isDark ? borderDarkSubtle : borderLightSubtle;
   static Color input(bool isDark) => isDark ? inputDark : inputLight;
 
-  static Color textPrimary(bool isDark) => isDark ? textPrimaryDark : textPrimaryLight;
-  static Color textSecondary(bool isDark) => isDark ? textSecondaryDark : textSecondaryLight;
-  static Color textMuted(bool isDark) => isDark ? textMutedDark : textMutedLight;
+  static Color textPrimary(bool isDark) =>
+      isDark ? textPrimaryDark : textPrimaryLight;
+  static Color textSecondary(bool isDark) =>
+      isDark ? textSecondaryDark : textSecondaryLight;
+  static Color textMuted(bool isDark) =>
+      isDark ? textMutedDark : textMutedLight;
 }

@@ -48,7 +48,8 @@ class DilkashDishCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: DilkashRadii.radiusLg,
             border: Border.all(
-              color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+              color:
+                  isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
               width: 1.0,
             ),
           ),
@@ -62,14 +63,18 @@ class DilkashDishCard extends StatelessWidget {
                   fit: StackFit.expand,
                   children: [
                     ClipRRect(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(DilkashRadii.lg - 1)),
+                      borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(DilkashRadii.lg - 1)),
                       child: Container(
-                        color: isDark ? DilkashColors.surfaceDarkElevated : const Color(0xFFF1F5F9),
+                        color: isDark
+                            ? DilkashColors.surfaceDarkElevated
+                            : const Color(0xFFF1F5F9),
                         child: imageUrl.isNotEmpty
                             ? Image.network(
                                 imageUrl,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => _buildFallbackImage(isDark),
+                                errorBuilder: (_, __, ___) =>
+                                    _buildFallbackImage(isDark),
                               )
                             : _buildFallbackImage(isDark),
                       ),
@@ -81,7 +86,8 @@ class DilkashDishCard extends StatelessWidget {
                         top: 8,
                         right: 8,
                         child: Material(
-                          color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.85),
+                          color: (isDark ? Colors.black : Colors.white)
+                              .withValues(alpha: 0.85),
                           shape: const CircleBorder(),
                           child: InkWell(
                             customBorder: const CircleBorder(),
@@ -89,9 +95,15 @@ class DilkashDishCard extends StatelessWidget {
                             child: Padding(
                               padding: const EdgeInsets.all(6),
                               child: Icon(
-                                isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                isFavorite
+                                    ? Icons.favorite_rounded
+                                    : Icons.favorite_border_rounded,
                                 size: 16,
-                                color: isFavorite ? Colors.redAccent : (isDark ? Colors.white70 : Colors.black54),
+                                color: isFavorite
+                                    ? Colors.redAccent
+                                    : (isDark
+                                        ? Colors.white70
+                                        : Colors.black54),
                               ),
                             ),
                           ),
@@ -103,18 +115,23 @@ class DilkashDishCard extends StatelessWidget {
                       Container(
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.6),
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(DilkashRadii.lg - 1)),
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(DilkashRadii.lg - 1)),
                         ),
                         alignment: Alignment.center,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.8),
                             borderRadius: DilkashRadii.radiusFull,
                           ),
                           child: const Text(
                             'Mavjud emas',
-                            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700),
                           ),
                         ),
                       ),
@@ -174,7 +191,9 @@ class DilkashDishCard extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w800,
-                                color: isDark ? DilkashColors.primary400 : DilkashColors.primary600,
+                                color: isDark
+                                    ? DilkashColors.primary400
+                                    : DilkashColors.primary600,
                                 letterSpacing: -0.2,
                               ),
                             ),
@@ -186,17 +205,22 @@ class DilkashDishCard extends StatelessWidget {
                               Container(
                                 height: 32,
                                 decoration: BoxDecoration(
-                                  color: isDark ? DilkashColors.primary400 : DilkashColors.primary500,
+                                  color: isDark
+                                      ? DilkashColors.primary400
+                                      : DilkashColors.primary500,
                                   borderRadius: DilkashRadii.radiusFull,
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     InkWell(
-                                      onTap: () => onQuantityChanged!(cartQuantity - 1),
+                                      onTap: () =>
+                                          onQuantityChanged!(cartQuantity - 1),
                                       child: const Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 6),
-                                        child: Icon(Icons.remove, size: 14, color: Colors.white),
+                                        padding:
+                                            EdgeInsets.symmetric(horizontal: 6),
+                                        child: Icon(Icons.remove,
+                                            size: 14, color: Colors.white),
                                       ),
                                     ),
                                     Text(
@@ -208,10 +232,13 @@ class DilkashDishCard extends StatelessWidget {
                                       ),
                                     ),
                                     InkWell(
-                                      onTap: () => onQuantityChanged!(cartQuantity + 1),
+                                      onTap: () =>
+                                          onQuantityChanged!(cartQuantity + 1),
                                       child: const Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 6),
-                                        child: Icon(Icons.add, size: 14, color: Colors.white),
+                                        padding:
+                                            EdgeInsets.symmetric(horizontal: 6),
+                                        child: Icon(Icons.add,
+                                            size: 14, color: Colors.white),
                                       ),
                                     ),
                                   ],
@@ -222,7 +249,9 @@ class DilkashDishCard extends StatelessWidget {
                                 width: 34,
                                 height: 34,
                                 child: Material(
-                                  color: isDark ? DilkashColors.surfaceDarkElevated : DilkashColors.primary50,
+                                  color: isDark
+                                      ? DilkashColors.surfaceDarkElevated
+                                      : DilkashColors.primary50,
                                   borderRadius: DilkashRadii.radiusFull,
                                   child: InkWell(
                                     customBorder: const CircleBorder(),
@@ -231,7 +260,9 @@ class DilkashDishCard extends StatelessWidget {
                                       child: Icon(
                                         Icons.add_rounded,
                                         size: 20,
-                                        color: isDark ? DilkashColors.primary400 : DilkashColors.primary500,
+                                        color: isDark
+                                            ? DilkashColors.primary400
+                                            : DilkashColors.primary500,
                                       ),
                                     ),
                                   ),
@@ -304,7 +335,8 @@ class DilkashHorizontalDishCard extends StatelessWidget {
           children: [
             // Image
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(DilkashRadii.lg - 1)),
+              borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(DilkashRadii.lg - 1)),
               child: SizedBox(
                 height: 100,
                 width: double.infinity,
@@ -316,7 +348,9 @@ class DilkashHorizontalDishCard extends StatelessWidget {
                           child: Icon(
                             Icons.restaurant_menu_rounded,
                             size: 28,
-                            color: isDark ? DilkashColors.textMutedDark : Colors.grey,
+                            color: isDark
+                                ? DilkashColors.textMutedDark
+                                : Colors.grey,
                           ),
                         ),
                       )
@@ -324,7 +358,9 @@ class DilkashHorizontalDishCard extends StatelessWidget {
                         child: Icon(
                           Icons.restaurant_menu_rounded,
                           size: 28,
-                          color: isDark ? DilkashColors.textMutedDark : Colors.grey,
+                          color: isDark
+                              ? DilkashColors.textMutedDark
+                              : Colors.grey,
                         ),
                       ),
               ),
@@ -353,7 +389,9 @@ class DilkashHorizontalDishCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: isDark ? DilkashColors.primary400 : DilkashColors.primary600,
+                          color: isDark
+                              ? DilkashColors.primary400
+                              : DilkashColors.primary600,
                         ),
                       ),
                       InkWell(
@@ -361,13 +399,17 @@ class DilkashHorizontalDishCard extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: isDark ? DilkashColors.surfaceDarkElevated : DilkashColors.primary50,
+                            color: isDark
+                                ? DilkashColors.surfaceDarkElevated
+                                : DilkashColors.primary50,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             Icons.add,
                             size: 16,
-                            color: isDark ? DilkashColors.primary400 : DilkashColors.primary500,
+                            color: isDark
+                                ? DilkashColors.primary400
+                                : DilkashColors.primary500,
                           ),
                         ),
                       ),

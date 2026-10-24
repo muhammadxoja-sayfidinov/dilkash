@@ -73,15 +73,18 @@ class DilkashTheme {
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: DilkashColors.primary500, size: 24);
+            return const IconThemeData(
+                color: DilkashColors.primary500, size: 24);
           }
-          return const IconThemeData(color: DilkashColors.textSecondaryLight, size: 24);
+          return const IconThemeData(
+              color: DilkashColors.textSecondaryLight, size: 24);
         }),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: DilkashColors.inputLight,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         hintStyle: const TextStyle(
           color: DilkashColors.textMutedLight,
           fontSize: 14,
@@ -89,15 +92,18 @@ class DilkashTheme {
         ),
         border: OutlineInputBorder(
           borderRadius: DilkashRadii.radiusSm,
-          borderSide: const BorderSide(color: DilkashColors.borderLight, width: 1.0),
+          borderSide:
+              const BorderSide(color: DilkashColors.borderLight, width: 1.0),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: DilkashRadii.radiusSm,
-          borderSide: const BorderSide(color: DilkashColors.borderLight, width: 1.0),
+          borderSide:
+              const BorderSide(color: DilkashColors.borderLight, width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: DilkashRadii.radiusSm,
-          borderSide: const BorderSide(color: DilkashColors.primary500, width: 1.5),
+          borderSide:
+              const BorderSide(color: DilkashColors.primary500, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: DilkashRadii.radiusSm,
@@ -186,15 +192,18 @@ class DilkashTheme {
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: DilkashColors.primary400, size: 24);
+            return const IconThemeData(
+                color: DilkashColors.primary400, size: 24);
           }
-          return const IconThemeData(color: DilkashColors.textSecondaryDark, size: 24);
+          return const IconThemeData(
+              color: DilkashColors.textSecondaryDark, size: 24);
         }),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: DilkashColors.inputDark,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         hintStyle: const TextStyle(
           color: DilkashColors.textMutedDark,
           fontSize: 14,
@@ -202,15 +211,18 @@ class DilkashTheme {
         ),
         border: OutlineInputBorder(
           borderRadius: DilkashRadii.radiusSm,
-          borderSide: const BorderSide(color: DilkashColors.borderDark, width: 1.0),
+          borderSide:
+              const BorderSide(color: DilkashColors.borderDark, width: 1.0),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: DilkashRadii.radiusSm,
-          borderSide: const BorderSide(color: DilkashColors.borderDark, width: 1.0),
+          borderSide:
+              const BorderSide(color: DilkashColors.borderDark, width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: DilkashRadii.radiusSm,
-          borderSide: const BorderSide(color: DilkashColors.primary400, width: 1.5),
+          borderSide:
+              const BorderSide(color: DilkashColors.primary400, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: DilkashRadii.radiusSm,

@@ -50,12 +50,14 @@ class AuthProvider extends ChangeNotifier {
     await prefs.setBool('seen_onboarding', true);
   }
 
-  Future<void> loginOrRegister({required String phone, String? fullName}) async {
+  Future<void> loginOrRegister(
+      {required String phone, String? fullName}) async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      final profile = await ApiService.authCustomer(phone: phone, fullName: fullName);
+      final profile =
+          await ApiService.authCustomer(phone: phone, fullName: fullName);
       _user = profile;
 
       final prefs = await SharedPreferences.getInstance();
@@ -70,7 +72,8 @@ class AuthProvider extends ChangeNotifier {
   Future<void> updateProfile({required String fullName}) async {
     if (_user == null) return;
     try {
-      final updated = await ApiService.updateProfile(phone: _user!.phone, fullName: fullName);
+      final updated = await ApiService.updateProfile(
+          phone: _user!.phone, fullName: fullName);
       _user = _user!.copyWith(fullName: updated.fullName);
 
       final prefs = await SharedPreferences.getInstance();
