@@ -136,4 +136,55 @@ New Folder With Items/
   5. **Application Personalization:** Theme mode selector (Kunduzgi / Tungi / Tizimga mos) powered by `StaffThemeController`, language picker (Uzbek Latin / Russian / English), and sound/vibration alerts toggle.
   6. **Network Diagnostics:** Live backend server URL configuration with real-time ping and latency measurement (`api/health/` or `api/orders/`).
   7. **Courier Support & Safety Handbook:** Road safety rules, Dilkash hotline (+998 71 200-00-00), Telegram dispatcher contact, and safe confirmed logout dialog.
+---
 
+## 9. Unified Single-Café Staff App Architecture (Dilkash Staff)
+
+### Single-Café Domain Context
+- **Restaurant Scope:** Dilkash is a single café with one central kitchen, one hall layout, and one shared menu.
+- **Internal Staff vs Gig Marketplace:** All waiters and couriers are contracted internal employees with verified staff codes, shared shift tracking, and direct accountability to the café manager and cashier.
+
+### Authentication, Role Guards & Switching
+- **Unified Auth:** Staff members log in using Phone Number / Staff Code + 4-digit PIN.
+- **Server-Verified Roles:** The backend payload returns `assigned_roles: ['courier', 'waiter']`. The client never trusts client-side role claims.
+- **Role Selection Screen:** Displayed immediately after authentication. If an employee only has one role, they are routed directly. If assigned both roles, they choose their active mode.
+- **Zero-Logout Switching:** Multi-role staff can switch between Courier and Waiter mode via the profile screen in 1 tap without re-authenticating, preserving active shifts and tokens.
+- **Biometric Unlock:** After first successful login, biometrics can be enabled via `SharedPreferences` to authenticate in <1s.
+
+### Shift Management & Non-Shift Guarding
+- **Shift Life Cycle:** `clockedOut` -> `clockedIn` <-> `onBreak` -> `clockedOut`.
+- **Shift Bar:** Persistent sticky header across Courier and Waiter dashboards displaying live elapsed shift duration, active/break status toggle, and quick clock-out.
+- **Operational Guard:** The app strictly forbids claiming new delivery orders or opening tables when the employee is clocked out or on break.
+
+### Order State Machine & Audit Trail
+- **Unified Engine (`OrderStateMachine`):** Centralized finite state machine governs all transitions for both dine-in and delivery flows. Disallowed state hops throw `OrderStateTransitionException`.
+- **Sensitive Operations & Manager Override (`ManagerPinDialog`):** Discounts (>0%), item cancellations/voids after sending to kitchen, and cash handover discrepancies require a 4-digit Manager PIN override.
+- **Audit Logging (`AuditLogger`):** All sensitive actions, cancellations, voids, and discrepancies are logged with timestamp, employee ID, and action metadata for cashier reconciliation.
+
+### Courier Workflow Architecture
+1. **Order Queue & Sequence:** Orders are prioritized by proximity, ready state, and promised delivery time with a suggested sequence algorithm.
+2. **Audio & Haptic Alerts:** Incoming orders pop a modal with a 30-second circular countdown timer, high-priority sound, and heavy vibration.
+3. **6-Stage Lifecycle:** `assigned` -> `headingToCafe` -> `pickedUp` (with 4-point packaging checklist: dishes, drinks, sauces, thermal seal) -> `onTheWay` -> `arrived` -> `delivered` (validated with 4-digit customer confirmation code or photo proof).
+4. **Navigation & Map:** Interactive in-app CartoDB Voyager map sheet plus deep linking to Yandex Maps (`yandexmaps://`), Google Maps, and 2GIS.
+5. **Problem Escalation:** Customer unreachable, wrong address, customer refusal, damaged item. Customer unreachable activates a 5-minute countdown timer with automatic manager escalation upon expiry.
+6. **Cash Handover:** Running shift balance separates collected restaurant cash from courier earnings. Shift-end handover calculates exact discrepancy and logs cashier PIN sign-off.
+
+### Waiter Workflow Architecture
+1. **Hall Floor Plan:** 3 distinct zones (Asosiy Zal, Ochiq Terrasa, VIP Xonalar) with high-visibility color tokens:
+   - Yashil (Boʻsh / Free)
+   - Qizil (Band / Occupied)
+   - Sariq (Oshxonada / Cooking)
+   - Koʻk (Dasturxonga tayyor / Ready to serve)
+   - Toʻq sariq (Hisob soʻralgan / Bill requested)
+   - Binafsharang (Bron / Reserved)
+2. **Table Operations:** Open table with guest headcount selector (1–12), transfer table, merge tables.
+3. **Order Entry System:** Category filtering, fast search, multi-modifier sheets (portion sizes, extras, remove ingredients), course timing (birga / oldin), seat assignment per guest, and allergen warning tags.
+4. **Kitchen Ticket Routing:** Kitchen items route to Oshpaz (Hot/Cold) while beverages route to Bar.
+5. **Item-Level Kitchen Tracking:** Live status indicators (`new` -> `preparing` -> `ready` -> `served`).
+6. **Bill & Split Engine:** Itemized receipt, 10% standard service charge, VIP discounts, equal split among guests, split by guest seat, split by individual dish, and multi-payment options (Naqd, Click, Payme, Uzcard/Humo).
+7. **Guest Calls & Reservations:** Real-time banner alerts for table QR "Chaqiruv" requests and reservations management with arrival check-in.
+
+### Staff-UX Ergonomics
+- **Large Tap Targets:** Minimum touch target height >= 56dp for one-handed operation while holding trays or riding delivery vehicles.
+- **Undo Snackbars:** Destructive actions require manager PIN; non-destructive quick actions leverage 4-second undo snackbars rather than jarring confirmation modals.
+- **Uzbek Latin Typography:** Strict compliance with Uzbek grammar and character sets (`oʻ`, `gʻ`, `soʻm`, `+998`).

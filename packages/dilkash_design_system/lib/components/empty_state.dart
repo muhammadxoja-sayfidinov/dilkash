@@ -8,6 +8,7 @@ class DilkashEmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
   final String message;
+  final String? subtitle;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -15,7 +16,8 @@ class DilkashEmptyState extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
-    required this.message,
+    this.message = '',
+    this.subtitle,
     this.actionLabel,
     this.onAction,
   });
@@ -59,7 +61,7 @@ class DilkashEmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              message,
+              message.isNotEmpty ? message : (subtitle ?? ''),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,

@@ -36,6 +36,16 @@ class DilkashFeedback {
     );
   }
 
+  static void showWarning(BuildContext context, String message) {
+    _showSnackBar(
+      context,
+      message: message,
+      icon: Icons.warning_amber_rounded,
+      bgColor: DilkashColors.warning,
+      fgColor: Colors.white,
+    );
+  }
+
   static void _showSnackBar(
     BuildContext context, {
     required String message,

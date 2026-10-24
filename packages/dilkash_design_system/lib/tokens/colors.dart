@@ -32,6 +32,7 @@ class DilkashColors {
   static const Color surfaceLight = Color(0xFFFFFFFF);
   static const Color surfaceLightElevated = Color(0xFFF1F5F9);
   static const Color borderLight = Color(0xFFE2E8F0);
+  static const Color neutral200 = Color(0xFFE2E8F0);
   static const Color borderLightSubtle = Color(0xFFF1F5F9);
   static const Color inputLight = Color(0xFFF8FAFC);
 
