@@ -127,3 +127,12 @@ STORE_LON = float(os.environ.get('STORE_LON', '72.563908'))
 
 # Telegram Mini App (Web App) URL
 WEB_APP_URL = os.environ.get('WEB_APP_URL', 'http://127.0.0.1:8000/menu/')
+
+# Click to'lov tizimi sozlamalari
+CLICK_SERVICE_ID = os.environ.get('CLICK_SERVICE_ID', '')
+CLICK_MERCHANT_ID = os.environ.get('CLICK_MERCHANT_ID', '')
+CLICK_SECRET_KEY = os.environ.get('CLICK_SECRET_KEY', '')
+
+# Payme to'lov tizimi sozlamalari
+PAYME_MERCHANT_ID = os.environ.get('PAYME_MERCHANT_ID', '')
+PAYME_SECRET_KEY = os.environ.get('PAYME_SECRET_KEY', '')

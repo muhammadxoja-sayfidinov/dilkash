@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 def generate_click_url(order: Order, return_url: str = None) -> str:
     """Click to'lov havolasini yaratish"""
     bot_settings = BotSettings.get_settings()
-    service_id = bot_settings.click_service_id or "54321" # Demo / Sozlamalardan
-    merchant_id = bot_settings.click_merchant_id or "12345"
+    service_id = bot_settings.click_service_id or getattr(settings, 'CLICK_SERVICE_ID', None) or "54321" # Demo / Sozlamalardan
+    merchant_id = bot_settings.click_merchant_id or getattr(settings, 'CLICK_MERCHANT_ID', None) or "12345"
     amount = f"{order.total_amount:.2f}"
     
     url = f"https://my.click.uz/services/pay?service_id={service_id}&merchant_id={merchant_id}&amount={amount}&transaction_param={order.order_number}"
@@ -30,7 +30,7 @@ def generate_click_url(order: Order, return_url: str = None) -> str:
 def generate_payme_url(order: Order) -> str:
     """Payme to'lov havolasini yaratish (Base64 params)"""
     bot_settings = BotSettings.get_settings()
-    merchant_id = bot_settings.payme_merchant_id or "64b7f8e9a1b2c3d4e5f6a7b8"
+    merchant_id = bot_settings.payme_merchant_id or getattr(settings, 'PAYME_MERCHANT_ID', None) or "64b7f8e9a1b2c3d4e5f6a7b8"
     # Payme summani tiyinda qabul qiladi (1 so'm = 100 tiyin)
     amount_in_tiyin = int(order.total_amount * 100)
     
