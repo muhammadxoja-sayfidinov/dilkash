@@ -3,16 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:dilkash_design_system/dilkash_design_system.dart';
 import '../models/courier_order.dart';
 import '../services/courier_api_service.dart';
+import 'courier_account_screen.dart';
 import 'courier_delivery_screen.dart';
+import 'staff_login_screen.dart';
 
 class CourierOrdersScreen extends StatefulWidget {
   final CourierUser courier;
-  final VoidCallback onLogout;
+  final VoidCallback? onLogout;
 
   const CourierOrdersScreen({
     super.key,
     required this.courier,
-    required this.onLogout,
+    this.onLogout,
   });
 
   @override
@@ -60,6 +62,58 @@ class _CourierOrdersScreenState extends State<CourierOrdersScreen>
     _pollingTimer?.cancel();
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _openAccountScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CourierAccountScreen(
+          courier: widget.courier,
+          onLogout: _handleLogout,
+          completedToday: _completedToday,
+          earnedToday: _earnedToday,
+          tipsToday: _tipsToday,
+          initialIsOnline: _isOnline,
+          onOnlineChanged: (val) {
+            if (mounted) setState(() => _isOnline = val);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _handleLogout() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hisobdan chiqish'),
+        content: const Text(
+          'Haqiqatan ham smenani yakunlab kuryer hisobidan chiqmoqchimisiz?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Bekor qilish'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const StaffLoginScreen()),
+                (route) => false,
+              );
+              widget.onLogout?.call();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: DilkashColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Chiqish'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadOrders({bool silent = false}) async {
@@ -348,9 +402,14 @@ class _CourierOrdersScreenState extends State<CourierOrdersScreen>
             onPressed: _openClaimDialog,
           ),
           IconButton(
+            icon: const Icon(Icons.account_circle_rounded),
+            tooltip: 'Kuryer Profili va Sozlamalar',
+            onPressed: _openAccountScreen,
+          ),
+          IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Chiqish',
-            onPressed: widget.onLogout,
+            onPressed: _handleLogout,
           ),
         ],
         bottom: TabBar(
@@ -698,6 +757,28 @@ class _CourierOrdersScreenState extends State<CourierOrdersScreen>
                 _buildReportRow(isDark, 'Toʻlov holati', 'Toʻlangan',
                     isHighlight: true),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _openAccountScreen,
+              icon: const Icon(Icons.manage_accounts_rounded),
+              label: const Text(
+                'Kuryer Profili va Barcha Sozlamalar',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDark
+                    ? DilkashColors.primary400
+                    : DilkashColors.primary500,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: DilkashRadii.radiusSm,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 24),

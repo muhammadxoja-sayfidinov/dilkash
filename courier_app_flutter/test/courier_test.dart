@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:courier_app_flutter/models/courier_order.dart';
+import 'package:courier_app_flutter/screens/courier_account_screen.dart';
 
 void main() {
   group('CourierOrder Model & Business Logic Tests', () {
@@ -91,6 +93,29 @@ void main() {
       expect(courier.name, 'Bobur Kuryer');
       expect(courier.token, 'jwt_courier_token_xyz');
       expect(courier.vehicleInfo, 'Honda Dio Scooter (oq)');
+    });
+
+    testWidgets('CourierAccountScreen renders courier profile and settings',
+        (tester) async {
+      final courier = CourierUser(
+        id: 7,
+        name: 'Bobur Kuryer',
+        phone: '+998909998877',
+        token: 'test_token',
+        vehicleInfo: 'Honda Dio',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CourierAccountScreen(courier: courier),
+        ),
+      );
+
+      expect(find.text('Kuryer Profili & Sozlamalar'), findsOneWidget);
+      expect(find.text('Bobur Kuryer'), findsOneWidget);
+      expect(find.text('+998909998877'), findsOneWidget);
+      expect(find.text('TRANSPORT VA YETKAZIB BERISH'), findsOneWidget);
+      expect(find.text('ISH TARTIBI VA SOZLAMALAR'), findsOneWidget);
     });
   });
 }

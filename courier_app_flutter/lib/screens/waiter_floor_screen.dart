@@ -5,6 +5,7 @@ import '../models/waiter_models.dart';
 import '../services/staff_api_service.dart';
 import '../theme/staff_theme.dart';
 import '../widgets/order_stations_sheet.dart';
+import 'staff_login_screen.dart';
 import 'waiter_order_sheet.dart';
 
 class WaiterFloorScreen extends StatefulWidget {
@@ -42,6 +43,38 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
   void dispose() {
     _refreshTimer?.cancel();
     super.dispose();
+  }
+
+  void _handleLogout() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Hisobdan chiqish'),
+        content: const Text(
+          'Haqiqatan ham ofitsiant hisobidan chiqmoqchimisiz?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Bekor qilish'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const StaffLoginScreen()),
+                (route) => false,
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: StaffColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Chiqish'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadFloorStatus({bool silent = false}) async {
@@ -337,7 +370,7 @@ class _WaiterFloorScreenState extends State<WaiterFloorScreen> {
               color: StaffColors.error,
               size: 22,
             ),
-            onPressed: widget.onLogout,
+            onPressed: _handleLogout,
             tooltip: 'Chiqish',
           ),
           const SizedBox(width: 4),

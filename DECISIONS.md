@@ -118,3 +118,22 @@ New Folder With Items/
   4. **Ofitsiant (Waiter):** `courier_app_flutter` (Waiter floor view & live order sheets).
   5. **Kuryer (Courier):** `courier_app_flutter` (Live navigation & order tracking).
 - **Rationale:** Staff operating via Telegram inline buttons (`chef_confirm`, `courier_on_way`, `waiter_served`) caused severe role confusion, security vulnerabilities, and messy chat feeds. Isolating staff roles to POS/KDS screens and Flutter apps guarantees production stability and gives staff rich desktop/mobile UI tools. Any staff queries typed into the bot are gracefully redirected to the staff applications while presenting the customer ordering menu.
+
+---
+
+## 8. Flutter Widget Lifecycle & Courier Account Architecture
+
+### Unmounted Context Lifecycle Fix
+- **Problem:** When navigating from `StaffLoginScreen` to `CourierOrdersScreen` or `WaiterFloorScreen`, passing an inline callback `onLogout: () { Navigator.pushReplacement(context, ...); }` captured the `_StaffLoginScreenState.context`. Because `pushReplacement` unmounted the login screen, invoking the callback during logout threw Flutter assertion: `This widget has been unmounted, so the State no longer has a context`.
+- **Solution:** Screen components manage their own navigation lifecycle. When logging out, screens call `Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const StaffLoginScreen()), (route) => false)` using their own active, mounted `BuildContext`, clearing the entire stack and preventing stale closure context leaks.
+
+### Comprehensive Courier Account Screen (`CourierAccountScreen`)
+- **Features Implemented:**
+  1. **Courier Profile Header:** Display name, phone (+998), courier badge/ID, active status toggle (Online/Offline), vehicle badge, and rating stars (4.95 ⭐).
+  2. **Earnings & Shift Overview:** Daily deliveries count, earned sum, tips amount, weekly payout projection, and interactive breakdown bottom sheet with transparent calculation formulas.
+  3. **Vehicle & Equipment Preferences:** Choice between Piyoda (Foot), Velosiped (Bicycle), Skuter/Moped (Scooter), and Avtomobil (Car) with thermal bag verification checklist and max delivery radius slider (1–25 km).
+  4. **Navigation Integration:** Default navigation engine selection (Yandex Navigator, Google Maps, Apple Maps, or In-App Map).
+  5. **Application Personalization:** Theme mode selector (Kunduzgi / Tungi / Tizimga mos) powered by `StaffThemeController`, language picker (Uzbek Latin / Russian / English), and sound/vibration alerts toggle.
+  6. **Network Diagnostics:** Live backend server URL configuration with real-time ping and latency measurement (`api/health/` or `api/orders/`).
+  7. **Courier Support & Safety Handbook:** Road safety rules, Dilkash hotline (+998 71 200-00-00), Telegram dispatcher contact, and safe confirmed logout dialog.
+

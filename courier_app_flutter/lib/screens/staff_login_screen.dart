@@ -71,12 +71,7 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
           MaterialPageRoute(
             builder: (_) => CourierOrdersScreen(
               courier: staff.toCourierUser(),
-              onLogout: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const StaffLoginScreen()),
-                );
-              },
+              onLogout: () {},
             ),
           ),
         );
@@ -86,12 +81,7 @@ class _StaffLoginScreenState extends State<StaffLoginScreen> {
           MaterialPageRoute(
             builder: (_) => WaiterFloorScreen(
               waiter: staff,
-              onLogout: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const StaffLoginScreen()),
-                );
-              },
+              onLogout: () {},
             ),
           ),
         );
