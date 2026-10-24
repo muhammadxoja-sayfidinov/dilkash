@@ -1,0 +1,25 @@
+# OS & IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.iml
+
+# Python & Django
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3
+db.sqlite3
+restaurant_system/cloudflared
+restaurant_system/media/
+
+# Flutter & Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+build/
+*.lock
+*.log
