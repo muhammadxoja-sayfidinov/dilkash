@@ -288,8 +288,12 @@ class _CartScreenState extends State<CartScreen> {
                         children: [
                           TileLayer(
                             urlTemplate:
-                                'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                                'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                            subdomains: const ['0', '1', '2', '3'],
+                            fallbackUrl:
+                                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                             userAgentPackageName: 'uz.dilkash.customer',
+                            maxZoom: 20,
                           ),
                           MarkerLayer(
                             markers: [
@@ -702,8 +706,12 @@ class _CartScreenState extends State<CartScreen> {
                           children: [
                             TileLayer(
                               urlTemplate:
-                                  'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                                  'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                              subdomains: const ['0', '1', '2', '3'],
+                              fallbackUrl:
+                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                               userAgentPackageName: 'uz.dilkash.customer',
+                              maxZoom: 20,
                             ),
                             MarkerLayer(
                               markers: [

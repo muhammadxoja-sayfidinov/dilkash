@@ -175,8 +175,12 @@ class _CourierDeliveryScreenState extends State<CourierDeliveryScreen> {
                   children: [
                     TileLayer(
                       urlTemplate:
-                          'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+                          'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                      subdomains: const ['0', '1', '2', '3'],
+                      fallbackUrl:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'uz.dilkash.courier',
+                      maxZoom: 20,
                     ),
                     PolylineLayer(
                       polylines: [
