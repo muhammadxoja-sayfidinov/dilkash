@@ -74,20 +74,22 @@ class AccountScreen extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      decoration: BoxDecoration(
-        color: isSelected
-            ? (isDark
-                ? DilkashColors.surfaceDarkElevated
-                : DilkashColors.primary50)
-            : Colors.transparent,
+    return Material(
+      color: isSelected
+          ? (isDark
+              ? DilkashColors.surfaceDarkElevated
+              : DilkashColors.primary50)
+          : Colors.transparent,
+      borderRadius: DilkashRadii.radiusSm,
+      shape: RoundedRectangleBorder(
         borderRadius: DilkashRadii.radiusSm,
-        border: Border.all(
+        side: BorderSide(
           color: isSelected
               ? DilkashColors.primary(isDark)
               : (isDark ? DilkashColors.borderDark : DilkashColors.borderLight),
         ),
       ),
+      clipBehavior: Clip.antiAlias,
       child: ListTile(
         leading: Icon(
           icon,
@@ -353,16 +355,18 @@ class AccountScreen extends StatelessWidget {
             ],
 
             // Settings List
-            Container(
-              decoration: BoxDecoration(
-                color: DilkashColors.surface(isDark),
+            Material(
+              color: DilkashColors.surface(isDark),
+              borderRadius: DilkashRadii.radiusLg,
+              shape: RoundedRectangleBorder(
                 borderRadius: DilkashRadii.radiusLg,
-                border: Border.all(
+                side: BorderSide(
                   color: isDark
                       ? DilkashColors.borderDark
                       : DilkashColors.borderLight,
                 ),
               ),
+              clipBehavior: Clip.antiAlias,
               child: Column(
                 children: [
                   ListTile(

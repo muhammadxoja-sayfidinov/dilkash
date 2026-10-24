@@ -57,6 +57,7 @@ class _UnifiedLoginScreenState extends ConsumerState<UnifiedLoginScreen> {
           pin: pin,
         );
 
+    if (!mounted) return;
     final authState = ref.read(authProvider);
     authState.when(
       data: (session) {
@@ -87,6 +88,7 @@ class _UnifiedLoginScreenState extends ConsumerState<UnifiedLoginScreen> {
   void _handleBiometricLogin() async {
     HapticFeedback.lightImpact();
     await ref.read(authProvider.notifier).loginWithBiometrics();
+    if (!mounted) return;
     final authState = ref.read(authProvider);
     authState.when(
       data: (session) {

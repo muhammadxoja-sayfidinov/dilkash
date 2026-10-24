@@ -143,20 +143,23 @@ class _DeliveryChecklistSheetState extends State<DeliveryChecklistSheet> {
             // Checklist Tiles
             ..._checks.keys.map((key) {
               final isChecked = _checks[key] ?? false;
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Material(
                   color: isChecked
                       ? DilkashColors.primary500.withValues(alpha: 0.08)
                       : Colors.transparent,
                   borderRadius: DilkashRadii.radiusSm,
-                  border: Border.all(
-                    color: isChecked
-                        ? DilkashColors.primary500
-                        : Colors.grey.withValues(alpha: 0.25),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: DilkashRadii.radiusSm,
+                    side: BorderSide(
+                      color: isChecked
+                          ? DilkashColors.primary500
+                          : Colors.grey.withValues(alpha: 0.25),
+                    ),
                   ),
-                ),
-                child: CheckboxListTile(
+                  clipBehavior: Clip.antiAlias,
+                  child: CheckboxListTile(
                   title: Text(
                     key,
                     style: TextStyle(
@@ -173,7 +176,8 @@ class _DeliveryChecklistSheetState extends State<DeliveryChecklistSheet> {
                     setState(() => _checks[key] = val ?? false);
                   },
                 ),
-              );
+              ),
+            );
             }),
             const SizedBox(height: 16),
 
