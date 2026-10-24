@@ -98,7 +98,6 @@ def main():
     try:
         subprocess.run(["pkill", "-f", "cloudflared tunnel"], capture_output=True)
         subprocess.run(["pkill", "-f", "telegram_bot.py"], capture_output=True)
-        subprocess.run(["pkill", "-f", "waiter_bot.py"], capture_output=True)
     except Exception:
         pass
 

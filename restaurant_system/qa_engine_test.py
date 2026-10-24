@@ -456,9 +456,9 @@ def run_qe_qa_tests():
         )
         record_test("Ofitsiant profili yaratilishi/yangilanishi", waiter_prof.is_active and waiter_prof.name == "Sardor (Senior Waiter)", f"ID: {waiter_prof.id}, Chat ID: {waiter_prof.telegram_id}")
 
-        # Waiter bot import va komponentlar tekshiruvi
-        import waiter_bot
-        record_test("Maxsus waiter_bot.py moduli yuklanishi", hasattr(waiter_bot, 'start_command') and hasattr(waiter_bot, 'show_tables_grid'), "Barcha asosiy handlerlar mavjud")
+        # Asosiy buyurtma berish boti (telegram_bot.py) tekshiruvi
+        import telegram_bot
+        record_test("Asosiy buyurtma berish boti (telegram_bot.py) yuklanishi", hasattr(telegram_bot, 'start') and hasattr(telegram_bot, 'main_menu'), "Barcha asosiy buyurtma handlerlari mavjud")
 
         # Ofitsiant orqali izohli buyurtma yaratish API
         punch_res = client.post('/chef_panel/api/waiter/order/create/', data=json.dumps({
