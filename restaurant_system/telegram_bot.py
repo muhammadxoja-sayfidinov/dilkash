@@ -188,120 +188,6 @@ def _update_telegram_messages(order, old_status, new_status, changed_by_user=Non
                 order.user_message_id = response['result']['message_id']
                 order.save()
 
-    # Oshpaz xabarini yangilash
-    if order.chef_message_id:
-        chef_text = f"{emoji} **Буюртма #{order.order_number} ҳолати ўзгарди: {order.get_status_display()}**\n\n"
-        chef_text += f"👨‍💼 Исм: {order.customer.full_name}\n"
-        chef_text += f"📱 Телефон: {order.customer.phone_number}\n"
-        chef_text += f"💳 Тўлов усули: {order.get_payment_method_display()}\n"
-        chef_text += f"🚀 Хизмат тури: {order.get_service_type_display()}\n"
-        
-        if order.service_type == 'delivery':
-            if order.address:
-                chef_text += f"🏠 Манзил: {order.address}\n"
-            else:
-                chef_text += "📍 Манзил: Фақат локация\n"
-        else:
-            chef_text += "🏪 Олиб кетиш учун: Ресторандан\n"
-            
-        chef_text += f"\n🍽 **Маҳсулотлар:**\n"
-        for item in list(order.items.all()): # Convert queryset to list in sync context
-            chef_text += f"• {item.quantity} дона {item.product.name} - {item.total:,} сўм\n"
-        chef_text += f"\n💰 Жами: {order.total_amount:,} сўм"
-
-        chef_keyboard = []
-        if new_status == 'yangi':
-            chef_keyboard = [
-                [{'text': "✅ Тасдиқлаш", 'callback_data': f"chef_confirm:{order.id}"},
-                 {'text': "❌ Бекор қилиш", 'callback_data': f"chef_cancel:{order.id}"}]
-            ]
-        elif new_status == 'tasdiqlangan':
-            chef_keyboard = [
-                [{'text': "🍽 Тайёр", 'callback_data': f"chef_ready:{order.id}"}],
-                [{'text': "❌ Бекор қилиш", 'callback_data': f"chef_cancel:{order.id}"}]
-            ]
-        elif new_status == 'tayor' and order.service_type == 'pickup':
-            chef_keyboard = [
-                [{'text': "✅ Олиб кетилди", 'callback_data': f"chef_picked_up:{order.id}"}],
-                [{'text': "❌ Бекор қилиш", 'callback_data': f"chef_cancel:{order.id}"}]
-            ]
-        # If status is 'tayor' (delivery), 'yolda', 'yetkazildi', 'olib_ketildi', 'bekor_qilingan', no more actions for chef
-        
-        send_telegram_message(
-            chat_id=settings.CHEF_CHAT_ID,
-            text=chef_text,
-            reply_markup={'inline_keyboard': chef_keyboard},
-            message_id=order.chef_message_id
-        )
-
-    # Kuryer xabarini yangilash (faqat delivery uchun)
-    if order.service_type == 'delivery':
-        if order.courier_message_id:
-            courier_text = f"{emoji} **Буюртма #{order.order_number} ҳолати ўзгарди: {order.get_status_display()}**\n\n"
-            courier_text += f"👨‍💼 Исм: {order.customer.full_name}\n"
-            courier_text += f"📱 Телефон: {order.customer.phone_number}\n"
-            courier_text += f"💳 Тўлов усули: {order.get_payment_method_display()}\n"
-            if order.address:
-                courier_text += f"🏠 Манзил: {order.address}\n"
-            else:
-                courier_text += "📍 Манзил: Фақат локация\n"
-            courier_text += f"\n🍽 **Маҳсулотлар:**\n"
-            for item in list(order.items.all()): # Convert queryset to list in sync context
-                courier_text += f"• {item.quantity} дона {item.product.name} - {item.total:,} сўм\n"
-            courier_text += f"\n💰 Жами: {order.total_amount:,} сўм"
-
-            courier_keyboard = []
-            if new_status == 'tayor':
-                courier_keyboard = [
-                    [{'text': "🚚 Йўлда", 'callback_data': f"courier_on_way:{order.id}"}],
-                    [{'text': "❌ Бекор қилиш", 'callback_data': f"courier_cancel:{order.id}"}]
-                ]
-            elif new_status == 'yolda':
-                courier_keyboard = [
-                    [{'text': "✅ Етказилди", 'callback_data': f"courier_delivered:{order.id}"}],
-                    [{'text': "❌ Бекор қилиш", 'callback_data': f"courier_cancel:{order.id}"}]
-                ]
-            
-            send_telegram_message(
-                chat_id=settings.ADMIN_CHAT_ID, # Assuming ADMIN_CHAT_ID is courier's chat ID
-                text=courier_text,
-                reply_markup={'inline_keyboard': courier_keyboard},
-                message_id=order.courier_message_id
-            )
-        elif new_status == 'tayor': # If order is ready, send new message to courier if no existing message_id
-            courier_text = f"🚚 **Етказиб бериш учун янги буюртма #{order.order_number}**\n\n"
-            courier_text += f"👨‍💼 Исм: {order.customer.full_name}\n"
-            courier_text += f"📱 Телефон: {order.customer.phone_number}\n"
-            courier_text += f"💳 Тўлов усули: {order.get_payment_method_display()}\n"
-            if order.address:
-                courier_text += f"🏠 Манзил: {order.address}\n"
-            else:
-                courier_text += "📍 Манзил: Фақат локация\n"
-            courier_text += f"\n🍽 **Маҳсулотлар:**\n"
-            for item in list(order.items.all()): # Convert queryset to list in sync context
-                courier_text += f"• {item.quantity} дона {item.product.name} - {item.total:,} сўм\n"
-            courier_text += f"\n💰 Жами: {order.total_amount:,} сўм"
-
-            courier_keyboard = [
-                [{'text': "🚚 Йўлда", 'callback_data': f"courier_on_way:{order.id}"}],
-                [{'text': "❌ Бекор қилиш", 'callback_data': f"courier_cancel:{order.id}"}]
-            ]
-            courier_msg_response = send_telegram_message(
-                chat_id=settings.ADMIN_CHAT_ID,
-                text=courier_text,
-                reply_markup={'inline_keyboard': courier_keyboard}
-            )
-            if courier_msg_response and courier_msg_response.get('ok'):
-                order.courier_message_id = courier_msg_response['result']['message_id']
-                order.save()
-                
-            if order.latitude and order.longitude:
-                send_telegram_location(
-                    chat_id=settings.ADMIN_CHAT_ID,
-                    latitude=order.latitude,
-                    longitude=order.longitude
-                )
-
 # ----------------------------------------------------
 # 1) Masofa va yetkazib berish narxi hisoblash
 # ----------------------------------------------------
@@ -1463,49 +1349,6 @@ async def final_confirm_order(update: Update, context: ContextTypes.DEFAULT_TYPE
             total_products_price, delivery_cost, total_amount, order_items_data
         )
         
-        # Telegram xabarlarini yuborish va message_id'larni saqlash
-        chef_text = f"🍽 **Янги буюртма #{order.order_number}**\n\n"
-        chef_text += f"👨‍💼 Исм: {full_name}\n"
-        chef_text += f"📱 Телефон: {phone}\n"
-        chef_text += f"💳 Тўлов усули: {order.get_payment_method_display()}\n"
-        chef_text += f"🚀 Хизмат тури: {order.get_service_type_display()}\n"
-        
-        if service_type == 'delivery':
-            if order.address:
-                chef_text += f"🏠 Манзил: {order.address}\n"
-            else:
-                chef_text += "📍 Манзил: Фақат локация\n"
-        else:
-            chef_text += "🏪 Олиб кетиш учун: Ресторандан\n"
-            
-        chef_text += f"\n🍽 **Маҳсулотлар:**\n"
-        for item in order_items_data: # Iterate directly over the prepared list
-            chef_text += f"• {item['quantity']} дона {item['product_name']} - {item['total']:,} сўм\n"
-        chef_text += f"\n💰 Жами: {order.total_amount:,} сўм"
-
-        keyboard_chef = [
-            [
-                {'text': "✅ Тасдиқлаш", 'callback_data': f"chef_confirm:{order.id}"},
-                {'text': "❌ Бекор қилиш", 'callback_data': f"chef_cancel:{order.id}"}
-            ]
-        ]
-        
-        chef_msg_response = send_telegram_message(
-            chat_id=settings.CHEF_CHAT_ID, 
-            text=chef_text, 
-            reply_markup={'inline_keyboard': keyboard_chef}
-        )
-        if chef_msg_response and chef_msg_response.get('ok'):
-            order.chef_message_id = chef_msg_response['result']['message_id']
-        
-        # Lokatsiya yuborish faqat delivery uchun
-        if service_type == 'delivery' and order.latitude and order.longitude:
-            send_telegram_location(
-                chat_id=settings.CHEF_CHAT_ID,
-                latitude=order.latitude,
-                longitude=order.longitude
-            )
-
         # Foydalanuvchiga xabar
         user_text = f"✅ **Буюртмангиз қабул қилинди!**\n\n"
         user_text += f"📋 Буюртма ID: **{order.order_number}**\n"
@@ -1566,113 +1409,31 @@ async def cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await edit_message_based_on_type(query, "❌ Буюртма бекор қилинди.", main_inline_menu(context).inline_keyboard)
 
 # ----------------------------------------------------
-# Oshpaz va Kuryer paneli callbacklari (ORM orqali)
+# Xodimlar (Kassir, Oshpaz, Ofitsiant, Kuryer) haqida eslatma
 # ----------------------------------------------------
-@sync_to_async
-@transaction.atomic
-def _update_order_status_sync(order_id, new_status, old_status):
-    logger.info(f"Attempting to update order {order_id} status from {old_status} to {new_status}")
-    order = Order.objects.get(id=order_id)
-    order.status = new_status
-    
-    if new_status == 'tasdiqlangan':
-        order.confirmed_at = timezone.now()
-    elif new_status == 'tayor':
-        order.ready_at = timezone.now()
-    elif new_status == 'yetkazildi':
-        order.delivered_at = timezone.now()
-    elif new_status == 'olib_ketildi':
-        order.picked_up_at = timezone.now()
-    
-    order.save()
-    logger.info(f"Order {order_id} status successfully updated to {order.status} in DB.")
-    
-    OrderStatusHistory.objects.create(
-        order=order,
-        old_status=old_status,
-        new_status=new_status,
-        changed_by=None, # Bot orqali o'zgargani uchun user None
-        notes=f'Telegram bot orqali yangilandi'
+async def staff_notice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Xodimlar (Kassir, Oshpaz, Ofitsiant, Kuryer) tizimiga yo'naltirish"""
+    text = (
+        "ℹ️ *DILKASH RESTORANI — XODIMLAR TIZIMI*\n\n"
+        "Hurmatli foydalanuvchi! Restoran xodimlari boshqaruvi Telegram orqali emas, "
+        "balki to'liq maxsus professional tizimlarda ishlaydi:\n\n"
+        "💻 *Kassir:* Kompyuter Desktop POS tizimi (`/cashier/`)\n"
+        "🍳 *Oshpaz:* Oshxona KDS ekrani (`/chef_panel/`)\n"
+        "🤵 *Ofitsiant:* Dilkash Staff mobil ilovasi (Stollar xaritasi)\n"
+        "🚚 *Kuryer:* Dilkash Staff mobil ilovasi (Yetkazib berish xaritasi)\n\n"
+        "🤖 *Ushbu Telegram bot esa faqat mijozlar uchun taom buyurtma qilishga mo'ljallangan.*\n\n"
+        "🍽 Taomlar bilan tanishish uchun quyidagi tugmani bosing:"
     )
-    logger.info(f"Order status history created for order {order_id}: {old_status} -> {new_status}")
-    return order
-
-async def handle_chef_courier_status_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    try:
-        action, order_id = query.data.split(":")
-        logger.info(f"Callback received: action={action}, order_id={order_id}")
-        
-        # Fetch order to get old_status before passing to sync function
-        order_obj_for_status_check = await sync_to_async(Order.objects.get)(id=int(order_id))
-        old_status = order_obj_for_status_check.status
-        service_type = order_obj_for_status_check.service_type
-        logger.info(f"Order {order_id} current status: {old_status}, service_type: {service_type}")
-
-        status_map = {
-            "chef_confirm": "tasdiqlangan",
-            "chef_ready": "tayor",
-            "chef_cancel": "bekor_qilingan",
-            "chef_picked_up": "olib_ketildi",
-            "chef_served": "yetkazildi",
-            "courier_on_way": "yolda",
-            "courier_delivered": "yetkazildi",
-            "courier_cancel": "bekor_qilingan",
-        }
-
-        new_status = status_map.get(action)
-        logger.info(f"Mapped new status: {new_status}")
-
-        if not new_status:
-            await edit_message_based_on_type(query, "❌ Номаълум ҳолат ўзгариши.", [])
-            logger.warning(f"Unknown status change action: {action}")
-            return
-
-        if old_status == new_status:
-            await edit_message_based_on_type(query, f"ℹ️ Буюртма ҳолати аллақачон '{new_status}'.", [])
-            return
-
-        # Valid transitions for different service types
-        if service_type == 'pickup':
-            valid_transitions = {
-                'yangi': ['tasdiqlangan', 'tayor', 'bekor_qilingan'],
-                'tasdiqlangan': ['tayor', 'bekor_qilingan'],
-                'tayor': ['olib_ketildi', 'bekor_qilingan'],
-            }
-        elif service_type == 'dine_in':
-            valid_transitions = {
-                'yangi': ['tasdiqlangan', 'tayor', 'yetkazildi', 'bekor_qilingan'],
-                'tasdiqlangan': ['tayor', 'yetkazildi', 'bekor_qilingan'],
-                'tayor': ['yetkazildi', 'olib_ketildi', 'bekor_qilingan'],
-                'yetkazildi': [],
-            }
-        else:  # delivery
-            valid_transitions = {
-                'yangi': ['tasdiqlangan', 'tayor', 'bekor_qilingan'],
-                'tasdiqlangan': ['tayor', 'bekor_qilingan'],
-                'tayor': ['yolda', 'yetkazildi', 'bekor_qilingan'],
-                'yolda': ['yetkazildi', 'bekor_qilingan'],
-            }
-
-        if new_status not in valid_transitions.get(old_status, []):
-            await edit_message_based_on_type(query, f"Ҳолат {old_status} дан {new_status} га ўзгартиришга рухсат берилмаган.", [])
-            logger.warning(f"Invalid transition for order {order_id}: {old_status} -> {new_status} (service_type: {service_type})")
-            return
-
-        updated_order = await _update_order_status_sync(int(order_id), new_status, old_status)
-        logger.info(f"Order {order_id} status updated to {updated_order.status}. Now updating Telegram messages.")
-            
-        await _update_telegram_messages(updated_order, old_status, new_status) # Pass the updated order object
-        logger.info(f"Telegram messages updated for order {order_id}.")
-        
-    except Order.DoesNotExist:
-        logger.error(f"Order with ID {order_id} not found.", exc_info=True)
-        await edit_message_based_on_type(query, "❌ Буюртма топилмади.", [])
-    except Exception as e:
-        logger.error(f"Status update error for order {order_id}: {e}", exc_info=True)
-        await edit_message_based_on_type(query, f"❌ Хато: {str(e)}", [])
+    keyboard = [[InlineKeyboardButton("🍽 Taomlar menyusini ochish", callback_data="menu")]]
+    if update.callback_query:
+        await update.callback_query.answer()
+        await edit_message_based_on_type(update.callback_query, text, keyboard, force_text=True)
+    elif update.message:
+        await update.message.reply_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
 
 # ----------------------------------------------------
 # Fikr bildirish
@@ -1686,36 +1447,16 @@ async def feedback_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-# ====================================================
-# OFITSIANT (WAITER) - ENDI FAQAT MOBIL ILOVADA ISHLAYDI
-# ====================================================
-
-async def waiter_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Ofitsiantlarga ilovaga o'tish haqida xabar"""
-    text = (
-        "📱 *DILKASH RESTORAN — XODIMLAR MOBIL ILOVASI*\n\n"
-        "Hurmatli ofitsiant!\n"
-        "Endi restoran stollari, yangi buyurtmalar va chaqiruvlar bilan ishlash "
-        "Telegram orqali emas, balki to'liq *Dilkash Staff* mobil ilovasida amalga oshiriladi.\n\n"
-        "🔑 *Qanday kiriladi?*\n"
-        "1. Kassir sizga bergan login va parolni oling;\n"
-        "2. Mobil ilovada *'Ofitsiant'* rolini tanlang;\n"
-        "3. Login va parolni kiritib, barcha stollarni jonli boshqaring!"
-    )
-    keyboard = [[InlineKeyboardButton("🏠 Asosiy mijoz menyusi", callback_data="main_menu")]]
-    if update.callback_query:
-        query = update.callback_query
-        await query.answer()
-        await edit_message_based_on_type(query, text, keyboard, force_text=True)
-    elif update.message:
-        await update.message.reply_text(
-            text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="Markdown"
-        )
-
-
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text or ""
+    text_clean = text.strip().lower()
+
+    # Agar xodimlar roli bilan bog'liq so'rov bo'lsa
+    staff_keywords = ["kassir", "cashier", "kassa", "oshpaz", "chef", "ofitsiant", "waiter", "kuryer", "courier", "admin"]
+    if any(k in text_clean for k in staff_keywords) and len(text_clean) <= 25:
+        await staff_notice(update, context)
+        return
+
     if text in ["🚚 Yetkazib berish", "Yetkazib berish", "yetkazib berish"]:
         context.user_data['service_type'] = 'delivery'
         await update.message.reply_text(
@@ -1737,10 +1478,6 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if text in ["🛒 Savat", "Savat", "savat"]:
         await show_cart(update, context)
-        return
-
-    if text in ["🤵 Ofitsiant Paneli", "Ofitsiant", "ofitsiant", "waiter", "/waiter", "/ofitsiant", "🤵 Ofitsiant"]:
-        await waiter_panel(update, context)
         return
 
 
@@ -1811,8 +1548,7 @@ def main():
 
     # Asosiy komandalar
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("waiter", waiter_panel))
-    application.add_handler(CommandHandler("ofitsiant", waiter_panel))
+    application.add_handler(CommandHandler(["waiter", "ofitsiant", "kassir", "cashier", "chef", "oshpaz", "admin", "kuryer", "courier"], staff_notice))
 
     # Xabarlar
     application.add_handler(MessageHandler(filters.CONTACT, handle_contact))
@@ -1821,16 +1557,6 @@ def main():
 
     # Service type selection
     application.add_handler(CallbackQueryHandler(handle_service_type, pattern="^service_type:"))
-
-    # Oshpaz va Kuryer callbacklari (Django ORM orqali)
-    application.add_handler(CallbackQueryHandler(handle_chef_courier_status_update, pattern="^chef_confirm:"))
-    application.add_handler(CallbackQueryHandler(handle_chef_courier_status_update, pattern="^chef_ready:"))
-    application.add_handler(CallbackQueryHandler(handle_chef_courier_status_update, pattern="^chef_cancel:"))
-    application.add_handler(CallbackQueryHandler(handle_chef_courier_status_update, pattern="^chef_picked_up:"))
-    application.add_handler(CallbackQueryHandler(handle_chef_courier_status_update, pattern="^chef_served:"))
-    application.add_handler(CallbackQueryHandler(handle_chef_courier_status_update, pattern="^courier_on_way:"))
-    application.add_handler(CallbackQueryHandler(handle_chef_courier_status_update, pattern="^courier_delivered:"))
-    application.add_handler(CallbackQueryHandler(handle_chef_courier_status_update, pattern="^courier_cancel:"))
 
     # Asosiy callbacklar
     application.add_handler(CallbackQueryHandler(main_menu, pattern="^main_menu$"))
@@ -1858,15 +1584,10 @@ def main():
         pattern="^promo_not_implemented$")
     )
 
-    # Ofitsiant (Waiter) - endi to'liq Flutter mobil ilovasida
-    application.add_handler(CallbackQueryHandler(waiter_panel, pattern="^waiter_"))
-
     application.add_error_handler(error_handler)
     
-    print("🤖 Бот ишга тушмоқда...")
-    print(f"Bot Token: {settings.TELEGRAM_BOT_TOKEN[:5]}...") # Print partial token for security
-    print(f"Chef Chat ID: {settings.CHEF_CHAT_ID}")
-    print(f"Admin Chat ID: {settings.ADMIN_CHAT_ID}")
+    print("🤖 Dilkash Mijoz Buyurtma Boti ishga tushmoqda...")
+    print(f"Bot Token: {settings.TELEGRAM_BOT_TOKEN[:5]}...")
     
     # Call load_data as an async function before starting polling
     application.run_polling()

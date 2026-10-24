@@ -324,29 +324,6 @@ def create_order_api(request):
                     chef_text += f"• {item.quantity} dona {item.product.name} - {item.total:,} so'm\n"
                 chef_text += f"\n💰 Jami: {order.total_amount:,} so'm"
 
-            keyboard_chef = [
-                [
-                    {'text': "✅ Tasdiqlash", 'callback_data': f"chef_confirm:{order.id}"},
-                    {'text': "❌ Bekor qilish", 'callback_data': f"chef_cancel:{order.id}"}
-                ]
-            ]
-            
-            chef_msg_response = send_telegram_message(
-                chat_id=settings.CHEF_CHAT_ID, 
-                text=chef_text, 
-                reply_markup={'inline_keyboard': keyboard_chef}
-            )
-            if chef_msg_response and chef_msg_response.get('ok'):
-                order.chef_message_id = chef_msg_response['result']['message_id']
-            
-            # Lokatsiya yuborish faqat delivery uchun
-            if order.service_type == 'delivery' and order.latitude and order.longitude:
-                send_telegram_location(
-                    chat_id=settings.CHEF_CHAT_ID,
-                    latitude=order.latitude,
-                    longitude=order.longitude
-                )
-
             # Foydalanuvchiga xabar
             user_text = f"✅ **Buyurtmangiz qabul qilindi!**\n\n"
             user_text += f"📋 Buyurtma ID: **{order.order_number}**\n"
@@ -458,151 +435,6 @@ def _update_telegram_messages(order, old_status, new_status, changed_by_user=Non
             if response and response.get('ok'):
                 order.user_message_id = response['result']['message_id']
                 order.save()
-
-    # Oshpaz xabarini yangilash
-    if order.chef_message_id:
-        chef_text = f"{emoji} **Buyurtma #{order.order_number} holati o'zgardi: {order.get_status_display()}**\n\n"
-        chef_text += f"👨‍💼 Ism: {order.customer.full_name}\n"
-        chef_text += f"📱 Telefon: {order.customer.phone_number}\n"
-        chef_text += f"💳 To'lov usuli: {order.get_payment_method_display()}\n"
-        chef_text += f"🚀 Xizmat turi: {order.get_service_type_display()}\n"
-        
-        if order.service_type == 'delivery':
-            if order.address:
-                chef_text += f"🏠 Manzil: {order.address}\n"
-            else:
-                chef_text += "📍 Manzil: Faqat lokatsiya\n"
-        elif order.service_type == 'dine_in':
-            chef_text += f"🍽 **Stol: #{order.table_number or '1'} (Restoranda)**\n"
-        else:
-            chef_text += "🏪 Olib ketish uchun: Restoranidan\n"
-            
-        chef_text += f"\n🍽 **Mahsulotlar:**\n"
-        for item in order.items.all():
-            chef_text += f"• {item.quantity} dona {item.product.name} - {item.total:,} so'm\n"
-        chef_text += f"\n💰 Jami: {order.total_amount:,} so'm"
-
-        chef_keyboard = []
-        if new_status == 'yangi':
-            chef_keyboard = [
-                [{'text': "✅ Tasdiqlash", 'callback_data': f"chef_confirm:{order.id}"},
-                 {'text': "❌ Bekor qilish", 'callback_data': f"chef_cancel:{order.id}"}]
-            ]
-        elif new_status == 'tasdiqlangan':
-            chef_keyboard = [
-                [{'text': "🍽 Tayor", 'callback_data': f"chef_ready:{order.id}"}],
-                [{'text': "❌ Bekor qilish", 'callback_data': f"chef_cancel:{order.id}"}]
-            ]
-        elif new_status == 'tayor' and order.service_type == 'pickup':
-            chef_keyboard = [
-                [{'text': "✅ Olib ketildi", 'callback_data': f"chef_picked_up:{order.id}"}],
-                [{'text': "❌ Bekor qilish", 'callback_data': f"chef_cancel:{order.id}"}]
-            ]
-        elif new_status == 'tayor' and order.service_type == 'dine_in':
-            chef_keyboard = [
-                [{'text': "✅ Stolga berildi", 'callback_data': f"chef_served:{order.id}"}],
-                [{'text': "❌ Bekor qilish", 'callback_data': f"chef_cancel:{order.id}"}]
-            ]
-            # Smenadagi barcha ofitsiantlarga zudlik bilan bildirishnoma yuborish
-            try:
-                waiter_text = (
-                    f"🍽️ <b>STOL #{order.table_number or '1'} TAOMLARI TAYYOR!</b>\n\n"
-                    f"📋 Buyurtma: #{order.order_number}\n"
-                    f"🍽 <b>Taomlar:</b>\n"
-                )
-                for itm in order.items.all():
-                    waiter_text += f"• {itm.quantity} x {itm.product.name}\n"
-                waiter_text += f"\nOshxonadan olib, #{order.table_number}-stolga yetkazing!"
-
-                waiter_kb = [
-                    [{'text': "🍽️ Stolga yetkazdim", 'callback_data': f"waiter_served:{order.id}"}]
-                ]
-                for w in WaiterProfile.objects.filter(is_active=True, telegram_id__isnull=False):
-                    send_telegram_message(
-                        chat_id=w.telegram_id,
-                        text=waiter_text,
-                        reply_markup={'inline_keyboard': waiter_kb},
-                        parse_mode="HTML"
-                    )
-            except Exception as e_w:
-                logger.error(f"Ofitsiantlarga bildirishnoma yuborishda xatolik: {e_w}")
-        # If status is 'tayor' (delivery), 'yolda', 'yetkazildi', 'olib_ketildi', 'bekor_qilingan', no more actions for chef
-        
-        send_telegram_message(
-            chat_id=settings.CHEF_CHAT_ID,
-            text=chef_text,
-            reply_markup={'inline_keyboard': chef_keyboard},
-            message_id=order.chef_message_id
-        )
-
-
-    # Kuryer xabarini yangilash (faqat delivery uchun)
-    if order.service_type == 'delivery':
-        if order.courier_message_id:
-            courier_text = f"{emoji} **Buyurtma #{order.order_number} holati o'zgardi: {order.get_status_display()}**\n\n"
-            courier_text += f"👨‍💼 Ism: {order.customer.full_name}\n"
-            courier_text += f"📱 Telefon: {order.customer.phone_number}\n"
-            courier_text += f"💳 To'lov usuli: {order.get_payment_method_display()}\n"
-            if order.address:
-                courier_text += f"🏠 Manzil: {order.address}\n"
-            else:
-                courier_text += "📍 Manzil: Faqat lokatsiya\n"
-            courier_text += f"\n🍽 **Mahsulotlar:**\n"
-            for item in order.items.all():
-                courier_text += f"• {item.quantity} dona {item.product.name} - {item.total:,} so'm\n"
-            courier_text += f"\n💰 Jami: {order.total_amount:,} so'm"
-
-            courier_keyboard = []
-            if new_status == 'tayor':
-                courier_keyboard = [
-                    [{'text': "🚚 Yo'lda", 'callback_data': f"courier_on_way:{order.id}"}],
-                    [{'text': "❌ Bekor qilish", 'callback_data': f"courier_cancel:{order.id}"}]
-                ]
-            elif new_status == 'yolda':
-                courier_keyboard = [
-                    [{'text': "✅ Yetkazildi", 'callback_data': f"courier_delivered:{order.id}"}],
-                    [{'text': "❌ Bekor qilish", 'callback_data': f"courier_cancel:{order.id}"}]
-                ]
-            
-            send_telegram_message(
-                chat_id=settings.ADMIN_CHAT_ID, # Assuming ADMIN_CHAT_ID is courier's chat ID
-                text=courier_text,
-                reply_markup={'inline_keyboard': courier_keyboard},
-                message_id=order.courier_message_id
-            )
-        elif new_status == 'tayor': # If order is ready, send new message to courier if no existing message_id
-            courier_text = f"🚚 **Yetkazib berish uchun yangi buyurtma #{order.order_number}**\n\n"
-            courier_text += f"👨‍💼 Ism: {order.customer.full_name}\n"
-            courier_text += f"📱 Telefon: {order.customer.phone_number}\n"
-            courier_text += f"💳 To'lov usuli: {order.get_payment_method_display()}\n"
-            if order.address:
-                courier_text += f"🏠 Manzil: {order.address}\n"
-            else:
-                courier_text += "📍 Manzil: Faqat lokatsiya\n"
-            courier_text += f"\n🍽 **Mahsulotlar:**\n"
-            for item in order.items.all():
-                courier_text += f"• {item.quantity} dona {item.product.name} - {item.total:,} so'm\n"
-            courier_text += f"\n💰 Jami: {order.total_amount:,} so'm"
-
-            courier_keyboard = [
-                [{'text': "🚚 Yo'lda", 'callback_data': f"courier_on_way:{order.id}"}],
-                [{'text': "❌ Bekor qilish", 'callback_data': f"courier_cancel:{order.id}"}]
-            ]
-            courier_msg_response = send_telegram_message(
-                chat_id=settings.ADMIN_CHAT_ID,
-                text=courier_text,
-                reply_markup={'inline_keyboard': courier_keyboard}
-            )
-            if courier_msg_response and courier_msg_response.get('ok'):
-                order.courier_message_id = courier_msg_response['result']['message_id']
-                order.save()
-            
-            if order.latitude and order.longitude:
-                send_telegram_location(
-                    chat_id=settings.ADMIN_CHAT_ID,
-                    latitude=order.latitude,
-                    longitude=order.longitude
-                )
 
 def is_valid_status_transition(service_type, old_status, new_status):
     """Buyurtma holatini o'zgartirish qoidalari (dine_in, pickup, delivery)"""
@@ -1077,31 +909,6 @@ def call_waiter_api(request):
                 reason=reason
             )
 
-        text = (
-            f"🔔 <b>DIQQAT! OFITSIANT CHAQIRILDI!</b>\n\n"
-            f"🪑 <b>Stol:</b> #{table_number if table_number else 'Noma\'lum'}\n"
-            f"⏰ <b>Vaqt:</b> {now_str}\n"
-            f"💬 <b>Sabab:</b> {reason}\n\n"
-            f"Iltimos, zudlik bilan stolga yaqinlashing!"
-        )
-        if hasattr(settings, 'CHEF_CHAT_ID') and settings.CHEF_CHAT_ID:
-            send_telegram_message(settings.CHEF_CHAT_ID, text, parse_mode="HTML")
-
-        # Barcha ofitsiantlarga zudlik bilan bildirishnoma yuborish
-        try:
-            waiter_call_kb = [
-                [{'text': "✅ Boraman / Qabul qildim", 'callback_data': f"waiter_call_ack:{table_number}"}]
-            ]
-            for w in WaiterProfile.objects.filter(is_active=True, telegram_id__isnull=False):
-                send_telegram_message(
-                    chat_id=w.telegram_id,
-                    text=text,
-                    reply_markup={'inline_keyboard': waiter_call_kb},
-                    parse_mode="HTML"
-                )
-        except Exception as e_w:
-            logger.error(f"Ofitsiantlarga chaqiruv yuborishda xato: {e_w}")
-
         return JsonResponse({
             'success': True,
             'message': f"#{table_number}-stolga ofitsiant chaqirildi. Tez orada xizmat ko'rsatiladi!"
@@ -1406,20 +1213,6 @@ def waiter_create_order_api(request):
         chef_text += f"📝 <b>Izoh:</b> {notes}\n\n"
     chef_text += f"💰 <b>Jami hisob:</b> {order.total_amount:,.0f} so'm"
 
-    if hasattr(settings, 'CHEF_CHAT_ID') and settings.CHEF_CHAT_ID:
-        keyboard_chef = [
-            [
-                {'text': "✅ Tasdiqlash", 'callback_data': f"chef_confirm:{order.id}"},
-                {'text': "❌ Bekor qilish", 'callback_data': f"chef_cancel:{order.id}"}
-            ]
-        ]
-        send_telegram_message(
-            chat_id=settings.CHEF_CHAT_ID,
-            text=chef_text,
-            reply_markup={'inline_keyboard': keyboard_chef},
-            parse_mode="HTML"
-        )
-
     depts_summary = {}
     for d_key in ['shashlik', 'kitchen', 'bar', 'kassa']:
         d_val = depts[d_key]
@@ -1576,20 +1369,6 @@ def waiter_request_bill_api(request, table_number):
         table_number=str(table_number),
         status__in=['yangi', 'tasdiqlangan', 'tayor']
     ).first()
-
-    total_str = f"{active_order.total_amount:,.0f} so'm" if active_order else "Hisob ochiq"
-    text = (
-        f"🧾 <b>KASSIRGA HISOB SO'ROVI!</b>\n\n"
-        f"🪑 <b>Stol:</b> #{table_number}\n"
-        f"💰 <b>Jami summa:</b> {total_str}\n"
-        f"⏰ <b>Vaqt:</b> {timezone.now().strftime('%H:%M')}\n\n"
-        f"Iltimos, kassa orqali chek chiqarib, to'lovni qabul qiling va stolni yoping!"
-    )
-
-    if hasattr(settings, 'ADMIN_CHAT_ID') and settings.ADMIN_CHAT_ID:
-        send_telegram_message(settings.ADMIN_CHAT_ID, text, parse_mode="HTML")
-    if hasattr(settings, 'CHEF_CHAT_ID') and settings.CHEF_CHAT_ID:
-        send_telegram_message(settings.CHEF_CHAT_ID, text, parse_mode="HTML")
 
     return JsonResponse({
         'success': True,

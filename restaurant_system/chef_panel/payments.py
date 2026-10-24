@@ -57,19 +57,8 @@ def mark_order_as_paid(order: Order, provider: str, transaction_id: str, raw_dat
         }
     )
 
-    # Oshpazga to'lov haqida Telegram xabar yuborish
-    provider_name = provider.upper()
-    chef_text = (
-        f"💳 **To'lov qabul qilindi!**\n\n"
-        f"📋 Buyurtma #{order.order_number}\n"
-        f"💰 Summa: {order.total_amount:,.0f} so'm\n"
-        f"🏦 Tizim: **{provider_name}**\n"
-        f"🆔 Tranzaksiya: `{transaction_id}`\n"
-        f"Holat: ✅ TO'LANGAN"
-    )
-    send_telegram_message(chat_id=settings.CHEF_CHAT_ID, text=chef_text)
-
     # Mijozga to'lov tasdiqlanganligi haqida xabar
+    provider_name = provider.upper()
     if order.telegram_user_id:
         user_text = (
             f"🎉 **To'lovingiz muvaffaqiyatli qabul qilindi!**\n\n"
