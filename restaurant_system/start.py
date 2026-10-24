@@ -193,13 +193,29 @@ def main():
 
     try:
         while True:
-            time.sleep(1)
+            time.sleep(2)
             if django_process.poll() is not None:
-                print("\n[OGOHLANTIRISH] Django server to'xtadi!")
-                break
+                print("\n[OGOHLANTIRISH] Django server to'xtadi! Qayta ishga tushirilmoqda...")
+                free_port_8000()
+                django_process = subprocess.Popen(
+                    django_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1
+                )
+                threading.Thread(target=stream_output, args=(django_process, "WEB/DJANGO"), daemon=True).start()
             if bot_process.poll() is not None:
-                print("\n[OGOHLANTIRISH] Telegram Bot to'xtadi!")
-                break
+                print("\n[OGOHLANTIRISH] Telegram Bot to'xtadi! Qayta ishga tushirilmoqda...")
+                bot_process = subprocess.Popen(
+                    bot_cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    env=bot_env
+                )
+                threading.Thread(target=stream_output, args=(bot_process, "TELEGRAM BOT"), daemon=True).start()
     except KeyboardInterrupt:
         print("\n\n🛑 Tizim to'xtatilmoqda...")
     finally:
