@@ -104,3 +104,17 @@ New Folder With Items/
 ### Reverse Geocoding & Localized Map Address Picker
 - **Decision:** The customer address picker allows both pinpointing on the interactive map sheet and automatic reverse geocoding via OpenStreetMap Nominatim with Uzbek language headers (`Accept-Language: uz,en`).
 - **Rationale:** Provides familiar Wolt/Yandex Eda user experience where dragging the map instantly fills in the street name and building number.
+
+---
+
+## 7. Telegram Bot Scope & Staff Role Isolation
+
+### Customer-Only Telegram Architecture
+- **Decision:** The Telegram bot (`@tosh_qogoz_bot`) is strictly, 100% customer-facing. All staff roles (Oshpaz, Kassir, Ofitsiant, Kuryer) have been completely removed from Telegram.
+- **Role Allocations:**
+  1. **Mijoz (Customer):** Telegram Bot & `customer_app_flutter`.
+  2. **Kassir (Cashier):** Dedicated Web Desktop POS (`/cashier/`).
+  3. **Oshpaz (Chef):** Dedicated Kitchen Display System (`/chef_panel/` and `/kitchen/`).
+  4. **Ofitsiant (Waiter):** `courier_app_flutter` (Waiter floor view & live order sheets).
+  5. **Kuryer (Courier):** `courier_app_flutter` (Live navigation & order tracking).
+- **Rationale:** Staff operating via Telegram inline buttons (`chef_confirm`, `courier_on_way`, `waiter_served`) caused severe role confusion, security vulnerabilities, and messy chat feeds. Isolating staff roles to POS/KDS screens and Flutter apps guarantees production stability and gives staff rich desktop/mobile UI tools. Any staff queries typed into the bot are gracefully redirected to the staff applications while presenting the customer ordering menu.
