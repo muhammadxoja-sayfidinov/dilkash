@@ -1,4 +1,5 @@
-// go_router configuration with role-based route guards for Dilkash Staff App
+// Simplified go_router configuration for Dilkash Staff App
+// Strictly follows KEEP: Courier (3 screens), Waiter (3 screens), Common (Login, Role, Profile)
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,14 +7,11 @@ import '../auth/auth_notifier.dart';
 import '../../features/auth/screens/unified_login_screen.dart';
 import '../../features/auth/screens/role_selection_screen.dart';
 import '../../features/courier/screens/courier_home_screen.dart';
-import '../../features/courier/screens/courier_delivery_flow_screen.dart';
-import '../../features/courier/screens/courier_cash_handover_screen.dart';
+import '../../features/courier/screens/courier_order_detail_screen.dart';
 import '../../features/waiter/screens/waiter_floor_screen_v2.dart';
 import '../../features/waiter/screens/waiter_order_entry_screen.dart';
 import '../../features/waiter/screens/waiter_bill_screen.dart';
-import '../../features/waiter/screens/waiter_reservations_screen.dart';
 import '../../features/common/screens/staff_profile_screen.dart';
-import '../../features/common/screens/notifications_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -30,8 +28,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       // If logged in and on login route, redirect to role home
       if (isLoggingIn) {
-        if (session.hasMultipleRoles) {
-          return '/role-select';
+        if (session.assignedRoles.length > 1) {
+          return session.isCourier ? '/courier' : '/waiter';
         } else {
           return session.isCourier ? '/courier' : '/waiter';
         }
@@ -61,15 +59,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const CourierHomeScreen(),
         routes: [
           GoRoute(
-            path: 'delivery/:id',
+            path: 'order/:id',
             builder: (context, state) {
               final idStr = state.pathParameters['id'] ?? '0';
-              return CourierDeliveryFlowScreen(orderId: int.tryParse(idStr) ?? 0);
+              return CourierOrderDetailScreen(orderId: int.tryParse(idStr) ?? 0);
             },
-          ),
-          GoRoute(
-            path: 'handover',
-            builder: (context, state) => const CourierCashHandoverScreen(),
           ),
         ],
       ),
@@ -91,19 +85,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               return WaiterBillScreen(tableNumber: tableNum);
             },
           ),
-          GoRoute(
-            path: 'reservations',
-            builder: (context, state) => const WaiterReservationsScreen(),
-          ),
         ],
       ),
       GoRoute(
         path: '/profile',
         builder: (context, state) => const StaffProfileScreen(),
-      ),
-      GoRoute(
-        path: '/notifications',
-        builder: (context, state) => const NotificationsScreen(),
       ),
     ],
   );

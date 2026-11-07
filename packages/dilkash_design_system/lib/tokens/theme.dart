@@ -39,6 +39,7 @@ class DilkashTheme {
         foregroundColor: DilkashColors.textPrimaryLight,
         centerTitle: false,
         titleTextStyle: TextStyle(
+          fontFamily: 'Roboto',
           color: DilkashColors.textPrimaryLight,
           fontSize: 18,
           fontWeight: FontWeight.w700,
@@ -158,6 +159,7 @@ class DilkashTheme {
         foregroundColor: DilkashColors.textPrimaryDark,
         centerTitle: false,
         titleTextStyle: TextStyle(
+          fontFamily: 'Roboto',
           color: DilkashColors.textPrimaryDark,
           fontSize: 18,
           fontWeight: FontWeight.w700,

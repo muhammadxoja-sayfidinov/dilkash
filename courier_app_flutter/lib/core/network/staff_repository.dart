@@ -1,78 +1,41 @@
-// Staff Repository Interface for Dilkash Restaurant App
-// Provides unified data contracts for Courier, Waiter, and Kitchen operations.
+// Simplified Staff Repository Interface for Dilkash Restaurant App
+// Strictly follows KEEP specifications.
 
 import '../auth/staff_session.dart';
 import '../state_machine/order_state_machine.dart';
 
 abstract class StaffRepository {
   Future<StaffSession> authenticate({
-    String? phone,
-    String? staffCode,
+    required String phone,
     required String pin,
   });
 
-  // Courier methods
-  Future<List<Map<String, dynamic>>> fetchCourierOrders(String token);
-  Future<List<Map<String, dynamic>>> fetchAvailablePoolOrders();
-  Future<bool> claimCourierOrder(int orderId, String token);
-  Future<bool> updateCourierOrderStatus({
-    required int orderId,
-    required OrderStage stage,
-    required String token,
-    Map<String, dynamic>? metadata,
-  });
+  // Courier Methods (3 screens)
+  Future<List<Map<String, dynamic>>> fetchCourierOrders();
+  Future<bool> claimCourierOrder(int orderId);
+  Future<bool> updateCourierStage(int orderId, CourierStage stage);
   Future<bool> reportDeliveryProblem({
     required int orderId,
     required String reason,
-    required String notes,
-    String? photoUrl,
+    String notes,
   });
-  Future<Map<String, dynamic>> submitCashHandover({
-    required double expectedAmount,
-    required double actualAmount,
-    required String cashierPin,
-    required String notes,
-  });
+  Future<Map<String, dynamic>> fetchCourierTodaySummary();
 
-  // Waiter methods
-  Future<List<Map<String, dynamic>>> fetchFloorTables();
-  Future<List<Map<String, dynamic>>> fetchMenuCategories();
-  Future<Map<String, dynamic>> openTable({
-    required String tableNumber,
-    required int guestCount,
-    required String waiterName,
-  });
+  // Waiter Methods (3 screens)
+  Future<List<Map<String, dynamic>>> fetchTables();
+  Future<List<Map<String, dynamic>>> fetchMenu();
+  Future<Map<String, dynamic>> openTable(String tableNumber);
   Future<Map<String, dynamic>> sendOrderToKitchen({
     required String tableNumber,
-    required String waiterName,
     required List<Map<String, dynamic>> items,
-    String courseTiming = 'together', // 'starters_first', 'together'
     String notes = '',
   });
-  Future<bool> transferTable({
-    required String fromTable,
-    required String toTable,
-    required String waiterName,
-  });
-  Future<bool> mergeTables({
-    required String primaryTable,
-    required String secondaryTable,
-  });
   Future<bool> cancelOrderItem({
-    required int orderId,
+    required String tableNumber,
     required int itemId,
-    required String reason,
-    required String managerPin,
   });
   Future<Map<String, dynamic>> settleTableBill({
     required String tableNumber,
-    required String paymentMethod, // 'cash', 'card', 'click', 'payme'
-    required double totalAmount,
-    double discountPercent = 0.0,
-    double tipAmount = 0.0,
-    String? managerPinForDiscount,
+    required String paymentMethod,
   });
-  Future<bool> dismissWaiterCall(int callId);
-  Future<List<Map<String, dynamic>>> fetchTodayReservations();
-  Future<bool> markReservationArrived(int reservationId, String assignedTable);
 }

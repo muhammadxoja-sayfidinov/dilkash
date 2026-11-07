@@ -1,5 +1,5 @@
-// Unified Login Screen for Dilkash Restaurant Staff (Courier & Waiter)
-// Authentic Uzbek Latin UI, PIN/Code login, Biometric unlock, and quick demo credentials.
+// Simplified Unified Login Screen for Dilkash Restaurant Staff
+// Clean, calm, usable with one hand. Phone + PIN.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dilkash_design_system/dilkash_design_system.dart';
 import '../../../core/auth/auth_notifier.dart';
-import '../../../core/auth/biometric_service.dart';
 
 class UnifiedLoginScreen extends ConsumerStatefulWidget {
   const UnifiedLoginScreen({super.key});
@@ -18,421 +17,263 @@ class UnifiedLoginScreen extends ConsumerStatefulWidget {
 
 class _UnifiedLoginScreenState extends ConsumerState<UnifiedLoginScreen> {
   final _phoneController = TextEditingController(text: '+998 90 123 45 67');
-  final _codeController = TextEditingController();
   final _pinController = TextEditingController(text: '1234');
-  bool _useStaffCode = false;
-  bool _hasBiometrics = false;
-  bool _obscurePin = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkBiometrics();
-  }
-
-  Future<void> _checkBiometrics() async {
-    final enabled = await BiometricService.isBiometricEnabled();
-    if (mounted) setState(() => _hasBiometrics = enabled);
-  }
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _phoneController.dispose();
-    _codeController.dispose();
     _pinController.dispose();
     super.dispose();
   }
 
-  void _handleLogin() async {
+  Future<void> _handleLogin() async {
+    final phone = _phoneController.text.trim();
     final pin = _pinController.text.trim();
+
     if (pin.length < 4) {
-      DilkashFeedback.showError(context, 'PIN-kod kamida 4 xonali boʻlishi shart');
+      DilkashFeedback.showError(context, 'PIN-kod 4 xonali bo’lishi kerak');
       return;
     }
 
+    setState(() => _isLoading = true);
     HapticFeedback.mediumImpact();
-    await ref.read(authProvider.notifier).login(
-          phone: _useStaffCode ? null : _phoneController.text,
-          staffCode: _useStaffCode ? _codeController.text : null,
-          pin: pin,
-        );
 
-    if (!mounted) return;
-    final authState = ref.read(authProvider);
-    authState.when(
-      data: (session) {
-        if (session != null && mounted) {
-          DilkashFeedback.showSuccess(
-            context,
-            'Xush kelibsiz, ${session.name}!',
+    try {
+      final session = await ref.read(authProvider.notifier).login(
+            phone: phone,
+            pin: pin,
           );
-          if (session.hasMultipleRoles) {
-            context.go('/role-select');
-          } else {
-            context.go(session.isCourier ? '/courier' : '/waiter');
-          }
-        }
-      },
-      loading: () {},
-      error: (e, _) {
-        if (mounted) {
-          DilkashFeedback.showError(
-            context,
-            e.toString().replaceAll('Exception: ', ''),
-          );
-        }
-      },
-    );
+
+      if (!mounted) return;
+
+      if (session.assignedRoles.length == 1) {
+        context.go(session.isCourier ? '/courier' : '/waiter');
+      } else {
+        context.go('/role-select');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      DilkashFeedback.showError(
+        context,
+        e.toString().replaceAll('Exception: ', ''),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
-  void _handleBiometricLogin() async {
-    HapticFeedback.lightImpact();
-    await ref.read(authProvider.notifier).loginWithBiometrics();
-    if (!mounted) return;
-    final authState = ref.read(authProvider);
-    authState.when(
-      data: (session) {
-        if (session != null && mounted) {
-          DilkashFeedback.showSuccess(
-              context, 'Biometrik tasdiqlandi: ${session.name}');
-          if (session.hasMultipleRoles) {
-            context.go('/role-select');
-          } else {
-            context.go(session.isCourier ? '/courier' : '/waiter');
-          }
-        }
-      },
-      loading: () {},
-      error: (e, _) {
-        if (mounted) {
-          DilkashFeedback.showError(
-            context,
-            'Biometrik kirish muvaffaqiyatsiz. PIN orqali kiring.',
-          );
-        }
-      },
-    );
-  }
-
-  void _setDemoUser(String phone, String name, String pin) {
-    setState(() {
-      _useStaffCode = false;
-      _phoneController.text = phone;
-      _pinController.text = pin;
-    });
-    DilkashFeedback.showInfo(context, '$name maʻlumotlari yuklandi');
+  void _fillDemo(String phone, String pin) {
+    HapticFeedback.selectionClick();
+    _phoneController.text = phone;
+    _pinController.text = pin;
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final authState = ref.watch(authProvider);
-    final isLoading = authState.isLoading;
-
     return Scaffold(
-      backgroundColor: DilkashColors.background(isDark),
+      backgroundColor: DilkashColors.bgLight,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: DilkashSpacing.xl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Spacer(flex: 1),
+              // Brand Header
+              Center(
+                child: Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: DilkashColors.primary50,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: DilkashColors.primary100),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.restaurant_rounded,
+                      size: 38,
+                      color: DilkashColors.primary500,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: DilkashSpacing.lg),
+              Text(
+                'Dilkash Xodimlar',
+                textAlign: TextAlign.center,
+                style: DilkashTypography.h2.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: DilkashColors.textPrimaryLight,
+                ),
+              ),
+              const SizedBox(height: DilkashSpacing.xs),
+              Text(
+                'Kuryer va ofitsiantlar uchun sodda tizim',
+                textAlign: TextAlign.center,
+                style: DilkashTypography.bodyMedium.copyWith(
+                  color: DilkashColors.textSecondaryLight,
+                ),
+              ),
+              const SizedBox(height: DilkashSpacing.xxl),
+
+              // Phone Field
+              Text(
+                'Telefon raqamingiz',
+                style: DilkashTypography.labelLarge.copyWith(
+                  color: DilkashColors.textPrimaryLight,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: DilkashSpacing.xs),
+              TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                style: DilkashTypography.bodyLarge.copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.phone_outlined,
+                      color: DilkashColors.primary500),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: DilkashSpacing.lg,
+                    vertical: 18,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(DilkashRadii.md),
+                    borderSide: const BorderSide(color: DilkashColors.borderLight),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(DilkashRadii.md),
+                    borderSide: const BorderSide(color: DilkashColors.borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(DilkashRadii.md),
+                    borderSide: const BorderSide(
+                        color: DilkashColors.primary500, width: 2),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: DilkashSpacing.lg),
+
+              // PIN Field
+              Text(
+                'Maxfiy PIN-kod',
+                style: DilkashTypography.labelLarge.copyWith(
+                  color: DilkashColors.textPrimaryLight,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: DilkashSpacing.xs),
+              TextField(
+                controller: _pinController,
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                maxLength: 4,
+                style: DilkashTypography.bodyLarge.copyWith(
+                  fontSize: 22,
+                  letterSpacing: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+                decoration: InputDecoration(
+                  counterText: '',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded,
+                      color: DilkashColors.primary500),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: DilkashSpacing.lg,
+                    vertical: 18,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(DilkashRadii.md),
+                    borderSide: const BorderSide(color: DilkashColors.borderLight),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(DilkashRadii.md),
+                    borderSide: const BorderSide(color: DilkashColors.borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(DilkashRadii.md),
+                    borderSide: const BorderSide(
+                        color: DilkashColors.primary500, width: 2),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: DilkashSpacing.xl),
+
+              // Demo accounts quick select
+              Text(
+                'Tezkor sinov hisoblari:',
+                style: DilkashTypography.caption.copyWith(
+                  color: DilkashColors.textMutedLight,
+                ),
+              ),
+              const SizedBox(height: DilkashSpacing.xs),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  // Restaurant Crest & Brand
-                  Center(
-                    child: Container(
-                      width: 76,
-                      height: 76,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            DilkashColors.primary500,
-                            DilkashColors.primary700,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: DilkashColors.primary500.withValues(alpha: 0.35),
-                            blurRadius: 18,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.restaurant_menu_rounded,
-                          color: Colors.white,
-                          size: 40,
-                        ),
-                      ),
-                    ),
+                  ActionChip(
+                    label: const Text('Jasur (Ikkala rol)'),
+                    backgroundColor: Colors.white,
+                    onPressed: () => _fillDemo('+998901234567', '1234'),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'DILKASH',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2.0,
-                      color: DilkashColors.textPrimary(isDark),
-                    ),
+                  ActionChip(
+                    label: const Text('Bobur (Kuryer)'),
+                    backgroundColor: Colors.white,
+                    onPressed: () => _fillDemo('+998935551122', '1234'),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Xodimlar Ilovasi • Kuryer va Ofitsiant',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: DilkashColors.textSecondary(isDark),
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Auth Input Mode Switch (Phone vs Staff Code)
-                  Container(
-                    decoration: BoxDecoration(
-                      color: isDark ? Colors.grey[900] : Colors.grey[200],
-                      borderRadius: DilkashRadii.radiusSm,
-                    ),
-                    padding: const EdgeInsets.all(4),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => setState(() => _useStaffCode = false),
-                            borderRadius: DilkashRadii.radiusSm,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: !_useStaffCode
-                                    ? (isDark ? Colors.grey[800] : Colors.white)
-                                    : Colors.transparent,
-                                borderRadius: DilkashRadii.radiusSm,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  'Telefon raqam',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: !_useStaffCode
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                    color: DilkashColors.textPrimary(isDark),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: InkWell(
-                            onTap: () => setState(() => _useStaffCode = true),
-                            borderRadius: DilkashRadii.radiusSm,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: _useStaffCode
-                                    ? (isDark ? Colors.grey[800] : Colors.white)
-                                    : Colors.transparent,
-                                borderRadius: DilkashRadii.radiusSm,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  'Xodim kodi (DIL-...)',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: _useStaffCode
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                    color: DilkashColors.textPrimary(isDark),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Login Inputs
-                  if (!_useStaffCode)
-                    TextField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      decoration: InputDecoration(
-                        labelText: 'Telefon raqam',
-                        prefixIcon: const Icon(Icons.phone_iphone_rounded),
-                        border: OutlineInputBorder(
-                          borderRadius: DilkashRadii.radiusSm,
-                        ),
-                        filled: true,
-                        fillColor: isDark ? Colors.grey[900] : Colors.white,
-                      ),
-                    )
-                  else
-                    TextField(
-                      controller: _codeController,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: InputDecoration(
-                        labelText: 'Xodim kodi (Masalan: DIL-101)',
-                        prefixIcon: const Icon(Icons.badge_rounded),
-                        border: OutlineInputBorder(
-                          borderRadius: DilkashRadii.radiusSm,
-                        ),
-                        filled: true,
-                        fillColor: isDark ? Colors.grey[900] : Colors.white,
-                      ),
-                    ),
-                  const SizedBox(height: 16),
-
-                  TextField(
-                    controller: _pinController,
-                    keyboardType: TextInputType.number,
-                    obscureText: _obscurePin,
-                    maxLength: 6,
-                    decoration: InputDecoration(
-                      labelText: 'Kirish PIN-kodi',
-                      counterText: '',
-                      prefixIcon: const Icon(Icons.lock_rounded),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscurePin
-                            ? Icons.visibility_off_rounded
-                            : Icons.visibility_rounded),
-                        onPressed: () =>
-                            setState(() => _obscurePin = !_obscurePin),
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: DilkashRadii.radiusSm,
-                      ),
-                      filled: true,
-                      fillColor: isDark ? Colors.grey[900] : Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Main Login Action Button (>= 56dp height)
-                  SizedBox(
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: isLoading ? null : _handleLogin,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: DilkashColors.primary500,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: DilkashRadii.radiusSm,
-                        ),
-                      ),
-                      child: isLoading
-                          ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Tizimga kirish',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ),
-                  ),
-
-                  // Biometric Unlock Button
-                  if (_hasBiometrics) ...[
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 56,
-                      child: OutlinedButton.icon(
-                        onPressed: isLoading ? null : _handleBiometricLogin,
-                        icon: const Icon(Icons.fingerprint_rounded, size: 26),
-                        label: const Text(
-                          'Face ID / Barmoq izi orqali kirish',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: DilkashColors.primary500,
-                          side: const BorderSide(
-                            color: DilkashColors.primary500,
-                            width: 1.5,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: DilkashRadii.radiusSm,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  const SizedBox(height: 28),
-                  Divider(color: Colors.grey.withValues(alpha: 0.3)),
-                  const SizedBox(height: 12),
-
-                  // Quick Demo Accounts Selector (For fast testing and verification)
-                  Text(
-                    'Tezkor sinov xodimlari:',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: DilkashColors.textSecondary(isDark),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      ActionChip(
-                        avatar: const Icon(Icons.swap_horiz_rounded, size: 16),
-                        label: const Text('Jasur (Ikkala rol: Kuryer + Ofitsiant)'),
-                        onPressed: () => _setDemoUser(
-                          '+998 90 123 45 67',
-                          'Jasur Rahimov',
-                          '1234',
-                        ),
-                      ),
-                      ActionChip(
-                        avatar: const Icon(Icons.two_wheeler_rounded, size: 16),
-                        label: const Text('Bobur (Faqat Kuryer)'),
-                        onPressed: () => _setDemoUser(
-                          '+998 93 555 11 22',
-                          'Bobur Mirzayev',
-                          '1234',
-                        ),
-                      ),
-                      ActionChip(
-                        avatar: const Icon(Icons.room_service_rounded, size: 16),
-                        label: const Text('Malika (Faqat Ofitsiant)'),
-                        onPressed: () => _setDemoUser(
-                          '+998 97 777 88 99',
-                          'Malika Karimova',
-                          '1234',
-                        ),
-                      ),
-                    ],
+                  ActionChip(
+                    label: const Text('Malika (Ofitsiant)'),
+                    backgroundColor: Colors.white,
+                    onPressed: () => _fillDemo('+998977778899', '1234'),
                   ),
                 ],
               ),
-            ),
+
+              const Spacer(flex: 2),
+
+              // Primary Login Action (>= 56dp height)
+              SizedBox(
+                height: 58,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _handleLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: DilkashColors.primary500,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(DilkashRadii.md),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                      : Text(
+                          'Tizimga kirish',
+                          style: DilkashTypography.bodyLarge.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: DilkashSpacing.lg),
+            ],
           ),
         ),
       ),

@@ -1,592 +1,715 @@
-// Waiter Bill Screen
-// Features check view, split (equally, by item, by guest), discount (Manager PIN protected),
-// service charge, multi-payment (cash, card, Click, Payme), mark paid, and receipt QR.
+// Screen 3: Waiter Bill Screen
+// Strictly follows KEEP:
+// - Items and total
+// - Choose payment (naqd / karta / Click / Payme)
+// - ONE primary button (>= 56dp): "To’landi"
+// - No discounts, no split bill, no manager PINs
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:dilkash_design_system/dilkash_design_system.dart';
-import '../../../core/audit/audit_logger.dart';
 import '../../../core/auth/auth_notifier.dart';
-import '../widgets/manager_pin_dialog.dart';
 
 class WaiterBillScreen extends ConsumerStatefulWidget {
   final String tableNumber;
 
-  const WaiterBillScreen({super.key, required this.tableNumber});
+  const WaiterBillScreen({
+    super.key,
+    required this.tableNumber,
+  });
 
   @override
   ConsumerState<WaiterBillScreen> createState() => _WaiterBillScreenState();
 }
 
 class _WaiterBillScreenState extends ConsumerState<WaiterBillScreen> {
-  Map<String, dynamic>? _table;
   bool _isLoading = true;
+  String? _error;
+  Map<String, dynamic>? _tableData;
+  String _selectedPayment = 'naqd'; // 'naqd', 'karta', 'online'
+  bool _isSettling = false;
 
-  // Split mode: 'equal', 'by_guest', 'by_item'
-  String _splitMode = 'equal';
-  int _equalSplitPersons = 2;
-
-  // Discount & Service Charge
-  double _discountPercent = 0.0;
-  final double _servicePercent = 10.0;
-  String? _verifiedManagerPin;
-
-  // Payment Method
-  String _paymentMethod = 'cash'; // 'cash', 'card', 'click', 'payme'
+  final List<Map<String, dynamic>> _paymentMethods = const [
+    {
+      'id': 'naqd',
+      'title': 'Naqd',
+      'subtitle': 'Pul hisobi',
+      'icon': Icons.payments_rounded,
+      'color': Color(0xFF16A34A),
+    },
+    {
+      'id': 'karta',
+      'title': 'Karta',
+      'subtitle': 'Terminal',
+      'icon': Icons.credit_card_rounded,
+      'color': Color(0xFF2563EB),
+    },
+    {
+      'id': 'online',
+      'title': 'Click / Payme',
+      'subtitle': 'QR to’lov',
+      'icon': Icons.qr_code_2_rounded,
+      'color': Color(0xFF0284C7),
+    },
+  ];
 
   @override
   void initState() {
     super.initState();
-    _loadTable();
+    _loadTableBill();
   }
 
-  Future<void> _loadTable() async {
-    final repo = ref.read(staffRepositoryProvider);
+  Future<void> _loadTableBill() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
     try {
-      final tables = await repo.fetchFloorTables();
-      final match = tables.firstWhere(
-        (t) => t['table_number'] == widget.tableNumber,
-        orElse: () => tables.first,
-      );
-      if (mounted) {
-        setState(() {
-          _table = Map<String, dynamic>.from(match);
-          _isLoading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  double get _subtotal {
-    final items = List<Map<String, dynamic>>.from(_table?['items'] ?? []);
-    double sum = 0.0;
-    for (final it in items) {
-      sum += ((it['price'] as num) * (it['quantity'] as num));
-    }
-    return sum > 0 ? sum : 240000.0;
-  }
-
-  double get _serviceAmount => _subtotal * (_servicePercent / 100);
-  double get _discountAmount => _subtotal * (_discountPercent / 100);
-  double get _finalTotal => _subtotal + _serviceAmount - _discountAmount;
-
-  void _applyDiscount(double percent) async {
-    if (percent == 0.0) {
-      setState(() => _discountPercent = 0.0);
-      return;
-    }
-
-    final verified = await ManagerPinDialog.verify(
-      context: context,
-      actionTitle: '$percent% Chegirma qoʻllash',
-      reason: 'Stol #${widget.tableNumber} uchun sodiqlik chegirmasi',
-    );
-
-    if (verified) {
-      setState(() {
-        _discountPercent = percent;
-        _verifiedManagerPin = '1234';
-      });
-      if (mounted) {
-        DilkashFeedback.showSuccess(context, '$percent% chegirma tasdiqlandi');
-      }
-    }
-  }
-
-  void _voidItem(Map<String, dynamic> item) async {
-    final verified = await ManagerPinDialog.verify(
-      context: context,
-      actionTitle: '${item['dish_name']} ni hisobdan bekor qilish',
-      reason: 'Mijoz talabi / xato buyurtma',
-    );
-
-    if (verified) {
       final repo = ref.read(staffRepositoryProvider);
-      await repo.cancelOrderItem(
-        orderId: 1,
-        itemId: item['id'] ?? 1,
-        reason: 'Mijoz bekor qildi',
-        managerPin: '1234',
-      );
-      _loadTable();
-      if (mounted) {
-        DilkashFeedback.showSuccess(context, 'Taom hisobdan chiqarildi');
-      }
-    }
-  }
-
-  void _settleBill() async {
-    HapticFeedback.heavyImpact();
-    final repo = ref.read(staffRepositoryProvider);
-
-    try {
-      final res = await repo.settleTableBill(
-        tableNumber: widget.tableNumber,
-        paymentMethod: _paymentMethod,
-        totalAmount: _subtotal,
-        discountPercent: _discountPercent,
-        managerPinForDiscount: _verifiedManagerPin,
-      );
-
-      AuditLogger.instance.log(
-        staffName: 'Ofitsiant',
-        role: 'waiter',
-        action: 'TABLE_BILL_SETTLED',
-        details:
-            'Stol #${widget.tableNumber}: Jami ${_finalTotal.toInt()} soʻm, Usul: $_paymentMethod',
+      final tables = await repo.fetchTables();
+      final table = tables.firstWhere(
+        (t) => t['table_number'] == widget.tableNumber,
+        orElse: () => <String, dynamic>{},
       );
 
       if (mounted) {
-        _showReceiptDialog(res['receipt_qr'] ?? 'RECEIPT-001');
+        if (table.isEmpty) {
+          setState(() {
+            _error = 'Stol topilmadi';
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _tableData = table;
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
-        DilkashFeedback.showError(context, e.toString().replaceAll('Exception: ', ''));
+        setState(() {
+          _error = e.toString().replaceAll('Exception: ', '');
+          _isLoading = false;
+        });
       }
     }
   }
 
-  void _showReceiptDialog(String receiptCode) {
-    showDialog(
+  Future<void> _settleBill() async {
+    if (_isSettling || _tableData == null) return;
+
+    setState(() => _isSettling = true);
+    HapticFeedback.heavyImpact();
+
+    try {
+      final repo = ref.read(staffRepositoryProvider);
+      await repo.settleTableBill(
+        tableNumber: widget.tableNumber,
+        paymentMethod: _selectedPayment,
+      );
+
+      if (mounted) {
+        DilkashFeedback.showSuccess(
+          context,
+          'Stol ${widget.tableNumber} hisobi to’landi va yopildi!',
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        DilkashFeedback.showError(
+          context,
+          e.toString().replaceAll('Exception: ', ''),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSettling = false);
+    }
+  }
+
+  void _showReceiptSheet(
+    BuildContext context,
+    double subtotal,
+    double serviceCharge,
+    double grandTotal,
+    List<Map<String, dynamic>> items,
+  ) {
+    HapticFeedback.mediumImpact();
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle_rounded, color: DilkashColors.primary500),
-            SizedBox(width: 8),
-            Text('Hisob Yopildi!'),
-          ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(DilkashSpacing.xl),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(DilkashRadii.xl)),
         ),
-        content: Column(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Stol ${widget.tableNumber} toʻlovi qabul qilindi.'),
-            const SizedBox(height: 6),
-            Text('Toʻlov usuli: ${_paymentMethod.toUpperCase()}'),
-            Text('Toʻlangan summa: ${UzbekFormatters.formatCurrency(_finalTotal)}'),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.qr_code_2_rounded, size: 36),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Elektron chek kodi: $receiptCode\nPrinterga uzatildi.',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: DilkashColors.borderLight,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
+            const Center(
+              child: Text(
+                'DILKASH RESTORAN',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Center(
+              child: Text(
+                'Stol ${widget.tableNumber} • Chek nusxasi',
+                style: DilkashTypography.caption.copyWith(
+                  color: DilkashColors.textSecondaryLight,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(color: DilkashColors.borderLight, thickness: 1),
+            const SizedBox(height: 8),
+            ...items.map((it) {
+              final dishName = it['dish_name'] ?? '';
+              final qty = (it['quantity'] as num?)?.toInt() ?? 1;
+              final price = (it['price'] as num?)?.toDouble() ?? 0.0;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${qty}x $dishName',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                    Text(
+                      UzbekFormatters.formatCurrency(price * qty),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 8),
+            const Divider(color: DilkashColors.borderLight, thickness: 1),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Taomlar summasi:', style: DilkashTypography.bodyMedium),
+                Text(
+                  UzbekFormatters.formatCurrency(subtotal),
+                  style: DilkashTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Xizmat haqi (10%):', style: DilkashTypography.bodyMedium),
+                Text(
+                  UzbekFormatters.formatCurrency(serviceCharge),
+                  style: DilkashTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Divider(color: DilkashColors.borderLight, thickness: 1.5),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Jami:',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  UzbekFormatters.formatCurrency(grandTotal),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: DilkashColors.primary500,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  DilkashFeedback.showSuccess(context, 'Chek printerga yuborildi');
+                },
+                icon: const Icon(Icons.print_rounded, color: Colors.white),
+                label: const Text(
+                  'Chop etish',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: DilkashColors.textPrimaryLight,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(DilkashRadii.md),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
           ],
         ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.go('/waiter');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: DilkashColors.primary500,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Zallarga qaytish'),
-          ),
-        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    if (_isLoading || _table == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: DilkashColors.bgLight,
+        body: Center(
+          child: CircularProgressIndicator(color: DilkashColors.primary500),
+        ),
+      );
     }
 
-    final items = List<Map<String, dynamic>>.from(_table!['items'] ?? []);
+    if (_error != null || _tableData == null) {
+      return Scaffold(
+        backgroundColor: DilkashColors.bgLight,
+        appBar: AppBar(backgroundColor: Colors.white, elevation: 0),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(DilkashSpacing.xl),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline_rounded,
+                  size: 48,
+                  color: DilkashColors.error,
+                ),
+                const SizedBox(height: DilkashSpacing.md),
+                Text(_error ?? 'Xatolik', style: DilkashTypography.bodyLarge),
+                const SizedBox(height: DilkashSpacing.lg),
+                ElevatedButton(
+                  onPressed: _loadTableBill,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: DilkashColors.primary500,
+                  ),
+                  child: const Text(
+                    'Qayta urinish',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final items = List<Map<String, dynamic>>.from(
+      _tableData!['items'] as List? ?? [],
+    );
+    final rawTotal = (_tableData!['total_amount'] as num?)?.toDouble() ?? 0.0;
+    final itemsSubtotal = items.fold<double>(
+      0.0,
+      (acc, it) =>
+          acc +
+          (((it['price'] as num?)?.toDouble() ?? 0.0) *
+              ((it['quantity'] as num?)?.toInt() ?? 1)),
+    );
+    // If backend returns total with service charge already included, use that
+    // Otherwise calculate standard 10% service charge
+    final serviceCharge = rawTotal > itemsSubtotal
+        ? (rawTotal - itemsSubtotal)
+        : (itemsSubtotal * 0.10).roundToDouble();
+    final grandTotal = rawTotal > 0 ? rawTotal : (itemsSubtotal + serviceCharge);
 
     return Scaffold(
-      backgroundColor: DilkashColors.background(isDark),
+      backgroundColor: DilkashColors.bgLight,
       appBar: AppBar(
-        title: Text('Stol ${widget.tableNumber} Hisobi'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          'Stol ${widget.tableNumber} hisobi',
+          style: DilkashTypography.h3.copyWith(
+            fontWeight: FontWeight.w700,
+            color: DilkashColors.textPrimaryLight,
+          ),
+        ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.print_outlined, color: DilkashColors.textPrimaryLight),
+            tooltip: 'Chek',
+            onPressed: () => _showReceiptSheet(
+              context,
+              itemsSubtotal,
+              serviceCharge,
+              grandTotal,
+              items,
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Itemized Check List
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF16231D) : Colors.white,
-                  borderRadius: DilkashRadii.radiusMd,
-                  border: Border.all(
-                    color: isDark ? const Color(0xFF1E3529) : DilkashColors.neutral200,
-                  ),
-                  boxShadow: DilkashShadows.card(isDark),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          children: [
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _loadTableBill,
+                color: DilkashColors.primary500,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(DilkashSpacing.lg),
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Buyurtma Qilingan Taomlar',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: DilkashColors.textPrimary(isDark),
-                          ),
-                        ),
-                        Text(
-                          '${items.length} ta pozitsiya',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: DilkashColors.textSecondary(isDark),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 20),
-                    if (items.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('Taomlar roʻyxati boʻsh'),
-                      )
-                    else
-                      ...items.map((it) {
-                        final price = (it['price'] as num).toDouble();
-                        final qty = it['quantity'] as int;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Row(
-                            children: [
-                              Text(
-                                '${qty}x',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  color: DilkashColors.primary500,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      it['dish_name'],
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                        color: DilkashColors.textPrimary(isDark),
-                                      ),
-                                    ),
-                                    if (it['portion'] != null)
-                                      Text(
-                                        it['portion'],
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: DilkashColors.textSecondary(isDark),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                UzbekFormatters.formatCurrency(price * qty),
-                                style: const TextStyle(fontWeight: FontWeight.w700),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.remove_circle_outline,
-                                    size: 18, color: Colors.red),
-                                tooltip: 'Bekor qilish (Menejer PIN)',
-                                onPressed: () => _voidItem(it),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Split Mode Selector
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF16231D) : Colors.white,
-                  borderRadius: DilkashRadii.radiusSm,
-                  border: Border.all(
-                    color: isDark ? const Color(0xFF1E3529) : DilkashColors.neutral200,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Hisobni boʻlish (Split Bill):',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: DilkashColors.textPrimary(isDark),
+                    // Total Amount Banner (Key number >= 24sp)
+                    Container(
+                      padding: const EdgeInsets.all(DilkashSpacing.xl),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(DilkashRadii.lg),
+                        border: Border.all(color: DilkashColors.borderLight),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          ChoiceChip(
-                            label: const Text('Barchasi bitta'),
-                            selected: _splitMode == 'single',
-                            onSelected: (_) => setState(() => _splitMode = 'single'),
-                          ),
-                          const SizedBox(width: 8),
-                          ChoiceChip(
-                            label: const Text('Teng boʻlish'),
-                            selected: _splitMode == 'equal',
-                            onSelected: (_) => setState(() => _splitMode = 'equal'),
-                          ),
-                          const SizedBox(width: 8),
-                          ChoiceChip(
-                            label: const Text('Mehmon boʻyicha'),
-                            selected: _splitMode == 'by_guest',
-                            onSelected: (_) => setState(() => _splitMode = 'by_guest'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (_splitMode == 'equal') ...[
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          const Text('Kishilar soni:'),
-                          const SizedBox(width: 12),
-                          DropdownButton<int>(
-                            value: _equalSplitPersons,
-                            items: [2, 3, 4, 5, 6].map((n) {
-                              return DropdownMenuItem(value: n, child: Text('$n kishi'));
-                            }).toList(),
-                            onChanged: (v) => setState(() => _equalSplitPersons = v ?? 2),
-                          ),
-                          const Spacer(),
                           Text(
-                            'Har biriga: ${UzbekFormatters.formatCurrency(_finalTotal / _equalSplitPersons)}',
-                            style: const TextStyle(
+                            'Jami to’lov summasi:',
+                            style: DilkashTypography.caption.copyWith(
+                              color: DilkashColors.textSecondaryLight,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            UzbekFormatters.formatCurrency(grandTotal),
+                            style: DilkashTypography.h1.copyWith(
+                              fontSize: 32,
                               fontWeight: FontWeight.w800,
                               color: DilkashColors.primary500,
                             ),
                           ),
+                          const SizedBox(height: DilkashSpacing.md),
+                          const Divider(color: DilkashColors.borderLight, height: 1),
+                          const SizedBox(height: DilkashSpacing.sm),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Taomlar summasi:',
+                                style: DilkashTypography.bodyMedium.copyWith(
+                                  color: DilkashColors.textSecondaryLight,
+                                ),
+                              ),
+                              Text(
+                                UzbekFormatters.formatCurrency(itemsSubtotal),
+                                style: DilkashTypography.bodyMedium.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Xizmat haqi (10%):',
+                                style: DilkashTypography.bodyMedium.copyWith(
+                                  color: DilkashColors.textSecondaryLight,
+                                ),
+                              ),
+                              Text(
+                                UzbekFormatters.formatCurrency(serviceCharge),
+                                style: DilkashTypography.bodyMedium.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Discount & Service Charge Card
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF16231D) : Colors.white,
-                  borderRadius: DilkashRadii.radiusSm,
-                  border: Border.all(
-                    color: isDark ? const Color(0xFF1E3529) : DilkashColors.neutral200,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Xizmat haqi (Xizmat):',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        Text(
-                          '${_servicePercent.toInt()}% (${UzbekFormatters.formatCurrency(_serviceAmount)})',
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ],
                     ),
-                    const Divider(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Chegirma (Menejer tasdigʻi):',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        Text(
-                          _discountPercent > 0
-                              ? '-${_discountPercent.toInt()}% (${UzbekFormatters.formatCurrency(_discountAmount)})'
-                              : '0%',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: _discountPercent > 0 ? Colors.green : null,
+
+                    const SizedBox(height: DilkashSpacing.lg),
+
+                    // Items Summary Card
+                    Container(
+                      padding: const EdgeInsets.all(DilkashSpacing.lg),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(DilkashRadii.md),
+                        border: Border.all(color: DilkashColors.borderLight),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Buyurtma tarkibi (${items.length} ta xil)',
+                            style: DilkashTypography.h3.copyWith(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        ActionChip(
-                          label: const Text('0%'),
-                          onPressed: () => _applyDiscount(0),
-                        ),
-                        ActionChip(
-                          label: const Text('5%'),
-                          onPressed: () => _applyDiscount(5),
-                        ),
-                        ActionChip(
-                          label: const Text('10%'),
-                          onPressed: () => _applyDiscount(10),
-                        ),
-                        ActionChip(
-                          label: const Text('15%'),
-                          onPressed: () => _applyDiscount(15),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Payment Method Selector
-              Text(
-                'Toʻlov usulini tanlang:',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: DilkashColors.textPrimary(isDark),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _buildPaymentChip('cash', 'Naqd pul', Icons.payments_rounded),
-                  const SizedBox(width: 8),
-                  _buildPaymentChip('card', 'Bank kartasi', Icons.credit_card_rounded),
-                  const SizedBox(width: 8),
-                  _buildPaymentChip('click', 'Click', Icons.phone_android_rounded),
-                  const SizedBox(width: 8),
-                  _buildPaymentChip('payme', 'Payme', Icons.account_balance_wallet_rounded),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Total Payable Box
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: DilkashColors.primary500.withValues(alpha: 0.1),
-                  borderRadius: DilkashRadii.radiusSm,
-                  border: Border.all(color: DilkashColors.primary500),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Jami Toʻlanadigan Summa:',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                    ),
-                    Text(
-                      UzbekFormatters.formatCurrency(_finalTotal),
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        color: DilkashColors.primary500,
+                          const SizedBox(height: DilkashSpacing.md),
+                          if (items.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Text(
+                                'Taomlar hali qo’shilmagan',
+                                style: DilkashTypography.caption.copyWith(
+                                  color: DilkashColors.textMutedLight,
+                                ),
+                              ),
+                            )
+                          else
+                            ...items.map((it) {
+                              final dishName = it['dish_name'] ?? '';
+                              final qty = it['quantity'] ?? 1;
+                              final price =
+                                  (it['price'] as num?)?.toDouble() ?? 0.0;
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: DilkashColors.bgLight,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        '${qty}x',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 13,
+                                          color: DilkashColors.textPrimaryLight,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        dishName,
+                                        style: DilkashTypography.bodyLarge.copyWith(
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      UzbekFormatters.formatCurrency(price * qty),
+                                      style: DilkashTypography.bodyMedium.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                        ],
                       ),
                     ),
+
+                    const SizedBox(height: DilkashSpacing.lg),
+
+                    // Payment Method Selection (3 clean large targets)
+                    Text(
+                      'To’lov usuli',
+                      style: DilkashTypography.h3.copyWith(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: DilkashColors.textPrimaryLight,
+                      ),
+                    ),
+                    const SizedBox(height: DilkashSpacing.sm),
+
+                    Row(
+                      children: _paymentMethods.map((m) {
+                        final id = m['id'] as String;
+                        final isSelected = _selectedPayment == id;
+                        final title = m['title'] as String;
+                        final subtitle = m['subtitle'] as String;
+                        final icon = m['icon'] as IconData;
+                        final color = m['color'] as Color;
+
+                        return Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Material(
+                              color: isSelected
+                                  ? color.withValues(alpha: 0.10)
+                                  : Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(DilkashRadii.md),
+                                side: BorderSide(
+                                  color: isSelected
+                                      ? color
+                                      : DilkashColors.borderLight,
+                                  width: isSelected ? 2 : 1,
+                                ),
+                              ),
+                              child: InkWell(
+                                borderRadius:
+                                    BorderRadius.circular(DilkashRadii.md),
+                                onTap: () {
+                                  HapticFeedback.selectionClick();
+                                  setState(() => _selectedPayment = id);
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                    horizontal: 6,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        icon,
+                                        color: isSelected
+                                            ? color
+                                            : DilkashColors.textSecondaryLight,
+                                        size: 26,
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w700
+                                              : FontWeight.w600,
+                                          color: isSelected
+                                              ? color
+                                              : DilkashColors.textPrimaryLight,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        subtitle,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isSelected
+                                              ? color.withValues(alpha: 0.8)
+                                              : DilkashColors.textMutedLight,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+            ),
 
-              // Settle Button (>= 56dp height)
-              SizedBox(
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: _settleBill,
-                  icon: const Icon(Icons.check_circle_rounded),
-                  label: const Text(
-                    'Toʻlovni Qabul Qilish va Chek Chiqarish',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+            // PRIMARY ACTIONS AT BOTTOM (>= 56dp height)
+            Container(
+              padding: const EdgeInsets.all(DilkashSpacing.lg),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x0D000000),
+                    blurRadius: 10,
+                    offset: Offset(0, -3),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: DilkashColors.primary500,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: DilkashRadii.radiusSm,
+                ],
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    height: 58,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showReceiptSheet(
+                        context,
+                        itemsSubtotal,
+                        serviceCharge,
+                        grandTotal,
+                        items,
+                      ),
+                      icon: const Icon(Icons.print_rounded, size: 20),
+                      label: const Text('Chek', style: TextStyle(fontWeight: FontWeight.w700)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: DilkashColors.textPrimaryLight,
+                        side: const BorderSide(color: DilkashColors.borderLight, width: 1.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(DilkashRadii.md),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: DilkashSpacing.md),
+                  Expanded(
+                    child: SizedBox(
+                      height: 58,
+                      child: ElevatedButton(
+                        onPressed: _isSettling ? null : _settleBill,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: DilkashColors.primary500,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(DilkashRadii.md),
+                          ),
+                        ),
+                        child: _isSettling
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : Text(
+                                'To’landi (${UzbekFormatters.formatCurrency(grandTotal)})',
+                                style: DilkashTypography.bodyLarge.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPaymentChip(String id, String label, IconData icon) {
-    final isSelected = _paymentMethod == id;
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          setState(() => _paymentMethod = id);
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? DilkashColors.primary500.withValues(alpha: 0.15)
-                : Colors.grey.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected ? DilkashColors.primary500 : Colors.transparent,
-              width: 1.5,
             ),
-          ),
-          child: Column(
-            children: [
-              Icon(icon,
-                  size: 20,
-                  color: isSelected ? DilkashColors.primary500 : Colors.grey),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected ? DilkashColors.primary500 : null,
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );

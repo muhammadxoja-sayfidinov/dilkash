@@ -1,12 +1,11 @@
 // Riverpod Auth Notifier for Dilkash Staff App
-// Manages authentication, backend role verification, role switching, and biometrics.
+// Manages authentication, backend role verification, role switching, and last-role memory.
 
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../network/mock_staff_repository.dart';
 import '../network/staff_repository.dart';
-import 'biometric_service.dart';
 import 'staff_session.dart';
 
 final staffRepositoryProvider = Provider<StaffRepository>((ref) {
@@ -18,6 +17,7 @@ final authProvider =
 
 class AuthNotifier extends Notifier<AsyncValue<StaffSession?>> {
   static const _sessionKey = 'dilkash_active_staff_session';
+  static const _lastRoleKey = 'dilkash_last_selected_role';
 
   StaffRepository get _repository => ref.read(staffRepositoryProvider);
 
@@ -33,69 +33,48 @@ class AuthNotifier extends Notifier<AsyncValue<StaffSession?>> {
       final jsonStr = prefs.getString(_sessionKey);
       if (jsonStr != null && jsonStr.isNotEmpty) {
         final map = jsonDecode(jsonStr) as Map<String, dynamic>;
-        state = AsyncValue.data(StaffSession.fromJson(map));
+        var session = StaffSession.fromJson(map);
+
+        // If last role remembered, make sure it applies
+        final lastRole = prefs.getString(_lastRoleKey);
+        if (lastRole != null && session.assignedRoles.contains(lastRole)) {
+          session = session.copyWith(activeRole: lastRole);
+        }
+
+        state = AsyncValue.data(session);
       }
     } catch (_) {
-      // Ignore restore error, stay unauthenticated
+      // Stay unauthenticated on error
     }
   }
 
-  Future<void> login({
-    String? phone,
-    String? staffCode,
+  Future<StaffSession> login({
+    required String phone,
     required String pin,
-    bool rememberBiometric = true,
   }) async {
     state = const AsyncValue.loading();
     try {
-      final session = await _repository.authenticate(
+      final rawSession = await _repository.authenticate(
         phone: phone,
-        staffCode: staffCode,
         pin: pin,
       );
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_sessionKey, jsonEncode(session.toJson()));
+      final lastRole = prefs.getString(_lastRoleKey);
 
-      if (rememberBiometric) {
-        await BiometricService.setBiometricEnabled(true);
-        await BiometricService.saveCredentials(
-          phone: phone ?? session.phone,
-          staffCode: staffCode ?? session.staffCode,
-          pin: pin,
-        );
+      StaffSession session = rawSession;
+      if (session.assignedRoles.length == 1) {
+        session = session.copyWith(activeRole: session.assignedRoles.first);
+      } else if (lastRole != null && session.assignedRoles.contains(lastRole)) {
+        session = session.copyWith(activeRole: lastRole);
       }
 
-      state = AsyncValue.data(session);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
-  }
-
-  Future<void> loginWithBiometrics() async {
-    state = const AsyncValue.loading();
-    try {
-      final creds = await BiometricService.getSavedCredentials();
-      final phone = creds['phone'];
-      final staffCode = creds['staff_code'];
-      final pin = creds['pin'];
-
-      if (pin == null || pin.isEmpty) {
-        throw Exception('Biometrik maʻlumot topilmadi. PIN orqali kiring.');
-      }
-
-      final session = await _repository.authenticate(
-        phone: phone,
-        staffCode: staffCode,
-        pin: pin,
-      );
-
-      final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_sessionKey, jsonEncode(session.toJson()));
-
       state = AsyncValue.data(session);
+      return session;
     } catch (e, st) {
       state = AsyncValue.error(e, st);
+      rethrow;
     }
   }
 
@@ -110,6 +89,7 @@ class AuthNotifier extends Notifier<AsyncValue<StaffSession?>> {
     final updated = current.copyWith(activeRole: newRole);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_sessionKey, jsonEncode(updated.toJson()));
+    await prefs.setString(_lastRoleKey, newRole);
 
     state = AsyncValue.data(updated);
   }

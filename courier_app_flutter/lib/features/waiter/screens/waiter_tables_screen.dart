@@ -1,0 +1,404 @@
+// Screen 1: Waiter Tables Screen
+// Strictly follows KEEP:
+// - Grid of tables with ONLY 4 colors:
+//   1. Free (bo’sh)
+//   2. Occupied (band)
+//   3. Ready to serve (dasturxonga tayyor)
+//   4. Bill requested (hisob so’ralgan)
+// - Tap a table to open it
+// - Push + sound notification when kitchen marks something ready
+
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:dilkash_design_system/dilkash_design_system.dart';
+import '../../../core/auth/auth_notifier.dart';
+import '../../../core/state_machine/order_state_machine.dart';
+
+class WaiterTablesScreen extends ConsumerStatefulWidget {
+  const WaiterTablesScreen({super.key});
+
+  @override
+  ConsumerState<WaiterTablesScreen> createState() => _WaiterTablesScreenState();
+}
+
+class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
+  bool _isLoading = true;
+  String? _error;
+  List<Map<String, dynamic>> _tables = [];
+  Timer? _pollingTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTables();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted) _fetchTables(silent: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchTables({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
+
+    try {
+      final repo = ref.read(staffRepositoryProvider);
+      final list = await repo.fetchTables();
+      if (mounted) {
+        setState(() {
+          _tables = list;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted && !silent) {
+        setState(() {
+          _error = e.toString().replaceAll('Exception: ', '');
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _triggerSimulatedKitchenReadyAlert() {
+    // Push + sound when kitchen marks something ready
+    HapticFeedback.vibrate();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFF0F172A),
+        duration: const Duration(seconds: 6),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: DilkashColors.success,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.soup_kitchen_rounded,
+                  color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Oshxona tayyorladi! (T-03)',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      fontSize: 15,
+                    ),
+                  ),
+                  Text(
+                    'Qozon Kabob va Shashlik dasturxonga tayyor',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getTableColor(TableStage stage) {
+    switch (stage) {
+      case TableStage.free:
+        return const Color(0xFFF1F5F9); // Bo’sh (Neytral Slate)
+      case TableStage.occupied:
+        return const Color(0xFFEFF6FF); // Band (Ko’k)
+      case TableStage.ready:
+        return const Color(0xFFDCFCE7); // Dasturxonga tayyor (Yashil)
+      case TableStage.billRequested:
+        return const Color(0xFFFEF3C7); // Hisob so’ralgan (Sariq/Olovrang)
+    }
+  }
+
+  Color _getTableBorderColor(TableStage stage) {
+    switch (stage) {
+      case TableStage.free:
+        return const Color(0xFFCBD5E1);
+      case TableStage.occupied:
+        return const Color(0xFF3B82F6);
+      case TableStage.ready:
+        return DilkashColors.success;
+      case TableStage.billRequested:
+        return const Color(0xFFD97706);
+    }
+  }
+
+  Color _getTableTextColor(TableStage stage) {
+    switch (stage) {
+      case TableStage.free:
+        return DilkashColors.textSecondaryLight;
+      case TableStage.occupied:
+        return const Color(0xFF1D4ED8);
+      case TableStage.ready:
+        return const Color(0xFF15803D);
+      case TableStage.billRequested:
+        return const Color(0xFFB45309);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: DilkashColors.bgLight,
+        body: Center(
+          child: CircularProgressIndicator(color: DilkashColors.primary500),
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: DilkashColors.bgLight,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(DilkashSpacing.xl),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline_rounded,
+                    size: 48, color: DilkashColors.error),
+                const SizedBox(height: DilkashSpacing.md),
+                Text(_error!, style: DilkashTypography.bodyLarge),
+                const SizedBox(height: DilkashSpacing.lg),
+                ElevatedButton(
+                  onPressed: () => _fetchTables(),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: DilkashColors.primary500),
+                  child: const Text('Qayta urinish',
+                      style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: DilkashColors.bgLight,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          'Stollar zali',
+          style: DilkashTypography.h3.copyWith(
+            fontWeight: FontWeight.w700,
+            color: DilkashColors.textPrimaryLight,
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Sinov: Oshxona tayyorladi signali',
+            icon: const Icon(Icons.notifications_active_outlined,
+                color: DilkashColors.primary500),
+            onPressed: _triggerSimulatedKitchenReadyAlert,
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Legend of exactly 4 colors
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: DilkashSpacing.md,
+                vertical: DilkashSpacing.sm,
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildLegendItem(TableStage.free),
+                    const SizedBox(width: 12),
+                    _buildLegendItem(TableStage.occupied),
+                    const SizedBox(width: 12),
+                    _buildLegendItem(TableStage.ready),
+                    const SizedBox(width: 12),
+                    _buildLegendItem(TableStage.billRequested),
+                  ],
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+
+            // Grid of Tables
+            Expanded(
+              child: RefreshIndicator(
+                color: DilkashColors.primary500,
+                onRefresh: () => _fetchTables(),
+                child: GridView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(DilkashSpacing.lg),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: DilkashSpacing.md,
+                    mainAxisSpacing: DilkashSpacing.md,
+                    childAspectRatio: 1.1,
+                  ),
+                  itemCount: _tables.length,
+                  itemBuilder: (context, index) {
+                    final t = _tables[index];
+                    final tableNum = t['table_number'] ?? 'T-${index + 1}';
+                    final stageName = t['status'] ?? 'free';
+                    final stage = TableStage.values.firstWhere(
+                      (s) => s.name == stageName,
+                      orElse: () => TableStage.free,
+                    );
+                    final guestCount = t['guest_count'] ?? 0;
+                    final total = (t['total_amount'] as num?)?.toDouble() ?? 0.0;
+
+                    final cardBg = _getTableColor(stage);
+                    final borderColor = _getTableBorderColor(stage);
+                    final textColor = _getTableTextColor(stage);
+
+                    return Material(
+                      color: cardBg,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(DilkashRadii.md),
+                        side: BorderSide(color: borderColor, width: 1.5),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(DilkashRadii.md),
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          // Tap a table to open it: opens Order screen
+                          context.push('/waiter/order/$tableNum').then((_) {
+                            _fetchTables(silent: true);
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(DilkashSpacing.md),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Table Number & Status Label
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    tableNum,
+                                    style: DilkashTypography.h2.copyWith(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: DilkashColors.textPrimaryLight,
+                                    ),
+                                  ),
+                                  if (guestCount > 0)
+                                    Row(
+                                      children: [
+                                        Icon(Icons.people_outline_rounded,
+                                            size: 16, color: textColor),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '$guestCount',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: textColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                ],
+                              ),
+
+                              // Table State Label
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  OrderStateMachine.tableStageLabel(stage),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: textColor,
+                                  ),
+                                ),
+                              ),
+
+                              // Total amount or "Bo’sh"
+                              Text(
+                                stage == TableStage.free
+                                    ? 'Ochish uchun bosing'
+                                    : UzbekFormatters.formatCurrency(total),
+                                style: TextStyle(
+                                  fontSize: stage == TableStage.free ? 12 : 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: stage == TableStage.free
+                                      ? DilkashColors.textMutedLight
+                                      : DilkashColors.textPrimaryLight,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(TableStage stage) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: _getTableBorderColor(stage),
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          OrderStateMachine.tableStageLabel(stage),
+          style: DilkashTypography.caption.copyWith(
+            fontWeight: FontWeight.w600,
+            color: DilkashColors.textPrimaryLight,
+          ),
+        ),
+      ],
+    );
+  }
+}

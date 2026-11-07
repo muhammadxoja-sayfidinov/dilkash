@@ -10,7 +10,6 @@ class StaffSession {
   final List<String> assignedRoles; // e.g. ['courier', 'waiter']
   final String activeRole; // 'courier' or 'waiter'
   final String vehicleInfo;
-  final bool biometricEnabled;
 
   const StaffSession({
     required this.id,
@@ -21,7 +20,6 @@ class StaffSession {
     required this.assignedRoles,
     required this.activeRole,
     this.vehicleInfo = '',
-    this.biometricEnabled = false,
   });
 
   bool get hasMultipleRoles => assignedRoles.length > 1;
@@ -39,7 +37,6 @@ class StaffSession {
     List<String>? assignedRoles,
     String? activeRole,
     String? vehicleInfo,
-    bool? biometricEnabled,
   }) {
     return StaffSession(
       id: id ?? this.id,
@@ -50,7 +47,6 @@ class StaffSession {
       assignedRoles: assignedRoles ?? this.assignedRoles,
       activeRole: activeRole ?? this.activeRole,
       vehicleInfo: vehicleInfo ?? this.vehicleInfo,
-      biometricEnabled: biometricEnabled ?? this.biometricEnabled,
     );
   }
 
@@ -63,7 +59,6 @@ class StaffSession {
         'assigned_roles': assignedRoles,
         'active_role': activeRole,
         'vehicle_info': vehicleInfo,
-        'biometric_enabled': biometricEnabled,
       };
 
   factory StaffSession.fromJson(Map<String, dynamic> json) {
@@ -79,7 +74,6 @@ class StaffSession {
           ['courier'],
       activeRole: json['active_role'] as String? ?? 'courier',
       vehicleInfo: json['vehicle_info'] as String? ?? '',
-      biometricEnabled: json['biometric_enabled'] as bool? ?? false,
     );
   }
 }

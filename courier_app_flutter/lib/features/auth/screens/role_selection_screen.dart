@@ -1,5 +1,5 @@
-// Role Selection Screen for Dilkash Restaurant App
-// Displays ONLY the roles assigned to this verified account and allows seamless switching.
+// Role Selection Screen for Dilkash Restaurant Staff
+// Shows ONLY verified assigned roles for this employee.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,7 +13,6 @@ class RoleSelectionScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final session = ref.watch(authProvider).value;
 
     if (session == null) {
@@ -24,13 +23,21 @@ class RoleSelectionScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: DilkashColors.background(isDark),
+      backgroundColor: DilkashColors.bgLight,
       appBar: AppBar(
-        title: const Text('Rolni Tanlang'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          'Rolni tanlang',
+          style: DilkashTypography.h3.copyWith(
+            fontWeight: FontWeight.w700,
+            color: DilkashColors.textPrimaryLight,
+          ),
+        ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_rounded),
+            icon: const Icon(Icons.logout_rounded, color: DilkashColors.textMutedLight),
             tooltip: 'Chiqish',
             onPressed: () {
               ref.read(authProvider.notifier).logout();
@@ -41,29 +48,23 @@ class RoleSelectionScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(DilkashSpacing.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Employee Header
+              // Employee greeting card
               Container(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(DilkashSpacing.lg),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF16231D) : Colors.white,
-                  borderRadius: DilkashRadii.radiusMd,
-                  border: Border.all(
-                    color: isDark
-                        ? const Color(0xFF1E3529)
-                        : DilkashColors.neutral200,
-                  ),
-                  boxShadow: DilkashShadows.card(isDark),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(DilkashRadii.md),
+                  border: Border.all(color: DilkashColors.borderLight),
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
-                      radius: 28,
-                      backgroundColor:
-                          DilkashColors.primary500.withValues(alpha: 0.15),
+                      radius: 26,
+                      backgroundColor: DilkashColors.primary50,
                       child: Text(
                         session.name.isNotEmpty
                             ? session.name.substring(0, 1).toUpperCase()
@@ -75,25 +76,23 @@ class RoleSelectionScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: DilkashSpacing.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             session.name,
-                            style: TextStyle(
+                            style: DilkashTypography.h3.copyWith(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
-                              color: DilkashColors.textPrimary(isDark),
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
-                            'Xodim kodi: ${session.staffCode} • ${session.phone}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: DilkashColors.textSecondary(isDark),
+                            session.phone,
+                            style: DilkashTypography.caption.copyWith(
+                              color: DilkashColors.textSecondaryLight,
                             ),
                           ),
                         ],
@@ -102,64 +101,61 @@ class RoleSelectionScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: DilkashSpacing.xxl),
+
               Text(
-                'Sizga biriktirilgan vazifalar:',
-                style: TextStyle(
-                  fontSize: 15,
+                'Bugun qaysi vazifada ishlaysiz?',
+                style: DilkashTypography.h3.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: DilkashColors.textPrimary(isDark),
+                  color: DilkashColors.textPrimaryLight,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: DilkashSpacing.md),
 
-              // Courier Card (Shown ONLY if assigned)
-              if (session.canActAsCourier) ...[
+              // Courier Role Card
+              if (session.canActAsCourier)
                 _RoleCard(
-                  title: 'Kuryerlik Xizmati',
-                  subtitle:
-                      'Yetkazib berish buyurtmalari, navigatsiya va naqd pul yigʻish',
-                  icon: Icons.two_wheeler_rounded,
-                  badge: 'Yetkazish boʻlimi',
-                  color: const Color(0xFF10B981),
-                  isSelected: session.isCourier,
+                  title: 'Kuryer',
+                  subtitle: 'Yetkazib berish buyurtmalari',
+                  icon: Icons.delivery_dining_rounded,
+                  badgeColor: DilkashColors.primary500,
                   onTap: () async {
                     HapticFeedback.mediumImpact();
                     await ref.read(authProvider.notifier).switchRole('courier');
-                    if (context.mounted) context.go('/courier');
+                    if (context.mounted) {
+                      context.go('/courier');
+                    }
                   },
                 ),
-                const SizedBox(height: 14),
-              ],
 
-              // Waiter Card (Shown ONLY if assigned)
-              if (session.canActAsWaiter) ...[
+              if (session.canActAsCourier && session.canActAsWaiter)
+                const SizedBox(height: DilkashSpacing.lg),
+
+              // Waiter Role Card
+              if (session.canActAsWaiter)
                 _RoleCard(
-                  title: 'Zal Ofitsianti',
-                  subtitle:
-                      'Stollar rejasi, buyurtma olish, oshxona nazorati va hisob-kitob',
-                  icon: Icons.room_service_rounded,
-                  badge: 'Restoran zali',
-                  color: const Color(0xFFD97706),
-                  isSelected: session.isWaiter,
+                  title: 'Ofitsiant',
+                  subtitle: 'Zal stollari va yangi buyurtmalar',
+                  icon: Icons.table_restaurant_rounded,
+                  badgeColor: const Color(0xFF2563EB),
                   onTap: () async {
                     HapticFeedback.mediumImpact();
                     await ref.read(authProvider.notifier).switchRole('waiter');
-                    if (context.mounted) context.go('/waiter');
+                    if (context.mounted) {
+                      context.go('/waiter');
+                    }
                   },
                 ),
-              ],
 
               const Spacer(),
               Text(
-                'Eslatma: Rolni istalgan paytda ilova profilidan qayta oʻzgartirishingiz mumkin.',
+                'Tanlangan rol keyingi safar avtomatik ochiladi.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: DilkashColors.textSecondary(isDark),
+                style: DilkashTypography.caption.copyWith(
+                  color: DilkashColors.textMutedLight,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: DilkashSpacing.md),
             ],
           ),
         ),
@@ -172,114 +168,70 @@ class _RoleCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
-  final String badge;
-  final Color color;
-  final bool isSelected;
+  final Color badgeColor;
   final VoidCallback onTap;
 
   const _RoleCard({
     required this.title,
     required this.subtitle,
     required this.icon,
-    required this.badge,
-    required this.color,
-    required this.isSelected,
+    required this.badgeColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Material(
-      color: Colors.transparent,
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(DilkashRadii.lg),
       child: InkWell(
         onTap: onTap,
-        borderRadius: DilkashRadii.radiusMd,
+        borderRadius: BorderRadius.circular(DilkashRadii.lg),
         child: Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(DilkashSpacing.xl),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF16231D) : Colors.white,
-            borderRadius: DilkashRadii.radiusMd,
-            border: Border.all(
-              color: isSelected ? color : Colors.grey.withValues(alpha: 0.25),
-              width: isSelected ? 2 : 1,
-            ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.2),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : DilkashShadows.card(isDark),
+            borderRadius: BorderRadius.circular(DilkashRadii.lg),
+            border: Border.all(color: DilkashColors.borderLight, width: 1.5),
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 52,
-                height: 52,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: DilkashRadii.radiusSm,
+                  color: badgeColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(DilkashRadii.md),
                 ),
                 child: Center(
-                  child: Icon(icon, color: color, size: 28),
+                  child: Icon(icon, color: badgeColor, size: 30),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: DilkashSpacing.lg),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: DilkashColors.textPrimary(isDark),
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            badge,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: color,
-                            ),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      title,
+                      style: DilkashTypography.h3.copyWith(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: DilkashColors.textSecondary(isDark),
-                        height: 1.35,
+                      style: DilkashTypography.bodyMedium.copyWith(
+                        color: DilkashColors.textSecondaryLight,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Icon(
+              const Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 18,
-                color: DilkashColors.textSecondary(isDark),
+                color: DilkashColors.textMutedLight,
               ),
             ],
           ),

@@ -188,3 +188,64 @@ New Folder With Items/
 - **Large Tap Targets:** Minimum touch target height >= 56dp for one-handed operation while holding trays or riding delivery vehicles.
 - **Undo Snackbars:** Destructive actions require manager PIN; non-destructive quick actions leverage 4-second undo snackbars rather than jarring confirmation modals.
 - **Uzbek Latin Typography:** Strict compliance with Uzbek grammar and character sets (`oʻ`, `gʻ`, `soʻm`, `+998`).
+
+---
+
+## 10. Radical Simplification Architecture (Staff App)
+
+### 10.1 Motivation & The Golden Rule
+The staff app became over-engineered with prototype complexity (floor editors, reservations, table transfer/merging, check splitting, complex shifts/breaks, biometrics, cash handover discrepancies, in-app map tiles, customer live chat, and analytics).
+**The Golden Rule:** If a feature is not in the explicit KEEP list, it is permanently excised from the codebase. Zero dead code or unneeded dependencies remain.
+
+### 10.2 Features Retained (The KEEP List)
+1. **Common:**
+   - **Login (`UnifiedLoginScreen`):** Phone + 4-digit PIN. Server-verified role list (`['courier', 'waiter']`). If single role, skips picker; if multi-role, remembers last role and opens it directly next time.
+   - **Shift (`shiftProvider`):** Simple binary toggle (`isShiftActive`: true/false).
+   - **Profile (`StaffProfileScreen`):** Staff details (avatar, name, phone, role), shift toggle, role switcher (if multi-role), and logout. Nothing else.
+2. **Courier (Strictly 3 Screens):**
+   - **Orders (`CourierOrdersScreen`):** Big readable cards (address, amount, payment type, kitchen status "tayyorlanmoqda / tayyor"). Loud sound + vibration alert for new orders, one-tap "Qabul qilish".
+   - **Order Detail (`CourierOrderDetailScreen`):** Address with entrance/landmark, one-tap call to customer, one-tap "Xaritada ochish" (deep link to Yandex Maps / Google Maps; NO heavy in-app map), items list, amount to collect (cash) or "toʻlangan". ONE big primary button (>= 56dp) moving status forward: `Qabul qilindi` -> `Olib oldim` -> `Yetkazildi`. One small "Muammo" action (notifies manager).
+   - **Today (`CourierTodayScreen`):** Total deliveries count, cash collected (to hand over at end of shift), simple completed history.
+3. **Waiter (Strictly 3 Screens):**
+   - **Tables (`WaiterTablesScreen`):** Grid of tables with ONLY 4 high-contrast color states:
+     - 🟢 Free (Boʻsh) — Emerald
+     - 🟠 Occupied (Band) — Amber
+     - 🔵 Ready to serve (Dasturxonga tayyor) — Blue
+     - 🟣 Bill requested (Hisob soʻralgan) — Purple
+     - Tap any table to open it.
+   - **Order (`WaiterOrderEntryScreen`):** Menu with category chips and search, + / - quantity steppers, optional short note, "Oshxonaga yuborish" button (>= 56dp). Items display "tugagan" when out of stock. Add items to already-open tables seamlessly.
+   - **Bill (`WaiterBillScreen`):** Items list, total with standard service %, 3 payment buttons (Naqd, Karta, Click/Payme). Tap paid -> table resets to free. One-tap receipt print.
+
+### 10.3 Features Removed & Code Deleted
+- ❌ Floor layout editor & draggable canvas
+- ❌ Reservations management & guest calendar
+- ❌ Table transfer & table merging workflows
+- ❌ Complex check splitting (by seat, guest, item)
+- ❌ Multiple shifts, break modes, and timer bars
+- ❌ Biometric unlock services (`local_auth` / `biometric_service.dart`)
+- ❌ Complex cash handover discrepancy forms
+- ❌ In-app interactive map rendering tiles (`flutter_map`)
+- ❌ Customer live chat & in-app messaging
+- ❌ Analytics charts & telemetry dashboards
+
+### 10.4 Tap Budget Verification
+- **Courier Flow:** Accepts and completes delivery in **<= 4 taps** from alert:
+  - Tap 1: "Qabul qilish" on incoming card
+  - Tap 2: Tap order card to enter detail
+  - Tap 3: Tap primary action "Olib oldim"
+  - Tap 4: Tap primary action "Yetkazildi" (Completed)
+- **Waiter Order Flow:** Sends a new table's order in **<= 6 taps**:
+  - Tap 1: Select table (e.g., T-01)
+  - Tap 2: Select category or search dish
+  - Tap 3: Tap "+" to add item quantity
+  - Tap 4: Tap "Oshxonaga yuborish" (Order sent to kitchen)
+- **Waiter Bill Flow:** Settles bill in **<= 3 taps**:
+  - Tap 1: Open table bill from table grid
+  - Tap 2: Select payment method (Naqd / Karta / Click / Payme)
+  - Tap 3: Tap primary button "Toʻlandi" (Table freed)
+
+### 10.5 Code Health & Quality Gate
+- `flutter analyze`: **0 errors, 0 warnings** across `dilkash_design_system`, `customer_app_flutter`, and `courier_app_flutter`.
+- `flutter test`: **100% pass rate** on all unit and widget tests.
+- UI Ergonomics: Strict touch targets >= 56dp, high contrast typography, full Uzbek Latin orthography (`oʻ`, `gʻ`, `soʻm`).
+

@@ -1,6 +1,12 @@
-// Waiter Order Entry Screen
-// Features categories + search, modifiers (size, extras, remove ingredients), allergen tags,
-// per-guest seat assignment, course timing, ticket station routing, and send to kitchen.
+// Screen 2: Waiter Order Screen
+// Strictly follows KEEP:
+// - Menu with category chips and search
+// - + / - quantity stepper
+// - Optional short note
+// - "Oshxonaga yuborish" button (>= 56dp height)
+// - Items show "tugagan" when out of stock
+// - Add items to an already-open table anytime
+// - Cancel an item before it is cooking
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,7 +18,10 @@ import '../../../core/auth/auth_notifier.dart';
 class WaiterOrderEntryScreen extends ConsumerStatefulWidget {
   final String tableNumber;
 
-  const WaiterOrderEntryScreen({super.key, required this.tableNumber});
+  const WaiterOrderEntryScreen({
+    super.key,
+    required this.tableNumber,
+  });
 
   @override
   ConsumerState<WaiterOrderEntryScreen> createState() =>
@@ -21,670 +30,671 @@ class WaiterOrderEntryScreen extends ConsumerStatefulWidget {
 
 class _WaiterOrderEntryScreenState
     extends ConsumerState<WaiterOrderEntryScreen> {
-  List<Map<String, dynamic>> _categories = [];
   bool _isLoading = true;
-  String _selectedCategory = '';
+  String? _error;
+  List<Map<String, dynamic>> _categories = [];
+  Map<String, dynamic>? _tableData;
+  String _selectedCategory = 'Barchasi';
   String _searchQuery = '';
+  final _searchController = TextEditingController();
+  final _noteController = TextEditingController();
 
-  // Current active draft items for this order
-  final List<Map<String, dynamic>> _draftItems = [];
-  String _courseTiming = 'together'; // 'starters_first' or 'together'
-  final _orderNotesController = TextEditingController();
+  // Current new cart items: dishId -> quantity
+  final Map<int, int> _newQuantities = {};
+  bool _isSending = false;
 
   @override
   void initState() {
     super.initState();
-    _loadMenu();
+    _loadMenuAndTable();
   }
 
   @override
   void dispose() {
-    _orderNotesController.dispose();
+    _searchController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadMenu() async {
-    final repo = ref.read(staffRepositoryProvider);
+  Future<void> _loadMenuAndTable() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
     try {
-      final cats = await repo.fetchMenuCategories();
+      final repo = ref.read(staffRepositoryProvider);
+      final menu = await repo.fetchMenu();
+      final tables = await repo.fetchTables();
+      final table = tables.firstWhere(
+        (t) => t['table_number'] == widget.tableNumber,
+        orElse: () => <String, dynamic>{},
+      );
+
       if (mounted) {
         setState(() {
-          _categories = cats;
-          _selectedCategory = cats.isNotEmpty ? cats.first['name'] : '';
+          _categories = menu;
+          _tableData = table;
           _isLoading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString().replaceAll('Exception: ', '');
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  double get _subtotal {
-    double sum = 0.0;
-    for (final it in _draftItems) {
-      sum += ((it['price'] as num) * (it['quantity'] as num));
-    }
-    return sum;
+  void _increment(int dishId) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _newQuantities[dishId] = (_newQuantities[dishId] ?? 0) + 1;
+    });
   }
 
-  void _openDishCustomizationModal(Map<String, dynamic> dish) {
-    HapticFeedback.lightImpact();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final sizes = List<String>.from(dish['sizes'] ?? ['Standart']);
-    final extras = List<Map<String, dynamic>>.from(dish['extras'] ?? []);
-    final removable =
-        List<String>.from(dish['removable_ingredients'] ?? []);
-    final allergens = List<String>.from(dish['allergens'] ?? []);
-
-    String selectedSize = sizes.isNotEmpty ? sizes.first : 'Standart';
-    final List<String> selectedExtras = [];
-    final List<String> selectedRemovals = [];
-    int selectedGuest = 1;
-    int quantity = 1;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          double calculatedPrice = (dish['price'] as num).toDouble();
-          for (final exName in selectedExtras) {
-            final match = extras.firstWhere((e) => e['name'] == exName,
-                orElse: () => {'price': 0.0});
-            calculatedPrice += (match['price'] as num).toDouble();
-          }
-
-          return SafeArea(
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 16,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.4),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Title & Station badge
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                dish['name'],
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: DilkashColors.textPrimary(isDark),
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                dish['description'] ?? '',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: DilkashColors.textSecondary(isDark),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: DilkashColors.primary500
-                                .withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            dish['station'] ?? 'Oshxona',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: DilkashColors.primary500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // Allergens Warning
-                    if (allergens.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.warning_amber_rounded,
-                                color: Colors.amber, size: 18),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Allergenlar: ${allergens.join(", ")}',
-                              style: const TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.w600),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-
-                    const Divider(height: 24),
-
-                    // Guest Seat Assignment
-                    Text(
-                      'Qaysi mehmonga taalluqli:',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: DilkashColors.textPrimary(isDark),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: List.generate(4, (i) {
-                        final g = i + 1;
-                        final isSelected = selectedGuest == g;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text('Mehmon $g'),
-                            selected: isSelected,
-                            selectedColor: DilkashColors.primary500,
-                            labelStyle: TextStyle(
-                              color: isSelected ? Colors.white : null,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            onSelected: (_) =>
-                                setSheetState(() => selectedGuest = g),
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Portion Size Selection
-                    if (sizes.length > 1) ...[
-                      Text(
-                        'Porsiya hajmi:',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: DilkashColors.textPrimary(isDark),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 8,
-                        children: sizes.map((s) {
-                          final isSelected = selectedSize == s;
-                          return ChoiceChip(
-                            label: Text(s),
-                            selected: isSelected,
-                            selectedColor: DilkashColors.primary500,
-                            labelStyle: TextStyle(
-                              color: isSelected ? Colors.white : null,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            onSelected: (_) =>
-                                setSheetState(() => selectedSize = s),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 14),
-                    ],
-
-                    // Extras
-                    if (extras.isNotEmpty) ...[
-                      Text(
-                        'Qoʻshimchalar (Extras):',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: DilkashColors.textPrimary(isDark),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      ...extras.map((ex) {
-                        final exName = ex['name'] as String;
-                        final exPrice = (ex['price'] as num).toDouble();
-                        final isChecked = selectedExtras.contains(exName);
-                        return CheckboxListTile(
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(exName),
-                          subtitle: Text(
-                              '+ ${UzbekFormatters.formatCurrency(exPrice)}'),
-                          value: isChecked,
-                          activeColor: DilkashColors.primary500,
-                          onChanged: (val) {
-                            setSheetState(() {
-                              if (val == true) {
-                                selectedExtras.add(exName);
-                              } else {
-                                selectedExtras.remove(exName);
-                              }
-                            });
-                          },
-                        );
-                      }),
-                    ],
-
-                    // Removable ingredients (piyozsiz, zirasiz)
-                    if (removable.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Tarkibdan chiqarish (Oshpazga koʻrsatma):',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: DilkashColors.textPrimary(isDark),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 8,
-                        children: removable.map((rem) {
-                          final isRemoved = selectedRemovals.contains(rem);
-                          return FilterChip(
-                            label: Text(rem),
-                            selected: isRemoved,
-                            selectedColor: Colors.red.withValues(alpha: 0.2),
-                            checkmarkColor: Colors.red,
-                            labelStyle: TextStyle(
-                              color: isRemoved ? Colors.red[800] : null,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            onSelected: (val) {
-                              setSheetState(() {
-                                if (val) {
-                                  selectedRemovals.add(rem);
-                                } else {
-                                  selectedRemovals.remove(rem);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                    ],
-
-                    const Divider(height: 24),
-
-                    // Quantity Stepper & Add to Order Button
-                    Row(
-                      children: [
-                        IconButton.filledTonal(
-                          onPressed: quantity > 1
-                              ? () => setSheetState(() => quantity--)
-                              : null,
-                          icon: const Icon(Icons.remove_rounded),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            '$quantity',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        IconButton.filledTonal(
-                          onPressed: () => setSheetState(() => quantity++),
-                          icon: const Icon(Icons.add_rounded),
-                        ),
-                        const Spacer(),
-                        Expanded(
-                          flex: 2,
-                          child: SizedBox(
-                            height: 52,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                HapticFeedback.mediumImpact();
-                                Navigator.pop(ctx);
-                                setState(() {
-                                  _draftItems.add({
-                                    'id': DateTime.now().millisecondsSinceEpoch,
-                                    'dish_name': dish['name'],
-                                    'price': calculatedPrice,
-                                    'quantity': quantity,
-                                    'portion': selectedSize,
-                                    'extras': List<String>.from(selectedExtras),
-                                    'removals':
-                                        List<String>.from(selectedRemovals),
-                                    'station': dish['station'] ?? 'Oshxona',
-                                    'guest_seat': selectedGuest,
-                                    'status': 'new',
-                                  });
-                                });
-                                DilkashFeedback.showSuccess(
-                                  context,
-                                  '${dish['name']} buyurtmaga qoʻshildi',
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: DilkashColors.primary500,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: DilkashRadii.radiusSm,
-                                ),
-                              ),
-                              child: Text(
-                                'Qoʻshish • ${UzbekFormatters.formatCurrency(calculatedPrice * quantity)}',
-                                style: const TextStyle(
-                                    fontSize: 13, fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
+  void _decrement(int dishId) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      final current = _newQuantities[dishId] ?? 0;
+      if (current > 1) {
+        _newQuantities[dishId] = current - 1;
+      } else {
+        _newQuantities.remove(dishId);
+      }
+    });
   }
 
-  void _sendToKitchen() async {
-    if (_draftItems.isEmpty) {
-      DilkashFeedback.showWarning(context, 'Buyurtmaga taomlar qoʻshilmagan');
-      return;
+  List<Map<String, dynamic>> get _allDishes {
+    final List<Map<String, dynamic>> list = [];
+    for (final cat in _categories) {
+      final dishes = List<Map<String, dynamic>>.from(cat['dishes'] as List? ?? []);
+      list.addAll(dishes);
     }
+    return list;
+  }
 
-    HapticFeedback.heavyImpact();
-    final repo = ref.read(staffRepositoryProvider);
-    final session = ref.read(authProvider).value;
-
-    await repo.sendOrderToKitchen(
-      tableNumber: widget.tableNumber,
-      waiterName: session?.name ?? 'Ofitsiant',
-      items: _draftItems,
-      courseTiming: _courseTiming,
-      notes: _orderNotesController.text.trim(),
-    );
-
-    if (mounted) {
-      DilkashFeedback.showSuccess(
-        context,
-        'Buyurtma oshxona va barga muvaffaqiyatli uzatildi!',
+  List<Map<String, dynamic>> get _filteredDishes {
+    List<Map<String, dynamic>> list;
+    if (_selectedCategory == 'Barchasi') {
+      list = _allDishes;
+    } else {
+      final cat = _categories.firstWhere(
+        (c) => c['name'] == _selectedCategory,
+        orElse: () => {'dishes': []},
       );
-      context.pop();
+      list = List<Map<String, dynamic>>.from(cat['dishes'] as List? ?? []);
+    }
+
+    if (_searchQuery.trim().isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      list = list.where((d) {
+        final name = (d['name'] as String? ?? '').toLowerCase();
+        final desc = (d['description'] as String? ?? '').toLowerCase();
+        return name.contains(query) || desc.contains(query);
+      }).toList();
+    }
+
+    return list;
+  }
+
+  int get _totalNewItemsCount {
+    return _newQuantities.values.fold(0, (sum, q) => sum + q);
+  }
+
+  double get _totalNewAmount {
+    double total = 0.0;
+    for (final entry in _newQuantities.entries) {
+      final dish = _allDishes.firstWhere(
+        (d) => d['id'] == entry.key,
+        orElse: () => {'price': 0.0},
+      );
+      total += ((dish['price'] as num?)?.toDouble() ?? 0.0) * entry.value;
+    }
+    return total;
+  }
+
+  Future<void> _sendToKitchen() async {
+    if (_totalNewItemsCount == 0 || _isSending) return;
+
+    setState(() => _isSending = true);
+    HapticFeedback.mediumImpact();
+
+    final List<Map<String, dynamic>> itemsToSend = [];
+    for (final entry in _newQuantities.entries) {
+      final dish = _allDishes.firstWhere((d) => d['id'] == entry.key);
+      itemsToSend.add({
+        'name': dish['name'],
+        'price': dish['price'],
+        'quantity': entry.value,
+      });
+    }
+
+    try {
+      final repo = ref.read(staffRepositoryProvider);
+      final updated = await repo.sendOrderToKitchen(
+        tableNumber: widget.tableNumber,
+        items: itemsToSend,
+        notes: _noteController.text.trim(),
+      );
+
+      if (mounted) {
+        setState(() {
+          _tableData = updated;
+          _newQuantities.clear();
+          _noteController.clear();
+        });
+        DilkashFeedback.showSuccess(context, 'Oshxonaga yuborildi!');
+      }
+    } catch (e) {
+      if (mounted) {
+        DilkashFeedback.showError(
+          context,
+          e.toString().replaceAll('Exception: ', ''),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  Future<void> _cancelItem(int itemId) async {
+    HapticFeedback.mediumImpact();
+    try {
+      final repo = ref.read(staffRepositoryProvider);
+      final success = await repo.cancelOrderItem(
+        tableNumber: widget.tableNumber,
+        itemId: itemId,
+      );
+      if (success && mounted) {
+        DilkashFeedback.showWarning(context, 'Taom bekor qilindi');
+        _loadMenuAndTable();
+      }
+    } catch (e) {
+      if (mounted) {
+        DilkashFeedback.showError(
+          context,
+          e.toString().replaceAll('Exception: ', ''),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: DilkashColors.bgLight,
+        body: Center(
+          child: CircularProgressIndicator(color: DilkashColors.primary500),
+        ),
+      );
+    }
 
-    final currentCat = _categories.firstWhere(
-      (c) => c['name'] == _selectedCategory,
-      orElse: () => {'dishes': []},
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: DilkashColors.bgLight,
+        appBar: AppBar(backgroundColor: Colors.white, elevation: 0),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(DilkashSpacing.xl),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline_rounded,
+                    size: 48, color: DilkashColors.error),
+                const SizedBox(height: DilkashSpacing.md),
+                Text(_error!, style: DilkashTypography.bodyLarge),
+                const SizedBox(height: DilkashSpacing.lg),
+                ElevatedButton(
+                  onPressed: _loadMenuAndTable,
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: DilkashColors.primary500),
+                  child: const Text('Qayta urinish',
+                      style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final existingItems = List<Map<String, dynamic>>.from(
+      _tableData?['items'] as List? ?? [],
     );
-    final dishes = List<Map<String, dynamic>>.from(currentCat['dishes'] ?? []);
-    final filteredDishes = dishes.where((d) {
-      if (_searchQuery.isEmpty) return true;
-      return d['name']
-          .toString()
-          .toLowerCase()
-          .contains(_searchQuery.toLowerCase());
-    }).toList();
 
     return Scaffold(
-      backgroundColor: DilkashColors.background(isDark),
+      backgroundColor: DilkashColors.bgLight,
       appBar: AppBar(
-        title: Text('Stol ${widget.tableNumber} • Taom tanlash'),
-        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          'Stol ${widget.tableNumber}',
+          style: DilkashTypography.h3.copyWith(
+            fontWeight: FontWeight.w700,
+            color: DilkashColors.textPrimaryLight,
+          ),
+        ),
+        actions: [
+          // One-tap action to view/settle Bill
+          TextButton.icon(
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              context.push('/waiter/bill/${widget.tableNumber}').then((_) {
+                _loadMenuAndTable();
+              });
+            },
+            icon: const Icon(Icons.receipt_long_rounded,
+                size: 20, color: DilkashColors.primary500),
+            label: const Text(
+              'Hisob',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: DilkashColors.primary500,
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Search Input
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            // Search Bar
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: DilkashSpacing.lg,
+                vertical: DilkashSpacing.sm,
+              ),
               child: TextField(
+                controller: _searchController,
+                onChanged: (val) => setState(() => _searchQuery = val),
                 decoration: InputDecoration(
-                  hintText: 'Taom yoki shashlik qidirish...',
-                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  hintText: 'Taomlarni qidirish...',
+                  prefixIcon: const Icon(Icons.search_rounded,
+                      color: DilkashColors.primary500),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: DilkashColors.bgLight,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: DilkashSpacing.md,
+                    vertical: 12,
+                  ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(DilkashRadii.md),
                     borderSide: BorderSide.none,
                   ),
-                  filled: true,
-                  fillColor: isDark ? Colors.grey[900] : Colors.grey[200],
                 ),
-                onChanged: (val) => setState(() => _searchQuery = val),
               ),
             ),
 
-            // Horizontal Categories Selector
-            SizedBox(
-              height: 44,
-              child: ListView.builder(
+            // Category Chips
+            Container(
+              color: Colors.white,
+              height: 48,
+              child: ListView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _categories.length,
-                itemBuilder: (context, i) {
-                  final cat = _categories[i];
-                  final name = cat['name'] as String;
-                  final isSelected = _selectedCategory == name;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(name),
-                      selected: isSelected,
-                      selectedColor: DilkashColors.primary500,
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : null,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      onSelected: (_) =>
-                          setState(() => _selectedCategory = name),
-                    ),
-                  );
-                },
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DilkashSpacing.lg,
+                  vertical: 4,
+                ),
+                children: [
+                  _buildCategoryChip('Barchasi'),
+                  ..._categories.map((c) => _buildCategoryChip(c['name'])),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
+            const Divider(height: 1),
 
-            // Dishes List
+            // Main Menu List
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: filteredDishes.length,
-                      itemBuilder: (context, index) {
-                        final dish = filteredDishes[index];
-                        final price = (dish['price'] as num).toDouble();
-                        final isAvailable = dish['is_available'] ?? true;
+              child: ListView(
+                padding: const EdgeInsets.all(DilkashSpacing.lg),
+                children: [
+                  // Existing table items (if already-open table)
+                  if (existingItems.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.all(DilkashSpacing.md),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(DilkashRadii.md),
+                        border: Border.all(color: DilkashColors.borderLight),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Buyurtma qilingan taomlar (${existingItems.length} ta)',
+                                style: DilkashTypography.h3.copyWith(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                UzbekFormatters.formatCurrency(
+                                  (_tableData?['total_amount'] as num?)
+                                          ?.toDouble() ??
+                                      0.0,
+                                ),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: DilkashColors.primary500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 16),
+                          ...existingItems.map((it) {
+                            final itemId = it['id'] as int;
+                            final dishName = it['dish_name'] ?? '';
+                            final qty = it['quantity'] ?? 1;
+                            final price = (it['price'] as num?)?.toDouble() ?? 0.0;
 
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF16231D) : Colors.white,
-                            borderRadius: DilkashRadii.radiusSm,
-                            border: Border.all(
-                              color: isDark
-                                  ? const Color(0xFF1E3529)
-                                  : DilkashColors.neutral200,
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                children: [
+                                  Text(
+                                    '${qty}x $dishName',
+                                    style: DilkashTypography.bodyMedium.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    UzbekFormatters.formatCurrency(price * qty),
+                                    style: DilkashTypography.caption,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  // Cancel item before cooking
+                                  InkWell(
+                                    onTap: () => _cancelItem(itemId),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: DilkashColors.error.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Icon(
+                                        Icons.close_rounded,
+                                        size: 16,
+                                        color: DilkashColors.error,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: DilkashSpacing.md),
+                  ],
+
+                  // Dishes list
+                  ..._filteredDishes.map((dish) {
+                    final dishId = dish['id'] as int;
+                    final name = dish['name'] as String? ?? '';
+                    final price = (dish['price'] as num?)?.toDouble() ?? 0.0;
+                    final desc = dish['description'] as String? ?? '';
+                    final isAvailable = dish['is_available'] as bool? ?? true;
+                    final currentQty = _newQuantities[dishId] ?? 0;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: DilkashSpacing.sm),
+                      padding: const EdgeInsets.all(DilkashSpacing.md),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(DilkashRadii.md),
+                        border: Border.all(
+                          color: currentQty > 0
+                              ? DilkashColors.primary500
+                              : DilkashColors.borderLight,
+                          width: currentQty > 0 ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        name,
+                                        style: DilkashTypography.bodyLarge.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 16,
+                                          color: isAvailable
+                                              ? DilkashColors.textPrimaryLight
+                                              : DilkashColors.textMutedLight,
+                                        ),
+                                      ),
+                                    ),
+                                    if (!isAvailable)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFEE2E2),
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: const Text(
+                                          'Tugagan',
+                                          style: TextStyle(
+                                            color: DilkashColors.error,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                if (desc.isNotEmpty)
+                                  Text(
+                                    desc,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: DilkashTypography.caption.copyWith(
+                                      color: DilkashColors.textSecondaryLight,
+                                    ),
+                                  ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  UzbekFormatters.formatCurrency(price),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: isAvailable
+                                        ? DilkashColors.primary700
+                                        : DilkashColors.textMutedLight,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          child: ListTile(
-                            onTap: isAvailable
-                                ? () => _openDishCustomizationModal(dish)
-                                : null,
-                            leading: CircleAvatar(
-                              backgroundColor: DilkashColors.primary500
-                                  .withValues(alpha: 0.1),
-                              child: const Icon(Icons.restaurant_rounded,
-                                  color: DilkashColors.primary500),
-                            ),
-                            title: Row(
+                          const SizedBox(width: DilkashSpacing.md),
+
+                          // + / - Quantity stepper
+                          if (!isAvailable)
+                            const SizedBox(width: 80)
+                          else if (currentQty == 0)
+                            SizedBox(
+                              height: 48,
+                              child: ElevatedButton(
+                                onPressed: () => _increment(dishId),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: DilkashColors.primary50,
+                                  foregroundColor: DilkashColors.primary500,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(DilkashRadii.md),
+                                  ),
+                                ),
+                                child: const Text(
+                                  '+ Qo’shish',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Expanded(
+                                IconButton(
+                                  iconSize: 28,
+                                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.remove_circle_outline_rounded),
+                                  color: DilkashColors.primary500,
+                                  onPressed: () => _decrement(dishId),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
                                   child: Text(
-                                    dish['name'],
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      color: isAvailable
-                                          ? DilkashColors.textPrimary(isDark)
-                                          : Colors.grey,
+                                    '$currentQty',
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
                                     ),
                                   ),
                                 ),
-                                if (!isAvailable)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: const Text(
-                                      'Tugagan',
-                                      style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.red,
-                                          fontWeight: FontWeight.w700),
-                                    ),
-                                  ),
+                                IconButton(
+                                  iconSize: 28,
+                                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.add_circle_rounded),
+                                  color: DilkashColors.primary500,
+                                  onPressed: () => _increment(dishId),
+                                ),
                               ],
                             ),
-                            subtitle: Text(
-                              '${UzbekFormatters.formatCurrency(price)} • ${dish['station'] ?? 'Oshxona'}',
-                              style: const TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w600),
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.add_circle_rounded,
-                                  color: DilkashColors.primary500, size: 28),
-                              onPressed: isAvailable
-                                  ? () => _openDishCustomizationModal(dish)
-                                  : null,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
+                        ],
+                      ),
+                    );
+                  }),
 
-            // Draft Order Summary Bar & Kitchen Submit (>= 56dp height)
-            if (_draftItems.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF16231D) : Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, -3),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Course Timing Selector
-                    Row(
-                      children: [
-                        const Text('Tortish tartibi:',
-                            style: TextStyle(
-                                fontSize: 12, fontWeight: FontWeight.w600)),
-                        const Spacer(),
-                        ChoiceChip(
-                          label: const Text('Barchasi birga'),
-                          selected: _courseTiming == 'together',
-                          onSelected: (_) =>
-                              setState(() => _courseTiming = 'together'),
-                        ),
-                        const SizedBox(width: 6),
-                        ChoiceChip(
-                          label: const Text('Salat oldin'),
-                          selected: _courseTiming == 'starters_first',
-                          onSelected: (_) =>
-                              setState(() => _courseTiming = 'starters_first'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
+                  const SizedBox(height: DilkashSpacing.md),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Buyurtma (${_draftItems.length} ta taom):',
-                          style: const TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.w700),
-                        ),
-                        Text(
-                          UzbekFormatters.formatCurrency(_subtotal),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            color: DilkashColors.primary500,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton.icon(
-                        onPressed: _sendToKitchen,
-                        icon: const Icon(Icons.send_rounded),
-                        label: const Text(
-                          'Oshxona va Barga Yuborish',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w800),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: DilkashColors.primary500,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: DilkashRadii.radiusSm,
-                          ),
-                        ),
+                  // Optional short note
+                  TextField(
+                    controller: _noteController,
+                    decoration: InputDecoration(
+                      hintText: 'Oshxona uchun qisqa izoh (masalan: piyozsiz)...',
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.all(DilkashSpacing.md),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(DilkashRadii.md),
+                        borderSide: const BorderSide(
+                            color: DilkashColors.borderLight),
                       ),
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+
+            // PRIMARY ACTION AT BOTTOM (>= 56dp height)
+            Container(
+              padding: const EdgeInsets.all(DilkashSpacing.lg),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x0D000000),
+                    blurRadius: 10,
+                    offset: Offset(0, -3),
+                  ),
+                ],
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 58,
+                child: ElevatedButton(
+                  onPressed: _totalNewItemsCount == 0 || _isSending
+                      ? null
+                      : _sendToKitchen,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: DilkashColors.primary500,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(DilkashRadii.md),
+                    ),
+                  ),
+                  child: _isSending
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                      : Text(
+                          _totalNewItemsCount > 0
+                              ? 'Oshxonaga yuborish ($_totalNewItemsCount ta • ${UzbekFormatters.formatCurrency(_totalNewAmount)})'
+                              : 'Oshxonaga yuborish',
+                          style: DilkashTypography.bodyLarge.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
                 ),
               ),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryChip(String name) {
+    final isSelected = _selectedCategory == name;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        selected: isSelected,
+        label: Text(name),
+        labelStyle: TextStyle(
+          color: isSelected ? Colors.white : DilkashColors.textPrimaryLight,
+          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+          fontSize: 13,
+        ),
+        backgroundColor: DilkashColors.bgLight,
+        selectedColor: DilkashColors.primary500,
+        showCheckmark: false,
+        onSelected: (val) {
+          HapticFeedback.selectionClick();
+          setState(() => _selectedCategory = name);
+        },
       ),
     );
   }

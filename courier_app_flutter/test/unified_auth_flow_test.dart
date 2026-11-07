@@ -3,7 +3,7 @@ import 'package:courier_app_flutter/core/auth/staff_session.dart';
 import 'package:courier_app_flutter/core/shift/shift_model.dart';
 
 void main() {
-  group('Unified Auth & Shift Model Tests', () {
+  group('Unified Auth & Simple Shift Model Tests', () {
     test('StaffSession verifies backend assigned roles correctly', () {
       // Single role employee (Courier only)
       const courierSession = StaffSession(
@@ -44,47 +44,28 @@ void main() {
       final switchedSession = multiRoleSession.copyWith(activeRole: 'courier');
       expect(switchedSession.isCourier, isTrue);
       expect(switchedSession.isWaiter, isFalse);
-      expect(switchedSession.token, multiRoleSession.token); // Preserves auth token
+      expect(switchedSession.token, multiRoleSession.token);
     });
 
-    test('ShiftData handles clock-in, break, and resume states', () {
-      const initial = ShiftData();
-      expect(initial.isClockedOut, isTrue);
-      expect(initial.isActive, isFalse);
-      expect(initial.isOnBreak, isFalse);
+    test('ShiftData manages single simple toggle and delivery counts', () {
+      const initial = ShiftData(isShiftActive: true);
+      expect(initial.isShiftActive, isTrue);
 
-      // Clock In
-      final clockInTime = DateTime.now().subtract(const Duration(hours: 2));
-      final clockedIn = initial.copyWith(
-        status: ShiftStatus.clockedIn,
-        clockedInAt: clockInTime,
-      );
-      expect(clockedIn.isActive, isTrue);
-      expect(clockedIn.isClockedOut, isFalse);
-      expect(clockedIn.activeDuration.inMinutes >= 119, isTrue);
+      // End shift toggle
+      final shiftEnded = initial.copyWith(isShiftActive: false);
+      expect(shiftEnded.isShiftActive, isFalse);
 
-      // Start Break
-      final onBreak = clockedIn.copyWith(
-        status: ShiftStatus.onBreak,
-        breakStartedAt: DateTime.now(),
-      );
-      expect(onBreak.isOnBreak, isTrue);
-      expect(onBreak.isActive, isFalse);
+      // Restart shift toggle
+      final shiftRestarted = shiftEnded.copyWith(isShiftActive: true);
+      expect(shiftRestarted.isShiftActive, isTrue);
 
-      // Resume from Break with 15 min accumulated break duration
-      final resumed = onBreak.copyWith(
-        status: ShiftStatus.clockedIn,
-        breakStartedAt: null,
-        totalBreakDuration: const Duration(minutes: 15),
+      // Record delivery
+      final deliveryRecorded = shiftRestarted.copyWith(
+        completedOrdersCount: shiftRestarted.completedOrdersCount + 1,
+        totalCashCollected: shiftRestarted.totalCashCollected + 55000.0,
       );
-      expect(resumed.isActive, isTrue);
-      expect(resumed.totalBreakDuration.inMinutes, 15);
-
-      // Clock out
-      final clockedOut = resumed.copyWith(
-        status: ShiftStatus.clockedOut,
-      );
-      expect(clockedOut.isClockedOut, isTrue);
+      expect(deliveryRecorded.completedOrdersCount, shiftRestarted.completedOrdersCount + 1);
+      expect(deliveryRecorded.totalCashCollected, shiftRestarted.totalCashCollected + 55000.0);
     });
   });
 }
