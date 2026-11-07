@@ -224,26 +224,21 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Legend of exactly 4 colors
+            // Legend of exactly 4 colors (fit evenly across all device widths)
             Container(
               color: Colors.white,
               padding: const EdgeInsets.symmetric(
                 horizontal: DilkashSpacing.md,
-                vertical: DilkashSpacing.sm,
+                vertical: DilkashSpacing.sm + 2,
               ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildLegendItem(TableStage.free),
-                    const SizedBox(width: 12),
-                    _buildLegendItem(TableStage.occupied),
-                    const SizedBox(width: 12),
-                    _buildLegendItem(TableStage.ready),
-                    const SizedBox(width: 12),
-                    _buildLegendItem(TableStage.billRequested),
-                  ],
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildLegendItem(TableStage.free),
+                  _buildLegendItem(TableStage.occupied),
+                  _buildLegendItem(TableStage.ready),
+                  _buildLegendItem(TableStage.billRequested),
+                ],
               ),
             ),
             const Divider(height: 1),
@@ -255,7 +250,12 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
                 onRefresh: () => _fetchTables(),
                 child: GridView.builder(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(DilkashSpacing.lg),
+                  padding: const EdgeInsets.fromLTRB(
+                    DilkashSpacing.lg,
+                    DilkashSpacing.lg,
+                    DilkashSpacing.lg,
+                    100,
+                  ),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     crossAxisSpacing: DilkashSpacing.md,
@@ -380,21 +380,39 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
   }
 
   Widget _buildLegendItem(TableStage stage) {
+    String label;
+    switch (stage) {
+      case TableStage.free:
+        label = 'Bo’sh';
+        break;
+      case TableStage.occupied:
+        label = 'Band';
+        break;
+      case TableStage.ready:
+        label = 'Tayyor';
+        break;
+      case TableStage.billRequested:
+        label = 'Hisob';
+        break;
+    }
+
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 10,
+          height: 10,
           decoration: BoxDecoration(
             color: _getTableBorderColor(stage),
             shape: BoxShape.circle,
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 5),
         Text(
-          OrderStateMachine.tableStageLabel(stage),
+          label,
           style: DilkashTypography.caption.copyWith(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
             color: DilkashColors.textPrimaryLight,
           ),
         ),

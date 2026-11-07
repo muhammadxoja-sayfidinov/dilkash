@@ -281,7 +281,12 @@ class _CourierOrdersScreenState extends ConsumerState<CourierOrdersScreen> {
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(DilkashSpacing.lg),
+                  padding: const EdgeInsets.fromLTRB(
+                    DilkashSpacing.lg,
+                    DilkashSpacing.lg,
+                    DilkashSpacing.lg,
+                    100,
+                  ),
                   itemCount: _orders.length,
                   itemBuilder: (context, index) {
                     final order = _orders[index];

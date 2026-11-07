@@ -117,7 +117,12 @@ class _CourierTodayScreenState extends ConsumerState<CourierTodayScreen> {
           onRefresh: _loadSummary,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(DilkashSpacing.lg),
+            padding: const EdgeInsets.fromLTRB(
+              DilkashSpacing.lg,
+              DilkashSpacing.lg,
+              DilkashSpacing.lg,
+              100,
+            ),
             children: [
               // Top Cards: Deliveries Count & Cash Collected (Key numbers >= 24sp)
               Row(

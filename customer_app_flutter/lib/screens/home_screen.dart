@@ -162,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     auth.user != null
-                        ? 'Salom, ${auth.user!.fullName}!'
+                        ? 'Salom, ${auth.user!.fullName.split(' (').first}!'
                         : 'Dilkash Restorani',
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
@@ -413,7 +413,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         SliverToBoxAdapter(
                           child: SizedBox(
-                            height: 185,
+                            height: 200,
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
                               padding:

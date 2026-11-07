@@ -370,14 +370,18 @@ class DilkashHorizontalDishCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    UzbekFormatters.fixUzbekApostrophes(name),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: DilkashColors.textPrimary(isDark),
+                  SizedBox(
+                    height: 34,
+                    child: Text(
+                      UzbekFormatters.fixUzbekApostrophes(name),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: 1.25,
+                        fontWeight: FontWeight.w700,
+                        color: DilkashColors.textPrimary(isDark),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 4),
