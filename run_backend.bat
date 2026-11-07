@@ -8,3 +8,4 @@ echo ========================================================
 cd /d "%~dp0restaurant_system"
 "%~dp0venv\Scripts\python.exe" manage.py runserver 127.0.0.1:8000
 pause
+
