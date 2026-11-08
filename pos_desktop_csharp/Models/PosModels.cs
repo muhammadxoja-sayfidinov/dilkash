@@ -243,9 +243,10 @@ namespace DilkashPos.Models
             ProductsTotal = Items.Sum(i => i.Total);
             if (DiscountPercent > 0)
             {
-                DiscountAmount = ProductsTotal * (DiscountPercent / 100m);
+                _discountAmount = ProductsTotal * (DiscountPercent / 100m);
             }
-            TotalAmount = Math.Max(0, (ProductsTotal - DiscountAmount) + ServiceFeeAmount + DeliveryCost);
+            TotalAmount = Math.Max(0, (ProductsTotal - _discountAmount) + ServiceFeeAmount + DeliveryCost);
+            OnPropertyChanged(nameof(DiscountAmount));
             OnPropertyChanged(nameof(ProductsTotal));
             OnPropertyChanged(nameof(TotalAmount));
             OnPropertyChanged(nameof(FormattedTotal));

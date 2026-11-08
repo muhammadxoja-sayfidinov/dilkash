@@ -30,7 +30,7 @@ namespace DilkashPos
         private List<RestaurantTable> _tables = new();
         private PosSettings _settings = new();
         private List<Order> _onlineOrders = new();
-        private readonly ShiftReport _currentShift = new();
+        private ShiftReport _currentShift = new();
 
         // Savatcha va Tanlangan elementlar
         private Order _currentCart = new() { ServiceType = "pickup" };
@@ -38,6 +38,7 @@ namespace DilkashPos
         private RestaurantTable? _activeTableContext;
         private string _currentTableFilter = "all";
         private string _activeTabTag = "tables";
+        private bool _isDemoMode = false;
 
         public MainWindow()
         {
@@ -63,7 +64,10 @@ namespace DilkashPos
 
         private async void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
-            await LoadDataAsync();
+            if (!_isDemoMode)
+            {
+                await LoadDataAsync();
+            }
         }
 
         private void OnWindowKeyDown(object sender, KeyEventArgs e)
@@ -1315,6 +1319,36 @@ namespace DilkashPos
 
             SidebarCashierNameText.Text = _settings.CashierName;
             MessageBox.Show("Barcha sozlamalar muvaffaqiyatli saqlandi!", "Sozlamalar", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        #endregion
+
+        #region Demo va Test Yordamchilari
+        public void LoadDemoData()
+        {
+            _isDemoMode = true;
+            var (depts, cats, prods, tbls, online, shift, setts) = Demo.DemoData.GetDemoDataset();
+            _departments = depts;
+            _categories = cats;
+            _products = prods;
+            _tables = tbls;
+            _onlineOrders = online;
+            _currentShift = shift;
+            _settings = setts;
+            _currentCart = Demo.DemoData.GetDemoCart();
+
+            RenderTables();
+            RenderCategories();
+            RenderProducts();
+            RenderStopList();
+            RenderOnlineOrders();
+            UpdateCartUI();
+            UpdateShiftReportUI();
+            ApplySettingsToUI();
+        }
+
+        public void SwitchToTabPublic(string tag)
+        {
+            SwitchToTab(tag);
         }
         #endregion
     }
