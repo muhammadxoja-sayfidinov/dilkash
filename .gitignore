@@ -25,3 +25,11 @@ restaurant_system/media/
 build/
 *.lock
 *.log
+
+# .NET & C# WPF
+[Bb]in/
+[Oo]bj/
+dist/
+*.user
+pos_local.db
+pos_local.db-journal

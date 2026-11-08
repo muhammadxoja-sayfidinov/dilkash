@@ -7,8 +7,10 @@ import datetime
 class Category(models.Model):
     """Mahsulot kategoriyalari"""
     DEPARTMENT_CHOICES = [
-        ('kitchen', "Oshxona (Issiq va Milliy taomlar)"),
+        ('kitchen', "Issiq oshxona (Milliy va birinchi taomlar)"),
         ('shashlik', "Shashlikxona / Mangal (Kaboblar va Gril)"),
+        ('somsa', "Somsaxona / Tandir (Somsalar va nonlar)"),
+        ('fastfood', "Fast-Food & Burgerlar"),
         ('bar', "Bar & Desertxona (Desertlar va Ichimliklar)"),
         ('kassa', "Kassa (Umumiy hisob)"),
     ]
@@ -37,9 +39,10 @@ class Category(models.Model):
     @classmethod
     def infer_department(cls, name):
         name_lower = (name or '').lower()
-        if any(w in name_lower for w in ['choyxona oshi', 'choyxona palov', 'osh', 'palov', 'sho\'rva', 'mastava', 'manti', 'lag\'mon', 'somsa', 'qozon']):
-            return 'kitchen'
-
+        if any(w in name_lower for w in ['somsa', 'tandir somsa', 'patir', 'tandir non', 'non']):
+            return 'somsa'
+        if any(w in name_lower for w in ['burger', 'sendvich', 'sandwich', 'fri', 'lavash', 'doner', 'hot dog', 'hotdog', 'fast food', 'fastfood', 'derevenski']):
+            return 'fastfood'
         if any(k in name_lower for k in ['kabob', 'gril', 'shashlik', 'mangal', 'qiyma', 'kuskovoy', 'jigar', 'kofta']):
             return 'shashlik'
         elif any(k in name_lower for k in [
@@ -84,7 +87,7 @@ class Product(models.Model):
         # 1. Asosiy: Menyudagi Kategoriya bo'limi
         if self.category:
             cat_dept = self.category.get_department()
-            if cat_dept in ['kitchen', 'shashlik', 'bar', 'kassa']:
+            if cat_dept in ['kitchen', 'shashlik', 'somsa', 'fastfood', 'bar', 'kassa']:
                 return cat_dept
         # 2. Agar kategoriya bo'lmasa, nomidan aniqlash
         return Category.infer_department(self.name)
@@ -152,7 +155,13 @@ class Order(models.Model):
     # Narxlar
     products_total = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Mahsulotlar summasi")
     delivery_cost = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Yetkazib berish narxi", default=0)
+    service_fee_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Xizmat haqi summasi")
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Umumiy summa")
+    
+    # Kassa va Mehmonlar ma'lumotlari
+    guests_count = models.PositiveIntegerField(default=1, verbose_name="Mehmonlar soni")
+    offline_id = models.CharField(max_length=64, blank=True, null=True, unique=True, db_index=True, verbose_name="Lokal Kassa ID (Offline)")
+    is_synced = models.BooleanField(default=True, verbose_name="Sinxronlangan")
     
     # Vaqt ma'lumotlari
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yaratilgan vaqti")
@@ -274,11 +283,23 @@ class BotSettings(models.Model):
     payme_secret_key = models.CharField(max_length=100, blank=True, null=True, verbose_name="Payme Secret Key")
 
     # Bo'limlar bo'yicha Chek Printerlari Sozlamalari (IP:Port, masalan: 192.168.1.100:9100)
-    printer_kassa_ip = models.CharField(max_length=60, blank=True, null=True, verbose_name="Kassa Printeri IP", help_text="Masalan: 192.168.1.100:9100")
-    printer_shashlik_ip = models.CharField(max_length=60, blank=True, null=True, verbose_name="Shashlikchi Printeri IP", help_text="Masalan: 192.168.1.101:9100")
-    printer_kitchen_ip = models.CharField(max_length=60, blank=True, null=True, verbose_name="Oshxona Printeri IP", help_text="Masalan: 192.168.1.102:9100")
-    printer_bar_ip = models.CharField(max_length=60, blank=True, null=True, verbose_name="Desert & Bar Printeri IP", help_text="Masalan: 192.168.1.103:9100")
-    auto_print_network = models.BooleanField(default=False, verbose_name="Avtomatik tarmoq printerlariga chiqarish", help_text="Ofitsiant buyurtma olganda printerlarga avtomatik chek yuborish")
+    printer_kassa_ip = models.CharField(max_length=60, blank=True, null=True, default="192.168.1.100:9100", verbose_name="Kassa Printeri IP", help_text="Masalan: 192.168.1.100:9100")
+    printer_shashlik_ip = models.CharField(max_length=60, blank=True, null=True, default="192.168.1.101:9100", verbose_name="Shashlikchi Printeri IP", help_text="Masalan: 192.168.1.101:9100")
+    printer_somsa_ip = models.CharField(max_length=60, blank=True, null=True, default="192.168.1.102:9100", verbose_name="Somsaxona Printeri IP", help_text="Masalan: 192.168.1.102:9100")
+    printer_kitchen_ip = models.CharField(max_length=60, blank=True, null=True, default="192.168.1.103:9100", verbose_name="Oshxona Printeri IP", help_text="Masalan: 192.168.1.103:9100")
+    printer_fastfood_ip = models.CharField(max_length=60, blank=True, null=True, default="192.168.1.104:9100", verbose_name="Fast-Food Printeri IP", help_text="Masalan: 192.168.1.104:9100")
+    printer_bar_ip = models.CharField(max_length=60, blank=True, null=True, default="192.168.1.105:9100", verbose_name="Desert & Bar Printeri IP", help_text="Masalan: 192.168.1.105:9100")
+    auto_print_network = models.BooleanField(default=False, verbose_name="Avtomatik tarmoq printerlariga chiqarish", help_text="Ofitsiant yoki kassa buyurtma olganda printerlarga avtomatik chek yuborish")
+
+    # Xizmat haqi sozlamalari
+    SERVICE_FEE_TYPE_CHOICES = [
+        ('percent', 'Foizli (%)'),
+        ('per_person', 'Odam boshiga (soʻm)'),
+        ('none', 'Xizmat haqi yoʻq (0%)'),
+    ]
+    service_fee_type = models.CharField(max_length=20, choices=SERVICE_FEE_TYPE_CHOICES, default='percent', verbose_name="Xizmat haqi turi")
+    service_fee_percent = models.DecimalField(max_digits=5, decimal_places=2, default=10.0, verbose_name="Xizmat haqi foizi (%)")
+    service_fee_per_person = models.DecimalField(max_digits=10, decimal_places=2, default=5000.0, verbose_name="Odam boshiga xizmat haqi (soʻm)")
 
     class Meta:
         verbose_name = "Bot Sozlamalari"
@@ -314,6 +335,8 @@ class RestaurantTable(models.Model):
     number = models.PositiveIntegerField(unique=True, verbose_name="Stol raqami")
     name = models.CharField(max_length=50, blank=True, verbose_name="Stol nomi/zali")
     capacity = models.PositiveIntegerField(default=4, verbose_name="O'rinlar soni")
+    guests_count = models.PositiveIntegerField(default=0, verbose_name="Hozirgi mehmonlar")
+    opened_at = models.DateTimeField(null=True, blank=True, verbose_name="Ochilgan vaqti")
     assigned_waiter = models.ForeignKey('WaiterProfile', on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_tables', verbose_name="Biriktirilgan ofitsiant")
     is_active = models.BooleanField(default=True, verbose_name="Faol")
     created_at = models.DateTimeField(auto_now_add=True)

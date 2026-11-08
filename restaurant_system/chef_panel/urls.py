@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from . import payments
+from . import pos_api
 
 app_name = 'chef_panel'
 
@@ -84,5 +85,16 @@ urlpatterns = [
     path('api/waiter/order/<int:order_id>/deliver/', views.waiter_deliver_order_api, name='waiter_deliver_order_api'),
     path('api/waiter/table/<str:table_number>/assign/', views.waiter_assign_table_api, name='waiter_assign_table_api'),
     path('api/waiter/table/<str:table_number>/release/', views.waiter_release_table_api, name='waiter_release_table_api'),
+
+    # C# WPF POS Desktop API lari
+    path('api/pos/bootstrap/', pos_api.pos_bootstrap_api, name='pos_bootstrap_api'),
+    path('api/pos/tables/', pos_api.pos_tables_api, name='pos_tables_api'),
+    path('api/pos/orders/', pos_api.pos_orders_api, name='pos_orders_api'),
+    path('api/pos/orders/<int:order_id>/pay/', pos_api.pos_order_pay_api, name='pos_order_pay_api'),
+    path('api/pos/stop-list/', pos_api.pos_stop_list_api, name='pos_stop_list_api'),
+    path('api/pos/products/<int:product_id>/toggle-stop/', pos_api.pos_toggle_stop_api, name='pos_toggle_stop_api'),
+    path('api/pos/online-orders/', pos_api.pos_online_orders_api, name='pos_online_orders_api'),
+    path('api/pos/online-orders/<int:order_id>/action/', pos_api.pos_online_order_action_api, name='pos_online_order_action_api'),
+    path('api/pos/sync/push/', pos_api.pos_sync_push_api, name='pos_sync_push_api'),
 ]
 

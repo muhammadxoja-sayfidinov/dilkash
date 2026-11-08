@@ -10,3 +10,4 @@ echo ========================================================
 echo Muvaffaqiyatli! Endi push_to_github.bat ni ishga tushirishingiz mumkin.
 echo ========================================================
 pause
+
