@@ -17,15 +17,35 @@ DEPARTMENT_CONFIG = {
         'badge_bg': '#fee2e2',
         'printer_attr': 'printer_shashlik_ip',
     },
+    'somsa': {
+        'code': 'somsa',
+        'name': 'Somsaxona / Tandir',
+        'title': '🥟 SOMSAXONA CHEKI',
+        'subtitle': 'Tandir somsa va nonlar bo\'limi',
+        'icon': '🥟',
+        'badge_color': '#d97706',
+        'badge_bg': '#fef3c7',
+        'printer_attr': 'printer_somsa_ip',
+    },
     'kitchen': {
         'code': 'kitchen',
-        'name': 'Oshxona (Issiq va Milliy taomlar)',
+        'name': 'Issiq oshxona (Milliy taomlar)',
         'title': '🍲 OSHXONA CHEKI',
         'subtitle': 'Milliy, birinchi, ikkinchi taomlar va salatlar',
         'icon': '🍲',
-        'badge_color': '#f59e0b',
-        'badge_bg': '#fef3c7',
+        'badge_color': '#059669',
+        'badge_bg': '#d1fae5',
         'printer_attr': 'printer_kitchen_ip',
+    },
+    'fastfood': {
+        'code': 'fastfood',
+        'name': 'Fast-Food & Burgerlar',
+        'title': '🍔 FAST-FOOD CHEKI',
+        'subtitle': 'Burgerlar, lavashlar, sendvichlar va fri',
+        'icon': '🍔',
+        'badge_color': '#e11d48',
+        'badge_bg': '#ffe4e6',
+        'printer_attr': 'printer_fastfood_ip',
     },
     'bar': {
         'code': 'bar',
@@ -54,7 +74,9 @@ def categorize_order_items(order):
     """
     Buyurtmadagi barcha taomlarni bo'limlar bo'yicha ajratib beradi:
     - shashlik: Shashlikchi chekiga
-    - kitchen: Oshxona chekiga
+    - somsa: Somsaxona chekiga
+    - kitchen: Issiq oshxona chekiga
+    - fastfood: Fast-food va Burgerlar chekiga
     - bar: Desert va Ichimliklar xonasi chekiga
     - kassa: Barcha taomlar jamlangan to'liq hisob cheki
     """
@@ -62,7 +84,9 @@ def categorize_order_items(order):
     
     departments = {
         'shashlik': {'config': DEPARTMENT_CONFIG['shashlik'], 'items': [], 'total_qty': 0, 'total_sum': 0},
+        'somsa':    {'config': DEPARTMENT_CONFIG['somsa'],    'items': [], 'total_qty': 0, 'total_sum': 0},
         'kitchen':  {'config': DEPARTMENT_CONFIG['kitchen'],  'items': [], 'total_qty': 0, 'total_sum': 0},
+        'fastfood': {'config': DEPARTMENT_CONFIG['fastfood'], 'items': [], 'total_qty': 0, 'total_sum': 0},
         'bar':      {'config': DEPARTMENT_CONFIG['bar'],      'items': [], 'total_qty': 0, 'total_sum': 0},
         'kassa':    {'config': DEPARTMENT_CONFIG['kassa'],    'items': [], 'total_qty': 0, 'total_sum': 0},
     }
@@ -245,8 +269,8 @@ def _background_network_print(order_id):
         categorized = categorize_order_items(order)
         depts = categorized['departments']
 
-        # Bo'lim printerlariga (Shashlik, Oshxona, Bar)
-        for dept_key in ['shashlik', 'kitchen', 'bar']:
+        # Bo'lim printerlariga (Shashlik, Somsa, Oshxona, Fast-food, Bar)
+        for dept_key in ['shashlik', 'somsa', 'kitchen', 'fastfood', 'bar']:
             dept_data = depts[dept_key]
             if dept_data['total_qty'] > 0:
                 printer_ip = getattr(settings, f"printer_{dept_key}_ip", None)

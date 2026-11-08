@@ -5,6 +5,7 @@ from django.conf.urls.static import static
 
 from django.views.generic import RedirectView
 from chef_panel import views as chef_views
+from chef_panel import pos_api
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/chef_panel/', permanent=False), name='home'),
@@ -52,6 +53,16 @@ urlpatterns = [
     path('api/cashier/staff/', chef_views.cashier_staff_list_api),
     path('api/cashier/staff/create/', chef_views.cashier_staff_create_api),
     path('api/cashier/staff/<str:staff_type>/<int:staff_id>/toggle/', chef_views.cashier_staff_toggle_api),
+    # Top-level POS APIs
+    path('api/pos/bootstrap/', pos_api.pos_bootstrap_api),
+    path('api/pos/tables/', pos_api.pos_tables_api),
+    path('api/pos/orders/', pos_api.pos_orders_api),
+    path('api/pos/orders/<int:order_id>/pay/', pos_api.pos_order_pay_api),
+    path('api/pos/stop-list/', pos_api.pos_stop_list_api),
+    path('api/pos/products/<int:product_id>/toggle-stop/', pos_api.pos_toggle_stop_api),
+    path('api/pos/online-orders/', pos_api.pos_online_orders_api),
+    path('api/pos/online-orders/<int:order_id>/action/', pos_api.pos_online_order_action_api),
+    path('api/pos/sync/push/', pos_api.pos_sync_push_api),
 ]
 
 

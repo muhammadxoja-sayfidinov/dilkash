@@ -1,0 +1,55 @@
+<Window x:Class="DilkashPos.Views.DiscountDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Chegirma Berish" Height="460" Width="440"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        Background="{StaticResource BgDarkBrush}">
+    <Border BorderBrush="{StaticResource AccentGoldBrush}" BorderThickness="2" CornerRadius="12" Padding="20">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Sarlavha -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                <TextBlock Text="🏷 Chegirma Qo'llash" FontSize="22" FontWeight="Bold" Foreground="White" />
+                <TextBlock Text="Buyurtmaga foizli chegirma belgilang" FontSize="13" Foreground="#94A3B8" Margin="0,2,0,0" />
+            </StackPanel>
+
+            <!-- Tezkor Foiz Tugmalari -->
+            <StackPanel Grid.Row="1" VerticalAlignment="Center">
+                <TextBlock Text="Tezkor foizlar:" FontSize="14" FontWeight="SemiBold" Foreground="#E2E8F0" Margin="0,0,0,8" />
+                <UniformGrid Columns="4" Margin="0,0,0,16">
+                    <Button Content="0%" Height="52" Margin="3" FontSize="18" FontWeight="Bold" Style="{StaticResource TouchButtonStyle}" Background="{StaticResource CardDarkBrush}" Click="OnPercentClick" Tag="0" />
+                    <Button Content="5%" Height="52" Margin="3" FontSize="18" FontWeight="Bold" Style="{StaticResource TouchButtonStyle}" Background="{StaticResource CardDarkBrush}" Click="OnPercentClick" Tag="5" />
+                    <Button Content="10%" Height="52" Margin="3" FontSize="18" FontWeight="Bold" Style="{StaticResource TouchButtonStyle}" Background="{StaticResource CardDarkBrush}" Click="OnPercentClick" Tag="10" />
+                    <Button Content="15%" Height="52" Margin="3" FontSize="18" FontWeight="Bold" Style="{StaticResource TouchButtonStyle}" Background="{StaticResource CardDarkBrush}" Click="OnPercentClick" Tag="15" />
+                </UniformGrid>
+
+                <TextBlock Text="Tanlangan chegirma foizi:" FontSize="13" Foreground="#94A3B8" />
+                <TextBlock x:Name="SelectedPercentText" Text="10%" FontSize="28" FontWeight="Bold" Foreground="{StaticResource AccentGoldBrush}" Margin="0,2,0,12" />
+
+                <TextBlock Text="Yoki boshqa foiz kiriting:" FontSize="13" Foreground="#94A3B8" Margin="0,0,0,4" />
+                <TextBox x:Name="CustomPercentBox" Height="44" Padding="8,10" FontSize="18" FontWeight="Bold"
+                         Background="#1E293B" Foreground="White" BorderBrush="#334155" TextChanged="OnCustomPercentChanged" />
+            </StackPanel>
+
+            <!-- Tugmalar -->
+            <Grid Grid.Row="2" Margin="0,20,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0" Content="BEKOR QILISH" Style="{StaticResource TouchDangerButton}" Click="OnCancelClick" />
+                <Button Grid.Column="2" Content="QO'LLASH" Style="{StaticResource TouchGoldButton}" Click="OnApplyClick" />
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
+

@@ -6,13 +6,13 @@ class UzbekFormatters {
 
   static final NumberFormat _currencyFormatter = NumberFormat('#,###', 'uz_UZ');
 
-  /// Formats currency into production Uzbek standard: "45 000 so’m"
+  /// Formats currency into production Uzbek standard: "45 000 soʻm"
   static String formatCurrency(num amount) {
     final formatted = _currencyFormatter
         .format(amount)
         .replaceAll(',', ' ')
         .replaceAll('\u00A0', ' ');
-    return '$formatted so’m';
+    return '$formatted soʻm';
   }
 
   /// Formats raw phone number into: +998 (90) 123-45-67
@@ -48,19 +48,19 @@ class UzbekFormatters {
     return raw;
   }
 
-  /// Normalizes generic ASCII apostrophes and modifier commas to universal typographic apostrophe (o’ / g’)
+  /// Normalizes generic ASCII apostrophes and variants to correct Uzbek modifier turned comma (oʻ / gʻ)
   static String fixUzbekApostrophes(String text) {
     return text
-        .replaceAll('ʻ', '’')
-        .replaceAll('ʼ', '’')
-        .replaceAll("o'", "o’")
-        .replaceAll("O'", "O’")
-        .replaceAll("g'", "g’")
-        .replaceAll("G'", "G’")
-        .replaceAll("o`", "o’")
-        .replaceAll("O`", "O’")
-        .replaceAll("g`", "g’")
-        .replaceAll("G`", "G’");
+        .replaceAll('’', 'ʻ')
+        .replaceAll('ʼ', 'ʻ')
+        .replaceAll("o'", "oʻ")
+        .replaceAll("O'", "Oʻ")
+        .replaceAll("g'", "gʻ")
+        .replaceAll("G'", "Gʻ")
+        .replaceAll("o`", "oʻ")
+        .replaceAll("O`", "Oʻ")
+        .replaceAll("g`", "gʻ")
+        .replaceAll("G`", "Gʻ");
   }
 
   /// Formats distance in kilometers or meters

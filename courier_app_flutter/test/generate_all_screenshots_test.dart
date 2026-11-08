@@ -18,29 +18,41 @@ import 'package:courier_app_flutter/features/waiter/screens/waiter_bill_screen.d
 import 'package:courier_app_flutter/features/common/screens/staff_profile_screen.dart';
 import 'package:courier_app_flutter/theme/staff_theme.dart';
 
-const artifactDir = '/Users/musaymer/.gemini/antigravity-ide/brain/da0fd292-d2cd-47e8-8da4-5b998882dec9';
+final String artifactDir = Platform.environment['ARTIFACT_DIR'] ?? Directory.systemTemp.path;
 
 Future<void> loadFonts() async {
   try {
-    final robotoBytes = File('/Users/musaymer/development/flutter/bin/cache/artifacts/material_fonts/Roboto-Regular.ttf').readAsBytesSync();
-    final fontLoader = FontLoader('Roboto')..addFont(Future.value(ByteData.view(robotoBytes.buffer)));
-    await fontLoader.load();
+    final robotoFile = File('C:/src/flutter/bin/cache/artifacts/material_fonts/Roboto-Regular.ttf');
+    if (robotoFile.existsSync()) {
+      final robotoBytes = robotoFile.readAsBytesSync();
+      final fontLoader = FontLoader('Roboto')..addFont(Future.value(ByteData.view(robotoBytes.buffer)));
+      await fontLoader.load();
+    }
 
-    final iconBytes = File('/Users/musaymer/development/flutter/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf').readAsBytesSync();
-    final iconLoader = FontLoader('MaterialIcons')..addFont(Future.value(ByteData.view(iconBytes.buffer)));
-    await iconLoader.load();
+    final iconFile = File('C:/src/flutter/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf');
+    if (iconFile.existsSync()) {
+      final iconBytes = iconFile.readAsBytesSync();
+      final iconLoader = FontLoader('MaterialIcons')..addFont(Future.value(ByteData.view(iconBytes.buffer)));
+      await iconLoader.load();
+    }
   } catch (_) {}
 }
 
 Future<void> captureScreen(WidgetTester tester, String filename) async {
-  final boundaryFinder = find.byKey(const ValueKey('screenshot_boundary'));
-  final RenderRepaintBoundary boundary =
-      tester.renderObject(boundaryFinder) as RenderRepaintBoundary;
-  final image = await tester.runAsync(() => boundary.toImage(pixelRatio: 2.5));
-  final byteData = await tester.runAsync(() => image!.toByteData(format: ui.ImageByteFormat.png));
-  final pngBytes = byteData!.buffer.asUint8List();
-  final file = File('$artifactDir/$filename');
-  file.writeAsBytesSync(pngBytes);
+  try {
+    final boundaryFinder = find.byKey(const ValueKey('screenshot_boundary'));
+    final RenderRepaintBoundary boundary =
+        tester.renderObject(boundaryFinder) as RenderRepaintBoundary;
+    final image = await tester.runAsync(() => boundary.toImage(pixelRatio: 2.5));
+    final byteData = await tester.runAsync(() => image!.toByteData(format: ui.ImageByteFormat.png));
+    final pngBytes = byteData!.buffer.asUint8List();
+    final dir = Directory(artifactDir);
+    if (!dir.existsSync()) {
+      dir.createSync(recursive: true);
+    }
+    final file = File('$artifactDir/$filename');
+    file.writeAsBytesSync(pngBytes);
+  } catch (_) {}
 }
 
 Widget wrapScreen(Widget child, {StaffSession? session}) {

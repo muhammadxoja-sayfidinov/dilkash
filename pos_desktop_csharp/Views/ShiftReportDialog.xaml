@@ -1,0 +1,88 @@
+<Window x:Class="DilkashPos.Views.ShiftReportDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Smena Hisoboti" Height="600" Width="580"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        Background="{StaticResource BgDarkBrush}">
+    <Border BorderBrush="{StaticResource BrandPrimaryBrush}" BorderThickness="2" CornerRadius="12" Padding="24">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Sarlavha -->
+            <Grid Grid.Row="0" Margin="0,0,0,20">
+                <StackPanel>
+                    <TextBlock Text="📊 KASSA SMENA HISOBOTI" FontSize="22" FontWeight="Bold" Foreground="White" />
+                    <TextBlock x:Name="ShiftTimeText" Text="Smena ochilgan vaqti: 08.11.2026 10:00" FontSize="13" Foreground="#94A3B8" Margin="0,4,0,0" />
+                </StackPanel>
+                <Button Content="✕" HorizontalAlignment="Right" VerticalAlignment="Top" Width="36" Height="36" FontSize="16" Style="{StaticResource TouchDangerButton}" Click="OnCloseClick" />
+            </Grid>
+
+            <!-- Hisobot Ko'rsatkichlari -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <!-- Katta Jami Savdo Kartochkasi -->
+                    <Border Background="{StaticResource CardDarkBrush}" CornerRadius="10" Padding="16" Margin="0,0,0,14" BorderBrush="{StaticResource SuccessGreenBrush}" BorderThickness="1">
+                        <StackPanel>
+                            <TextBlock Text="JAMI TUSHUM (KASSA SAVDOSI):" FontSize="13" Foreground="#94A3B8" />
+                            <TextBlock x:Name="TotalRevenueText" Text="1 450 000 so'm" FontSize="32" FontWeight="Bold" Foreground="{StaticResource SuccessGreenBrush}" Margin="0,4,0,0" />
+                            <TextBlock x:Name="TotalOrdersCountText" Text="Jami buyurtmalar: 18 ta" FontSize="14" Foreground="White" Margin="0,6,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- To'lov turlari bo'yicha taqsimot -->
+                    <Border Background="{StaticResource CardDarkBrush}" CornerRadius="10" Padding="16" Margin="0,0,0,14">
+                        <StackPanel>
+                            <TextBlock Text="TO'LOV TURLARI BO'YICHA TAQSIMOT:" FontSize="14" FontWeight="Bold" Foreground="White" Margin="0,0,0,10" />
+
+                            <Grid Margin="0,4">
+                                <TextBlock Text="💵 Naqd pul tushumi:" FontSize="15" Foreground="#E2E8F0" />
+                                <TextBlock x:Name="CashRevenueText" Text="850 000 so'm" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Right" />
+                            </Grid>
+                            <Grid Margin="0,4">
+                                <TextBlock Text="💳 Karta / Terminal (Uzcard/Humo):" FontSize="15" Foreground="#E2E8F0" />
+                                <TextBlock x:Name="CardRevenueText" Text="450 000 so'm" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Right" />
+                            </Grid>
+                            <Grid Margin="0,4">
+                                <TextBlock Text="📱 Online / Payme / Click:" FontSize="15" Foreground="#E2E8F0" />
+                                <TextBlock x:Name="OnlineRevenueText" Text="150 000 so'm" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Right" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Xizmat haqi va chegirmalar -->
+                    <Border Background="{StaticResource CardDarkBrush}" CornerRadius="10" Padding="16">
+                        <StackPanel>
+                            <Grid Margin="0,4">
+                                <TextBlock Text="💼 Yig'ilgan xizmat haqi:" FontSize="14" Foreground="#94A3B8" />
+                                <TextBlock x:Name="ServiceFeeText" Text="120 000 so'm" FontSize="15" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Right" />
+                            </Grid>
+                            <Grid Margin="0,4">
+                                <TextBlock Text="🏷 Berilgan chegirmalar:" FontSize="14" Foreground="#94A3B8" />
+                                <TextBlock x:Name="DiscountText" Text="35 000 so'm" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource AccentGoldBrush}" HorizontalAlignment="Right" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Pastki Bosib Chiqarish Tugmalari -->
+            <Grid Grid.Row="2" Margin="0,20,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0" Content="📄 X-HISOBOT (ORALIQ)" Height="56" FontSize="15" FontWeight="Bold" Style="{StaticResource TouchButtonStyle}" Background="#334155" Click="OnPrintXReportClick" />
+                <Button Grid.Column="2" Content="🔒 Z-HISOBOT (SMENANI YOPISH)" Height="56" FontSize="15" FontWeight="Bold" Style="{StaticResource TouchGoldButton}" Click="OnPrintZReportClick" />
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
+
