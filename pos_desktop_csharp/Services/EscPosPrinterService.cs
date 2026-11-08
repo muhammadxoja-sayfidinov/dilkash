@@ -16,8 +16,37 @@ namespace DilkashPos.Services
         private static readonly byte[] EscBoldOn = { 0x1B, 0x45, 0x01 };
         private static readonly byte[] EscBoldOff = { 0x1B, 0x45, 0x00 };
         private static readonly byte[] GsDoubleSize = { 0x1D, 0x21, 0x11 };
+        private static readonly byte[] GsDoubleHeight = { 0x1D, 0x21, 0x01 };
         private static readonly byte[] GsNormalSize = { 0x1D, 0x21, 0x00 };
         private static readonly byte[] GsCutPaper = { 0x1D, 0x56, 0x42, 0x00 };
+
+        /// <summary>
+        /// Tarmoq printeri bilan aloqani tezkor tekshirish (Ping/Connect check)
+        /// </summary>
+        public async Task<bool> CheckPrinterConnectivityAsync(string endpoint, int timeoutMs = 700)
+        {
+            if (string.IsNullOrWhiteSpace(endpoint)) return false;
+            string ip = endpoint.Trim();
+            int port = 9100;
+
+            if (ip.Contains(':'))
+            {
+                var parts = ip.Split(':');
+                ip = parts[0];
+                if (parts.Length > 1 && int.TryParse(parts[1], out int p)) port = p;
+            }
+
+            try
+            {
+                using var client = new TcpClient();
+                var connectTask = client.ConnectAsync(ip, port);
+                return await Task.WhenAny(connectTask, Task.Delay(timeoutMs)) == connectTask && client.Connected;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         /// <summary>
         /// Tarmoq printeriga (IP:9100) xom ESC/POS baytlarini to'g'ridan-to'g'ri TCP orqali yuborish
@@ -34,8 +63,7 @@ namespace DilkashPos.Services
             {
                 var parts = ip.Split(':');
                 ip = parts[0];
-                if (parts.Length > 1 && int.TryParse(parts[1], out int p))
-                    port = p;
+                if (parts.Length > 1 && int.TryParse(parts[1], out int p)) port = p;
             }
 
             try
@@ -60,19 +88,14 @@ namespace DilkashPos.Services
         }
 
         /// <summary>
-        /// Bo'limlar bo'yicha oshxona/bar/shashlik buyurtma cheki
+        /// Bo'limlar bo'yicha oshxona/bar/shashlik/somsa/fast-food buyurtma chiptasi
         /// </summary>
         public async Task<(bool Success, string Message)> PrintDepartmentSlipAsync(Order order, string deptCode, string deptName, string printerIp)
         {
             using var ms = new MemoryStream();
             void Write(byte[] bytes) => ms.Write(bytes, 0, bytes.Length);
-            void WriteText(string text)
-            {
-                var bytes = Encoding.UTF8.GetBytes(text);
-                ms.Write(bytes, 0, bytes.Length);
-            }
+            void WriteText(string text) => ms.Write(Encoding.UTF8.GetBytes(text));
 
-            // Initsializatsiya
             Write(EscInit);
             Write(EscAlignCenter);
             Write(GsDoubleSize);
@@ -83,60 +106,125 @@ namespace DilkashPos.Services
 
             WriteText("--------------------------------\n");
             Write(EscAlignLeft);
-            WriteText($"Buyurtma: #{order.OrderNumber ?? order.Id.ToString()}\n");
+            Write(GsDoubleHeight);
+            Write(EscBoldOn);
             if (!string.IsNullOrEmpty(order.TableNumber))
-                WriteText($"Stol: #{order.TableNumber} (Mehmonlar: {order.GuestsCount})\n");
+                WriteText($"STOL: #{order.TableNumber}  (Mehmon: {order.GuestsCount})\n");
             else
-                WriteText($"Xizmat turi: {order.ServiceType.ToUpper()} (SABOY)\n");
+                WriteText($"TEZKOR SABOY (OLIB KETISH)\n");
+            Write(GsNormalSize);
+            Write(EscBoldOff);
 
+            WriteText($"Buyurtma: #{order.OrderNumber ?? order.Id.ToString()}\n");
             if (!string.IsNullOrEmpty(order.WaiterName))
                 WriteText($"Ofitsiant: {order.WaiterName}\n");
 
             WriteText($"Vaqt: {DateTime.Now:dd.MM.yyyy HH:mm:ss}\n");
             WriteText("================================\n");
 
-            // Faqat ushbu bo'limga tegishli taomlar
             int count = 0;
             foreach (var item in order.Items)
             {
                 if (item.Department.Equals(deptCode, StringComparison.OrdinalIgnoreCase) || deptCode == "kassa")
                 {
                     count++;
+                    Write(GsDoubleHeight);
                     Write(EscBoldOn);
                     WriteText($"{count}. {item.ProductName}\n");
+                    WriteText($"   >>> {item.Quantity} dona <<<\n");
+                    Write(GsNormalSize);
                     Write(EscBoldOff);
-                    WriteText($"   {item.Quantity} x {item.Price:N0} = {item.Total:N0} so'm\n");
+
+                    if (!string.IsNullOrWhiteSpace(item.Notes))
+                    {
+                        WriteText($"   [!] Izoh: {item.Notes}\n");
+                    }
+                    WriteText("--------------------------------\n");
                 }
             }
 
-            WriteText("================================\n");
             if (!string.IsNullOrEmpty(order.Notes))
             {
                 Write(EscBoldOn);
-                WriteText($"Izoh: {order.Notes}\n");
+                WriteText($"UMUMIY IZOH: {order.Notes}\n");
                 Write(EscBoldOff);
+                WriteText("================================\n");
             }
 
             Write(EscAlignCenter);
-            WriteText("\nILTIMOS, TEZ VA SIFATLI TAYYORLANG!\n");
-            WriteText("\n\n\n\n");
+            WriteText("ILTIMOS, TEZ VA MAZALI TAYYORLANG!\n\n\n\n");
             Write(GsCutPaper);
 
             return await SendRawBytesAsync(printerIp, ms.ToArray());
         }
 
         /// <summary>
-        /// Kassa uchun to'liq hisob-kitob cheki
+        /// Stol mijozi uchun oraliq hisob cheki (Pre-chek)
+        /// </summary>
+        public async Task<(bool Success, string Message)> PrintPreChekAsync(Order order, string printerIp)
+        {
+            using var ms = new MemoryStream();
+            void Write(byte[] bytes) => ms.Write(bytes, 0, bytes.Length);
+            void WriteText(string text) => ms.Write(Encoding.UTF8.GetBytes(text));
+
+            Write(EscInit);
+            Write(EscAlignCenter);
+            Write(GsDoubleSize);
+            Write(EscBoldOn);
+            WriteText("DILKASH RESTORANI\n");
+            Write(GsNormalSize);
+            WriteText("HISOB CHIQARTIRISH (PRE-CHEK)\n");
+            Write(EscBoldOff);
+            WriteText("--------------------------------\n");
+
+            Write(EscAlignLeft);
+            Write(EscBoldOn);
+            WriteText($"Stol: #{order.TableNumber}  |  Mehmonlar: {order.GuestsCount}\n");
+            Write(EscBoldOff);
+            if (!string.IsNullOrEmpty(order.WaiterName))
+                WriteText($"Ofitsiant: {order.WaiterName}\n");
+            WriteText($"Sana: {DateTime.Now:dd.MM.yyyy HH:mm}\n");
+            WriteText("================================\n");
+
+            foreach (var item in order.Items)
+            {
+                WriteText($"{item.ProductName}\n");
+                string qtyPrice = $"{item.Quantity} x {item.Price:N0}";
+                string tot = $"{item.Total:N0} so'm";
+                int space = Math.Max(1, 32 - qtyPrice.Length - tot.Length);
+                WriteText(qtyPrice + new string(' ', space) + tot + "\n");
+            }
+
+            WriteText("--------------------------------\n");
+            Write(EscAlignRight);
+            WriteText($"Taomlar summasi: {order.ProductsTotal:N0} so'm\n");
+            if (order.DiscountAmount > 0)
+                WriteText($"Chegirma ({order.DiscountPercent}%): -{order.DiscountAmount:N0} so'm\n");
+            if (order.ServiceFeeAmount > 0)
+                WriteText($"Xizmat haqi: {order.ServiceFeeAmount:N0} so'm\n");
+
+            Write(GsDoubleSize);
+            Write(EscBoldOn);
+            WriteText($"JAMI: {order.TotalAmount:N0} so'm\n");
+            Write(GsNormalSize);
+            Write(EscBoldOff);
+
+            WriteText("--------------------------------\n");
+            Write(EscAlignCenter);
+            WriteText("Xizmat haqidan mamnun bo'lsangiz,\nchoychaqa (choy puli) uchun rahmat!\n\n\n\n");
+            Write(GsCutPaper);
+
+            return await SendRawBytesAsync(printerIp, ms.ToArray());
+        }
+
+        /// <summary>
+        /// Kassa uchun to'liq to'lov hisob cheki
         /// </summary>
         public async Task<(bool Success, string Message)> PrintKassaReceiptAsync(Order order, string printerIp, decimal paidCash = 0, decimal paidCard = 0, decimal change = 0)
         {
             using var ms = new MemoryStream();
             void Write(byte[] bytes) => ms.Write(bytes, 0, bytes.Length);
-            void WriteText(string text)
-            {
-                var bytes = Encoding.UTF8.GetBytes(text);
-                ms.Write(bytes, 0, bytes.Length);
-            }
+            void WriteText(string text) => ms.Write(Encoding.UTF8.GetBytes(text));
 
             Write(EscInit);
             Write(EscAlignCenter);
@@ -145,23 +233,26 @@ namespace DilkashPos.Services
             WriteText("DILKASH RESTORANI\n");
             Write(GsNormalSize);
             Write(EscBoldOff);
-            WriteText("Xush Kelibsiz!\n");
+            WriteText("FISKAL HISOB CHEKI\n");
             WriteText("--------------------------------\n");
 
             Write(EscAlignLeft);
-            WriteText($"Chek raqami: #{order.OrderNumber ?? order.Id.ToString()}\n");
+            WriteText($"Chek: #{order.OrderNumber ?? order.Id.ToString()}\n");
             if (!string.IsNullOrEmpty(order.TableNumber))
                 WriteText($"Stol: #{order.TableNumber} | Mehmon: {order.GuestsCount}\n");
             else
                 WriteText("Xizmat turi: TEZKOR SABOY\n");
 
-            WriteText($"Sana: {DateTime.Now:dd.MM.yyyy HH:mm}\n");
+            if (!string.IsNullOrEmpty(order.WaiterName))
+                WriteText($"Kassir/Ofitsiant: {order.WaiterName}\n");
+
+            WriteText($"Sana: {DateTime.Now:dd.MM.yyyy HH:mm:ss}\n");
             WriteText("================================\n");
 
             foreach (var item in order.Items)
             {
                 WriteText($"{item.ProductName}\n");
-                string line = $"{item.Quantity} dona x {item.Price:N0}";
+                string line = $"{item.Quantity} x {item.Price:N0}";
                 string tot = $"{item.Total:N0} so'm";
                 int space = Math.Max(1, 32 - line.Length - tot.Length);
                 WriteText(line + new string(' ', space) + tot + "\n");
@@ -170,6 +261,8 @@ namespace DilkashPos.Services
             WriteText("--------------------------------\n");
             Write(EscAlignRight);
             WriteText($"Taomlar: {order.ProductsTotal:N0} so'm\n");
+            if (order.DiscountAmount > 0)
+                WriteText($"Chegirma: -{order.DiscountAmount:N0} so'm\n");
             if (order.ServiceFeeAmount > 0)
                 WriteText($"Xizmat haqi: {order.ServiceFeeAmount:N0} so'm\n");
 
@@ -183,16 +276,67 @@ namespace DilkashPos.Services
             Write(EscAlignLeft);
             WriteText($"To'lov usuli: {order.PaymentMethod.ToUpper()}\n");
             if (paidCash > 0)
-                WriteText($"Naqd to'landi: {paidCash:N0} so'm\n");
+                WriteText($"Naqd: {paidCash:N0} so'm\n");
             if (paidCard > 0)
-                WriteText($"Karta orqali: {paidCard:N0} so'm\n");
+                WriteText($"Karta: {paidCard:N0} so'm\n");
             if (change > 0)
                 WriteText($"Qaytim: {change:N0} so'm\n");
 
             Write(EscAlignCenter);
             WriteText("\nTashrifingiz uchun rahmat!\n");
-            WriteText("Biz yana sizni kutamiz!\n");
-            WriteText("\n\n\n\n");
+            WriteText("Dilkash bilan hayot yanada mazali!\n\n\n\n");
+            Write(GsCutPaper);
+
+            return await SendRawBytesAsync(printerIp, ms.ToArray());
+        }
+
+        /// <summary>
+        /// Kassa X-Hisoboti yoki Z-Hisoboti (Smena xulosasi)
+        /// </summary>
+        public async Task<(bool Success, string Message)> PrintShiftReportAsync(ShiftReport report, bool isZReport, string printerIp)
+        {
+            using var ms = new MemoryStream();
+            void Write(byte[] bytes) => ms.Write(bytes, 0, bytes.Length);
+            void WriteText(string text) => ms.Write(Encoding.UTF8.GetBytes(text));
+
+            Write(EscInit);
+            Write(EscAlignCenter);
+            Write(GsDoubleSize);
+            Write(EscBoldOn);
+            WriteText(isZReport ? "*** Z-HISOBOT (SMENA YOPILDI) ***\n" : "*** X-HISOBOT (ORALIQ) ***\n");
+            Write(GsNormalSize);
+            Write(EscBoldOff);
+            WriteText("DILKASH RESTORAN KASSASI\n");
+            WriteText("--------------------------------\n");
+
+            Write(EscAlignLeft);
+            WriteText($"Kassir: {report.CashierName}\n");
+            WriteText($"Smena ochildi: {report.OpenedAt:dd.MM.yyyy HH:mm}\n");
+            WriteText($"Hisobot vaqti: {DateTime.Now:dd.MM.yyyy HH:mm:ss}\n");
+            WriteText("================================\n");
+
+            WriteText($"Jami buyurtmalar: {report.TotalOrdersCount} ta\n");
+            WriteText("--------------------------------\n");
+
+            WriteText($"💵 Naqd pul tushumi: {report.CashRevenue:N0} so'm\n");
+            WriteText($"💳 Karta/Terminal:   {report.CardRevenue:N0} so'm\n");
+            WriteText($"📱 Online/Payme:     {report.OnlineRevenue:N0} so'm\n");
+            WriteText("--------------------------------\n");
+            WriteText($"🍽 Zaldagi savdo:     {report.DineInRevenue:N0} so'm\n");
+            WriteText($"🛍 Saboy savdosi:     {report.TakeawayRevenue:N0} so'm\n");
+            WriteText($"💼 Yig'ilgan xizmat: {report.ServiceFeesCollected:N0} so'm\n");
+            WriteText($"🏷 Berilgan chegirma: {report.DiscountsGiven:N0} so'm\n");
+            WriteText("================================\n");
+
+            Write(GsDoubleSize);
+            Write(EscBoldOn);
+            Write(EscAlignRight);
+            WriteText($"JAMI SAVDO: {report.TotalRevenue:N0} so'm\n");
+            Write(GsNormalSize);
+            Write(EscBoldOff);
+
+            Write(EscAlignCenter);
+            WriteText(isZReport ? "\nKUN MUVAFFARIYATLI YAKUNLANDI!\n\n\n\n" : "\nORALIQ MONITORING MAQSADIDA\n\n\n\n");
             Write(GsCutPaper);
 
             return await SendRawBytesAsync(printerIp, ms.ToArray());
@@ -229,4 +373,3 @@ namespace DilkashPos.Services
         }
     }
 }
-

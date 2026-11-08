@@ -6,3 +6,4 @@ echo Mustaqil Kiosk .exe ishga tushirilmoqda...
 echo ========================================================
 echo.
 start "" "%~dp0dist\pos_windows\DilkashPos.exe"
+
