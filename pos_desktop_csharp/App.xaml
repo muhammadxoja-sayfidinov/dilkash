@@ -3,33 +3,43 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        <!-- Dilkash Emerald Brand Color Palette -->
+        <!-- Dilkash Premium Brand Palette -->
         <Color x:Key="BrandPrimaryColor">#0D6B4E</Color>
-        <Color x:Key="BrandDarkColor">#084935</Color>
-        <Color x:Key="BrandLightColor">#E6F4EA</Color>
+        <Color x:Key="BrandPrimaryHoverColor">#10B981</Color>
+        <Color x:Key="BrandDarkColor">#064E3B</Color>
+        <Color x:Key="BrandLightColor">#D1FAE5</Color>
         <Color x:Key="AccentGoldColor">#D97706</Color>
+        <Color x:Key="AccentGoldHoverColor">#F59E0B</Color>
         <Color x:Key="DangerRedColor">#EF4444</Color>
         <Color x:Key="SuccessGreenColor">#10B981</Color>
-        <Color x:Key="BgDarkColor">#0F172A</Color>
+        <Color x:Key="BgDarkColor">#0B1120</Color>
         <Color x:Key="CardDarkColor">#1E293B</Color>
+        <Color x:Key="CardDarkHoverColor">#283548</Color>
+        <Color x:Key="BorderMutedColor">#334155</Color>
+        <Color x:Key="TextMutedColor">#94A3B8</Color>
 
         <SolidColorBrush x:Key="BrandPrimaryBrush" Color="{StaticResource BrandPrimaryColor}" />
+        <SolidColorBrush x:Key="BrandPrimaryHoverBrush" Color="{StaticResource BrandPrimaryHoverColor}" />
         <SolidColorBrush x:Key="BrandDarkBrush" Color="{StaticResource BrandDarkColor}" />
         <SolidColorBrush x:Key="BrandLightBrush" Color="{StaticResource BrandLightColor}" />
         <SolidColorBrush x:Key="AccentGoldBrush" Color="{StaticResource AccentGoldColor}" />
+        <SolidColorBrush x:Key="AccentGoldHoverBrush" Color="{StaticResource AccentGoldHoverColor}" />
         <SolidColorBrush x:Key="DangerRedBrush" Color="{StaticResource DangerRedColor}" />
         <SolidColorBrush x:Key="SuccessGreenBrush" Color="{StaticResource SuccessGreenColor}" />
         <SolidColorBrush x:Key="BgDarkBrush" Color="{StaticResource BgDarkColor}" />
         <SolidColorBrush x:Key="CardDarkBrush" Color="{StaticResource CardDarkColor}" />
+        <SolidColorBrush x:Key="CardDarkHoverBrush" Color="{StaticResource CardDarkHoverColor}" />
+        <SolidColorBrush x:Key="BorderMutedBrush" Color="{StaticResource BorderMutedColor}" />
+        <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMutedColor}" />
 
         <!-- Sensorli Ekranga Mos Katta Tugma Stili (Touch Button) -->
         <Style x:Key="TouchButtonStyle" TargetType="Button">
-            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontSize" Value="15" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="Background" Value="{StaticResource BrandPrimaryBrush}" />
             <Setter Property="Padding" Value="16,12" />
-            <Setter Property="MinHeight" Value="52" />
+            <Setter Property="MinHeight" Value="50" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -37,19 +47,19 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="border"
                                 Background="{TemplateBinding Background}"
-                                CornerRadius="8"
+                                CornerRadius="10"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Opacity" Value="0.9" />
+                                <Setter TargetName="border" Property="Opacity" Value="0.92" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="border" Property="Opacity" Value="0.75" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Opacity" Value="0.5" />
+                                <Setter TargetName="border" Property="Opacity" Value="0.45" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -57,14 +67,46 @@
             </Setter>
         </Style>
 
-        <!-- Katta Sensorli Chiqish/Xavfli Tugma -->
+        <!-- Katta Sensorli Xavfli/Qizil Tugma -->
         <Style x:Key="TouchDangerButton" TargetType="Button" BasedOn="{StaticResource TouchButtonStyle}">
             <Setter Property="Background" Value="{StaticResource DangerRedBrush}" />
         </Style>
 
-        <!-- Oltin/Oshxona Tugmasi -->
+        <!-- Oltin/Diqqat Tugmasi -->
         <Style x:Key="TouchGoldButton" TargetType="Button" BasedOn="{StaticResource TouchButtonStyle}">
             <Setter Property="Background" Value="{StaticResource AccentGoldBrush}" />
+        </Style>
+
+        <!-- Ikkilamchi Qorong'i Kartochka Tugmasi (Secondary Slate) -->
+        <Style x:Key="TouchSecondaryButton" TargetType="Button" BasedOn="{StaticResource TouchButtonStyle}">
+            <Setter Property="Background" Value="#334155" />
+        </Style>
+
+        <!-- Chiroyli Zamonaviy ScrollBar Stili -->
+        <Style TargetType="{x:Type ScrollBar}">
+            <Setter Property="Stylus.IsPressAndHoldEnabled" Value="false" />
+            <Setter Property="Stylus.IsFlicksEnabled" Value="false" />
+            <Setter Property="Width" Value="8" />
+            <Setter Property="MinWidth" Value="8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ScrollBar}">
+                        <Grid x:Name="Bg" SnapsToDevicePixels="true">
+                            <Track x:Name="PART_Track" IsDirectionReversed="true">
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="{x:Type Thumb}">
+                                                <Border Background="#475569" CornerRadius="4" Margin="1" />
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Application.Resources>
 </Application>

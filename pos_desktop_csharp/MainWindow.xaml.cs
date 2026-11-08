@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -36,6 +37,7 @@ namespace DilkashPos
         private Category? _selectedCategory;
         private RestaurantTable? _activeTableContext;
         private string _currentTableFilter = "all";
+        private string _activeTabTag = "tables";
 
         public MainWindow()
         {
@@ -47,7 +49,12 @@ namespace DilkashPos
             _syncEngine = new SyncEngine(_api, _db, _printer);
 
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _clockTimer.Tick += (s, e) => ClockText.Text = DateTime.Now.ToString("HH:mm:ss");
+            _clockTimer.Tick += (s, e) =>
+            {
+                var now = DateTime.Now;
+                ClockText.Text = now.ToString("HH:mm:ss");
+                DateText.Text = now.ToString("dddd, d MMMM yyyy", new CultureInfo("uz-Latn-UZ"));
+            };
             _clockTimer.Start();
 
             _syncEngine.SyncStatusUpdated += OnSyncStatusUpdated;
@@ -69,6 +76,26 @@ namespace DilkashPos
             else if (e.Key == Key.F11)
             {
                 OnToggleKioskClick(sender, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F2)
+            {
+                SwitchToTab("quick_pos");
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F1)
+            {
+                SwitchToTab("tables");
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F5)
+            {
+                OnRefreshOnlineOrdersClick(sender, new RoutedEventArgs());
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F4 && _activeTabTag == "quick_pos")
+            {
+                OnDiscountPillClick(sender, new RoutedEventArgs());
                 e.Handled = true;
             }
         }
@@ -96,6 +123,7 @@ namespace DilkashPos
             RenderProducts();
             RenderStopList();
             UpdateCartUI();
+            UpdateShiftReportUI();
 
             // 2. Server bilan sinxronlash
             var bootstrap = await _api.GetBootstrapAsync();
@@ -136,7 +164,7 @@ namespace DilkashPos
                 if (e.IsOnline)
                 {
                     StatusBadgeBorder.Background = (Brush)FindResource("SuccessGreenBrush");
-                    StatusBadgeText.Text = "● ONLINE (REST API)";
+                    StatusBadgeText.Text = "● REST API ONLINE";
                 }
                 else
                 {
@@ -154,9 +182,8 @@ namespace DilkashPos
                     QueueBadgeBorder.Visibility = Visibility.Collapsed;
                 }
 
-                NavOnlineBtn.Content = e.OnlineOrdersCount > 0
-                    ? $"📲 ONLINE BUYURTMALAR ({e.OnlineOrdersCount})"
-                    : "📲 ONLINE BUYURTMALAR";
+                NavOnlineBadgeText.Text = e.OnlineOrdersCount.ToString();
+                NavOnlineBadgeBorder.Visibility = e.OnlineOrdersCount > 0 ? Visibility.Visible : Visibility.Collapsed;
             });
         }
 
@@ -165,6 +192,8 @@ namespace DilkashPos
             Dispatcher.Invoke(() =>
             {
                 _onlineOrders = orders;
+                NavOnlineBadgeText.Text = orders.Count.ToString();
+                NavOnlineBadgeBorder.Visibility = orders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
                 RenderOnlineOrders();
             });
         }
@@ -174,25 +203,41 @@ namespace DilkashPos
         {
             if (sender is Button btn && btn.Tag is string tag)
             {
-                TablesTab.Visibility = tag == "tables" ? Visibility.Visible : Visibility.Collapsed;
-                QuickPosTab.Visibility = tag == "quick_pos" ? Visibility.Visible : Visibility.Collapsed;
-                StopListTab.Visibility = tag == "stop_list" ? Visibility.Visible : Visibility.Collapsed;
-                OnlineTab.Visibility = tag == "online" ? Visibility.Visible : Visibility.Collapsed;
-                SettingsTab.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
+                SwitchToTab(tag);
+            }
+        }
 
-                NavTablesBtn.Background = tag == "tables" ? (Brush)FindResource("BrandPrimaryBrush") : (Brush)FindResource("CardDarkBrush");
-                NavQuickPosBtn.Background = tag == "quick_pos" ? (Brush)FindResource("BrandPrimaryBrush") : (Brush)FindResource("CardDarkBrush");
-                NavStopListBtn.Background = tag == "stop_list" ? (Brush)FindResource("BrandPrimaryBrush") : (Brush)FindResource("CardDarkBrush");
-                NavOnlineBtn.Background = tag == "online" ? (Brush)FindResource("BrandPrimaryBrush") : (Brush)FindResource("CardDarkBrush");
-                NavSettingsBtn.Background = tag == "settings" ? (Brush)FindResource("BrandPrimaryBrush") : (Brush)FindResource("CardDarkBrush");
+        private void SwitchToTab(string tag)
+        {
+            _activeTabTag = tag;
 
-                if (tag == "quick_pos" && _activeTableContext == null)
-                {
-                    _currentCart = new Order { ServiceType = "pickup" };
-                    CartTitleText.Text = "TEZKOR SABOY (OLIB KETISH)";
-                    CartSubtitleText.Text = "Kassir: " + _settings.CashierName;
-                    UpdateCartUI();
-                }
+            TablesTab.Visibility = tag == "tables" ? Visibility.Visible : Visibility.Collapsed;
+            QuickPosTab.Visibility = tag == "quick_pos" ? Visibility.Visible : Visibility.Collapsed;
+            StopListTab.Visibility = tag == "stop_list" ? Visibility.Visible : Visibility.Collapsed;
+            OnlineTab.Visibility = tag == "online" ? Visibility.Visible : Visibility.Collapsed;
+            ShiftReportTab.Visibility = tag == "shift" ? Visibility.Visible : Visibility.Collapsed;
+            SettingsTab.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
+
+            var activeBrush = (Brush)FindResource("BrandPrimaryBrush");
+            var inactiveBrush = (Brush)FindResource("CardDarkBrush");
+
+            NavTablesBtn.Background = tag == "tables" ? activeBrush : inactiveBrush;
+            NavQuickPosBtn.Background = tag == "quick_pos" ? activeBrush : inactiveBrush;
+            NavStopListBtn.Background = tag == "stop_list" ? activeBrush : inactiveBrush;
+            NavOnlineBtn.Background = tag == "online" ? activeBrush : inactiveBrush;
+            NavShiftBtn.Background = tag == "shift" ? activeBrush : inactiveBrush;
+            NavSettingsBtn.Background = tag == "settings" ? activeBrush : inactiveBrush;
+
+            if (tag == "quick_pos" && _activeTableContext == null)
+            {
+                _currentCart = new Order { ServiceType = "pickup" };
+                CartTitleText.Text = "⚡ TEZKOR SABOY (OLIB KETISH)";
+                CartSubtitleText.Text = "Kassir: " + _settings.CashierName;
+                UpdateCartUI();
+            }
+            else if (tag == "shift")
+            {
+                UpdateShiftReportUI();
             }
         }
 
@@ -210,15 +255,17 @@ namespace DilkashPos
             }
         }
 
-        private void OnShiftReportClick(object sender, RoutedEventArgs e)
+        private void OnLockAppClick(object sender, RoutedEventArgs e)
         {
-            string kassaIp = IpKassaBox.Text.Trim();
-            var dlg = new ShiftReportDialog(_currentShift, _printer, kassaIp);
-            dlg.ShowDialog();
+            var res = MessageBox.Show("Kassa ekranini qulflaysizmi?", "Kassani Qulflash", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (res == MessageBoxResult.Yes)
+            {
+                MessageBox.Show("Kassa qulflandi. Kassir parolini kiritib davom eting.", "Qulflangan", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
         #endregion
 
-        #region 1. Stollar Xaritasi (Tables Map)
+        #region 1. Stollar Xaritasi (1920x1080 Full HD Tables Map)
         private void RenderTables()
         {
             TablesWrapPanel.Children.Clear();
@@ -235,20 +282,24 @@ namespace DilkashPos
             EmptyTablesCountText.Text = emptyCount.ToString();
             OccupiedTablesCountText.Text = occCount.ToString();
             BillPrintedCountText.Text = billCount.ToString();
+            NavTablesCountBadge.Text = $"{occCount} band";
 
             foreach (var tbl in list)
             {
+                // Keng 380x215px stol kartasi (1920x1080 da 4 ta ustun hosil qiladi)
                 var card = new Border
                 {
-                    Width = 230,
-                    Height = 175,
-                    Margin = new Thickness(8),
-                    CornerRadius = new CornerRadius(12),
-                    Background = tbl.IsOccupied ? (Brush)FindResource("CardDarkBrush") : new SolidColorBrush(Color.FromRgb(15, 30, 25)),
+                    Width = 380,
+                    Height = 215,
+                    Margin = new Thickness(10),
+                    CornerRadius = new CornerRadius(14),
+                    Background = tbl.IsOccupied 
+                        ? new SolidColorBrush(Color.FromRgb(30, 41, 59)) // #1E293B
+                        : new SolidColorBrush(Color.FromRgb(15, 27, 30)),
                     BorderThickness = new Thickness(2),
                     BorderBrush = tbl.Status == "bill_printed" ? (Brush)FindResource("AccentGoldBrush") :
                                  tbl.IsOccupied ? (Brush)FindResource("DangerRedBrush") : (Brush)FindResource("BrandPrimaryBrush"),
-                    Padding = new Thickness(14),
+                    Padding = new Thickness(16),
                     Cursor = Cursors.Hand,
                     Tag = tbl
                 };
@@ -258,52 +309,142 @@ namespace DilkashPos
                 grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
                 grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-                // 1. Qator: Stol nomi va Holat Badge
+                // 1. Qator: Stol nomi, Zonasi va Holat Pill
                 var headerGrid = new Grid();
-                var nameStack = new StackPanel { Orientation = Orientation.Horizontal };
-                nameStack.Children.Add(new TextBlock { Text = tbl.Zone == "VIP" ? "👑 " : "🍽 ", FontSize = 16 });
-                nameStack.Children.Add(new TextBlock { Text = tbl.Name, FontSize = 17, FontWeight = FontWeights.ExtraBold, Foreground = Brushes.White });
+                var leftStack = new StackPanel { Orientation = Orientation.Horizontal };
+                leftStack.Children.Add(new TextBlock { Text = tbl.Zone == "VIP" ? "👑 " : "🍽 ", FontSize = 20, VerticalAlignment = VerticalAlignment.Center });
+                leftStack.Children.Add(new TextBlock { Text = tbl.Name, FontSize = 20, FontWeight = FontWeights.ExtraBold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+
+                var zoneBorder = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromRgb(51, 65, 85)),
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(8, 2, 8, 2),
+                    Margin = new Thickness(10, 0, 0, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                zoneBorder.Child = new TextBlock { Text = tbl.Zone, FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Brushes.White };
+                leftStack.Children.Add(zoneBorder);
 
                 var badgeBorder = new Border
                 {
                     HorizontalAlignment = HorizontalAlignment.Right,
-                    CornerRadius = new CornerRadius(6),
+                    CornerRadius = new CornerRadius(8),
                     Background = tbl.Status == "bill_printed" ? (Brush)FindResource("AccentGoldBrush") :
                                  tbl.IsOccupied ? (Brush)FindResource("DangerRedBrush") : (Brush)FindResource("SuccessGreenBrush"),
-                    Padding = new Thickness(8, 3, 8, 3)
+                    Padding = new Thickness(10, 4, 10, 4),
+                    VerticalAlignment = VerticalAlignment.Center
                 };
-                badgeBorder.Child = new TextBlock { Text = tbl.StatusBadge, FontSize = 11, FontWeight = FontWeights.ExtraBold, Foreground = Brushes.White };
+                badgeBorder.Child = new TextBlock { Text = tbl.StatusBadge, FontSize = 12, FontWeight = FontWeights.Black, Foreground = Brushes.White };
 
-                headerGrid.Children.Add(nameStack);
+                headerGrid.Children.Add(leftStack);
                 headerGrid.Children.Add(badgeBorder);
                 Grid.SetRow(headerGrid, 0);
 
-                // 2. Qator: Mehmonlar, Ofitsiant va Vaqt
-                var bodyStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 6, 0, 6) };
-                bodyStack.Children.Add(new TextBlock { Text = $"👤 {tbl.GuestsCount} kishi (sig'im: {tbl.Capacity})", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)) });
-
-                if (tbl.IsOccupied)
+                // 2. Qator: Stol tanasi (Ma'lumotlar)
+                var bodyStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 10, 0, 10) };
+                if (!tbl.IsOccupied)
+                {
+                    bodyStack.Children.Add(new TextBlock
+                    {
+                        Text = $"👥 Sig'imi: {tbl.Capacity} kishilik qulay stol",
+                        FontSize = 14,
+                        Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184))
+                    });
+                    bodyStack.Children.Add(new TextBlock
+                    {
+                        Text = "✨ Mehmonlarni kutib olishga to'liq tayyor",
+                        FontSize = 13,
+                        Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129)),
+                        Margin = new Thickness(0, 4, 0, 0)
+                    });
+                }
+                else
                 {
                     string waiter = tbl.ActiveOrder?.WaiterName ?? tbl.AssignedWaiter ?? "Jasur";
-                    bodyStack.Children.Add(new TextBlock { Text = $"🤵 {waiter}", FontSize = 13, Foreground = Brushes.White, Margin = new Thickness(0, 2, 0, 0) });
-
                     int mins = tbl.ActiveOrder?.ElapsedMinutes ?? 0;
-                    bodyStack.Children.Add(new TextBlock { Text = $"⏱ {mins} daqiqadan beri", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("AccentGoldBrush"), Margin = new Thickness(0, 2, 0, 0) });
+                    int itemsCount = tbl.ActiveOrder?.Items.Sum(i => i.Quantity) ?? 0;
+
+                    var infoGrid = new Grid();
+                    infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                    var col1 = new StackPanel();
+                    col1.Children.Add(new TextBlock { Text = $"👤 {tbl.GuestsCount} kishi (sig'im: {tbl.Capacity})", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
+                    col1.Children.Add(new TextBlock { Text = $"🤵 Ofitsiant: {waiter}", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), Margin = new Thickness(0, 2, 0, 0) });
+
+                    var col2 = new StackPanel();
+                    col2.Children.Add(new TextBlock { Text = $"⏱ {mins} daqiqadan beri", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = (Brush)FindResource("AccentGoldBrush") });
+                    col2.Children.Add(new TextBlock { Text = $"🍲 {itemsCount} ta taom buyurtmada", FontSize = 13, Foreground = Brushes.White, Margin = new Thickness(0, 2, 0, 0) });
+
+                    infoGrid.Children.Add(col1);
+                    Grid.SetColumn(col2, 1);
+                    infoGrid.Children.Add(col2);
+                    bodyStack.Children.Add(infoGrid);
                 }
                 Grid.SetRow(bodyStack, 1);
 
-                // 3. Qator: Jami summa va Amallar
+                // 3. Qator: Jami summa va Katta sensorli amallar
                 var footerGrid = new Grid();
-                var sumText = new TextBlock
+                if (!tbl.IsOccupied)
                 {
-                    Text = tbl.TotalSumFormatted,
-                    FontSize = 17,
-                    FontWeight = FontWeights.ExtraBold,
-                    Foreground = tbl.IsOccupied ? (Brush)FindResource("SuccessGreenBrush") : new SolidColorBrush(Color.FromRgb(148, 163, 184)),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
+                    var openBtn = new Button
+                    {
+                        Content = "➕ STOLNI OCHISH",
+                        Height = 44,
+                        FontSize = 14,
+                        FontWeight = FontWeights.Black,
+                        Style = (Style)FindResource("TouchButtonStyle"),
+                        Background = (Brush)FindResource("BrandPrimaryBrush"),
+                        Tag = tbl
+                    };
+                    openBtn.Click += (s, e) => OnTableCardClicked((RestaurantTable)((Button)s).Tag);
+                    footerGrid.Children.Add(openBtn);
+                }
+                else
+                {
+                    footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-                footerGrid.Children.Add(sumText);
+                    var sumStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                    sumStack.Children.Add(new TextBlock { Text = "HISOB SUMMASI:", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)) });
+                    sumStack.Children.Add(new TextBlock { Text = tbl.TotalSumFormatted, FontSize = 20, FontWeight = FontWeights.Black, Foreground = (Brush)FindResource("SuccessGreenBrush") });
+                    Grid.SetColumn(sumStack, 0);
+
+                    var actionsStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+
+                    var addFoodBtn = new Button { Content = "📝 Taom", Height = 40, Padding = new Thickness(10, 0, 10, 0), FontSize = 12, FontWeight = FontWeights.Bold, Style = (Style)FindResource("TouchSecondaryButton"), Margin = new Thickness(0, 0, 6, 0), Tag = tbl };
+                    var prechekBtn = new Button { Content = "📄 Pre-chek", Height = 40, Padding = new Thickness(10, 0, 10, 0), FontSize = 12, FontWeight = FontWeights.Bold, Style = (Style)FindResource("TouchGoldButton"), Margin = new Thickness(0, 0, 6, 0), Tag = tbl };
+                    var payBtn = new Button { Content = "💳 To'lov", Height = 40, Padding = new Thickness(12, 0, 12, 0), FontSize = 12, FontWeight = FontWeights.Black, Style = (Style)FindResource("TouchButtonStyle"), Background = (Brush)FindResource("SuccessGreenBrush"), Tag = tbl };
+
+                    addFoodBtn.Click += (s, e) => OpenTableOrderInQuickPos((RestaurantTable)((Button)s).Tag);
+                    prechekBtn.Click += async (s, e) =>
+                    {
+                        var t = (RestaurantTable)((Button)s).Tag;
+                        if (t.ActiveOrder != null && t.ActiveOrder.Items.Count > 0)
+                        {
+                            string kassaIp = IpKassaBox.Text.Trim();
+                            await _printer.PrintPreChekAsync(t.ActiveOrder, kassaIp);
+                            t.Status = "bill_printed";
+                            RenderTables();
+                            MessageBox.Show($"{t.Name} uchun hisob pre-cheki chiqarildi!", "Pre-Chek", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                    };
+                    payBtn.Click += (s, e) =>
+                    {
+                        var t = (RestaurantTable)((Button)s).Tag;
+                        OpenTableOrderInQuickPos(t);
+                        OnPayCartClick(s, e);
+                    };
+
+                    actionsStack.Children.Add(addFoodBtn);
+                    actionsStack.Children.Add(prechekBtn);
+                    actionsStack.Children.Add(payBtn);
+                    Grid.SetColumn(actionsStack, 1);
+
+                    footerGrid.Children.Add(sumStack);
+                    footerGrid.Children.Add(actionsStack);
+                }
                 Grid.SetRow(footerGrid, 2);
 
                 grid.Children.Add(headerGrid);
@@ -311,7 +452,15 @@ namespace DilkashPos
                 grid.Children.Add(footerGrid);
                 card.Child = grid;
 
-                card.MouseLeftButtonUp += (s, e) => OnTableCardClicked((RestaurantTable)((Border)s).Tag);
+                card.MouseLeftButtonUp += (s, e) =>
+                {
+                    // Agar tugma bosilmagan bo'lsa, stol kartasining o'zi bosilganda
+                    if (e.OriginalSource is not Button)
+                    {
+                        OnTableCardClicked((RestaurantTable)((Border)s).Tag);
+                    }
+                };
+
                 TablesWrapPanel.Children.Add(card);
             }
         }
@@ -320,7 +469,6 @@ namespace DilkashPos
         {
             if (!table.IsOccupied)
             {
-                // Bo'sh stol -> Ochish dialogi
                 var dialog = new OpenTableDialog(table.Number, table.Name, _settings.CashierName);
                 if (dialog.ShowDialog() == true)
                 {
@@ -366,9 +514,9 @@ namespace DilkashPos
                 WaiterName = table.AssignedWaiter ?? _settings.CashierName
             };
 
-            CartTitleText.Text = $"STOL #{table.Number} ({table.Name})";
-            CartSubtitleText.Text = $"Ofitsiant: {_currentCart.WaiterName} | Mehmon: {_currentCart.GuestsCount} kishi";
-            OnNavClicked(NavQuickPosBtn, new RoutedEventArgs());
+            CartTitleText.Text = $"🍽 {table.Name.ToUpper()} ({table.Zone})";
+            CartSubtitleText.Text = $"Ofitsiant: {_currentCart.WaiterName} • Mehmon: {_currentCart.GuestsCount} kishi";
+            SwitchToTab("quick_pos");
             UpdateCartUI();
         }
 
@@ -379,24 +527,25 @@ namespace DilkashPos
 
         private void HighlightFilterBtn(Button active)
         {
-            FilterAllBtn.Background = new SolidColorBrush(Color.FromRgb(51, 65, 85));
-            FilterZalBtn.Background = new SolidColorBrush(Color.FromRgb(51, 65, 85));
-            FilterTerrasaBtn.Background = new SolidColorBrush(Color.FromRgb(51, 65, 85));
-            FilterVipBtn.Background = new SolidColorBrush(Color.FromRgb(51, 65, 85));
+            var secondaryBrush = (Brush)FindResource("CardDarkBrush");
+            FilterAllBtn.Background = secondaryBrush;
+            FilterZalBtn.Background = secondaryBrush;
+            FilterTerrasaBtn.Background = secondaryBrush;
+            FilterVipBtn.Background = secondaryBrush;
             active.Background = (Brush)FindResource("BrandPrimaryBrush");
         }
         #endregion
 
-        #region 2. Tezkor Saboy & Buyurtma Qabul Qilish
+        #region 2. Tezkor Saboy & Buyurtma Qabul Qilish (3-Column POS)
         private void RenderCategories()
         {
             CategoriesStackPanel.Children.Clear();
             var allBtn = new Button
             {
-                Content = "🍽 Barcha Taomlar",
-                Height = 52,
+                Content = $"🍽 Barcha Taomlar ({_products.Count})",
+                Height = 56,
                 Margin = new Thickness(0, 0, 0, 8),
-                FontSize = 14,
+                FontSize = 15,
                 FontWeight = FontWeights.Bold,
                 Style = (Style)FindResource("TouchButtonStyle"),
                 Background = _selectedCategory == null ? (Brush)FindResource("BrandPrimaryBrush") : (Brush)FindResource("CardDarkBrush")
@@ -405,7 +554,7 @@ namespace DilkashPos
             {
                 _selectedCategory = null;
                 RenderCategories();
-                RenderProducts();
+                RenderProducts(ProductSearchBox.Text);
             };
             CategoriesStackPanel.Children.Add(allBtn);
 
@@ -420,11 +569,13 @@ namespace DilkashPos
                     _ => "🍲"
                 };
 
+                int pCount = _products.Count(p => p.CategoryId == cat.Id);
+
                 var btn = new Button
                 {
-                    Content = $"{icon} {cat.Name}",
-                    Height = 50,
-                    Margin = new Thickness(0, 0, 0, 6),
+                    Content = $"{icon} {cat.Name} ({pCount})",
+                    Height = 54,
+                    Margin = new Thickness(0, 0, 0, 8),
                     FontSize = 14,
                     FontWeight = FontWeights.SemiBold,
                     Style = (Style)FindResource("TouchButtonStyle"),
@@ -435,7 +586,7 @@ namespace DilkashPos
                 {
                     _selectedCategory = (Category)((Button)s).Tag;
                     RenderCategories();
-                    RenderProducts();
+                    RenderProducts(ProductSearchBox.Text);
                 };
                 CategoriesStackPanel.Children.Add(btn);
             }
@@ -454,16 +605,20 @@ namespace DilkashPos
 
             foreach (var prod in list)
             {
+                int inCartQty = _currentCart.Items.FirstOrDefault(i => i.ProductId == prod.Id)?.Quantity ?? 0;
+
+                // Katta sensorli taom kartasi (220x165px)
                 var card = new Border
                 {
-                    Width = 190,
-                    Height = 125,
-                    Margin = new Thickness(6),
-                    CornerRadius = new CornerRadius(10),
+                    Width = 220,
+                    Height = 165,
+                    Margin = new Thickness(8),
+                    CornerRadius = new CornerRadius(12),
                     Background = prod.IsAvailable ? (Brush)FindResource("CardDarkBrush") : new SolidColorBrush(Color.FromRgb(45, 20, 20)),
-                    BorderThickness = new Thickness(1.5),
-                    BorderBrush = prod.IsAvailable ? new SolidColorBrush(Color.FromRgb(51, 65, 85)) : (Brush)FindResource("DangerRedBrush"),
-                    Padding = new Thickness(12),
+                    BorderThickness = new Thickness(2),
+                    BorderBrush = !prod.IsAvailable ? (Brush)FindResource("DangerRedBrush") :
+                                 inCartQty > 0 ? (Brush)FindResource("AccentGoldBrush") : new SolidColorBrush(Color.FromRgb(51, 65, 85)),
+                    Padding = new Thickness(14),
                     Cursor = prod.IsAvailable ? Cursors.Hand : Cursors.No,
                     Tag = prod,
                     Opacity = prod.IsAvailable ? 1.0 : 0.65
@@ -474,35 +629,52 @@ namespace DilkashPos
                 grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
                 grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-                // Department pill
+                // 1. Toifa va Savatdagi soni badge
+                var topGrid = new Grid();
                 var deptPill = new TextBlock
                 {
                     Text = prod.CategoryName.ToUpper(),
-                    FontSize = 10,
+                    FontSize = 11,
                     FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184))
+                    Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
+                    VerticalAlignment = VerticalAlignment.Center
                 };
-                Grid.SetRow(deptPill, 0);
+                topGrid.Children.Add(deptPill);
 
-                // Dish Name
+                if (inCartQty > 0)
+                {
+                    var qtyBadge = new Border
+                    {
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        Background = (Brush)FindResource("AccentGoldBrush"),
+                        CornerRadius = new CornerRadius(6),
+                        Padding = new Thickness(8, 2, 8, 2)
+                    };
+                    qtyBadge.Child = new TextBlock { Text = $"x{inCartQty}", FontSize = 12, FontWeight = FontWeights.Black, Foreground = Brushes.White };
+                    topGrid.Children.Add(qtyBadge);
+                }
+                Grid.SetRow(topGrid, 0);
+
+                // 2. Taom Nomi
                 var nameBlock = new TextBlock
                 {
                     Text = prod.Name,
-                    FontSize = 15,
-                    FontWeight = FontWeights.Bold,
+                    FontSize = 16,
+                    FontWeight = FontWeights.ExtraBold,
                     Foreground = Brushes.White,
                     TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 4, 0, 4)
+                    Margin = new Thickness(0, 6, 0, 6),
+                    VerticalAlignment = VerticalAlignment.Center
                 };
                 Grid.SetRow(nameBlock, 1);
 
-                // Bottom row: Price and Status
+                // 3. Pastki Narx va Status
                 var bottomGrid = new Grid();
                 var priceText = new TextBlock
                 {
                     Text = prod.FormattedPrice,
-                    FontSize = 15,
-                    FontWeight = FontWeights.ExtraBold,
+                    FontSize = 17,
+                    FontWeight = FontWeights.Black,
                     Foreground = (Brush)FindResource("SuccessGreenBrush"),
                     VerticalAlignment = VerticalAlignment.Center
                 };
@@ -514,15 +686,15 @@ namespace DilkashPos
                     {
                         HorizontalAlignment = HorizontalAlignment.Right,
                         Background = (Brush)FindResource("DangerRedBrush"),
-                        CornerRadius = new CornerRadius(4),
-                        Padding = new Thickness(6, 2, 6, 2)
+                        CornerRadius = new CornerRadius(6),
+                        Padding = new Thickness(8, 3, 8, 3)
                     };
-                    stopPill.Child = new TextBlock { Text = "TUGAGAN", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = Brushes.White };
+                    stopPill.Child = new TextBlock { Text = "STOP-LIST", FontSize = 11, FontWeight = FontWeights.Black, Foreground = Brushes.White };
                     bottomGrid.Children.Add(stopPill);
                 }
                 Grid.SetRow(bottomGrid, 2);
 
-                grid.Children.Add(deptPill);
+                grid.Children.Add(topGrid);
                 grid.Children.Add(nameBlock);
                 grid.Children.Add(bottomGrid);
                 card.Child = grid;
@@ -556,6 +728,7 @@ namespace DilkashPos
                 });
             }
             UpdateCartUI();
+            RenderProducts(ProductSearchBox.Text);
         }
 
         private void UpdateCartUI()
@@ -567,33 +740,35 @@ namespace DilkashPos
                 var border = new Border
                 {
                     Background = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
-                    CornerRadius = new CornerRadius(8),
-                    Padding = new Thickness(10),
-                    Margin = new Thickness(0, 0, 0, 8)
+                    CornerRadius = new CornerRadius(10),
+                    Padding = new Thickness(12),
+                    Margin = new Thickness(0, 0, 0, 10),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(30, 41, 59)),
+                    BorderThickness = new Thickness(1)
                 };
 
                 var grid = new Grid();
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-                // Chap: Nomi, Izohi va Narxi
+                // Chap: Taom nomi, Izohi va Hisobi
                 var leftStack = new StackPanel();
-                leftStack.Children.Add(new TextBlock { Text = item.ProductName, FontSize = 15, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
-                leftStack.Children.Add(new TextBlock { Text = $"{item.Price:N0} so'm x {item.Quantity} = {item.Total:N0} so'm", FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)) });
+                leftStack.Children.Add(new TextBlock { Text = item.ProductName, FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
+                leftStack.Children.Add(new TextBlock { Text = $"{item.Price:N0} so'm × {item.Quantity} = {item.Total:N0} so'm", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), Margin = new Thickness(0, 2, 0, 0) });
 
                 if (!string.IsNullOrEmpty(item.Notes))
                 {
-                    leftStack.Children.Add(new TextBlock { Text = $"💬 {item.Notes}", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("AccentGoldBrush"), Margin = new Thickness(0, 2, 0, 0) });
+                    leftStack.Children.Add(new TextBlock { Text = $"💬 {item.Notes}", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("AccentGoldBrush"), Margin = new Thickness(0, 4, 0, 0) });
                 }
                 Grid.SetColumn(leftStack, 0);
 
-                // O'ng: Stepper (- / +) va Izoh tugmasi
+                // O'ng: Sensorli Katta Stepper (- / +) va Izoh tugmasi
                 var rightStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
 
-                var noteBtn = new Button { Content = "✎", Width = 34, Height = 34, FontSize = 14, Margin = new Thickness(0, 0, 6, 0), Style = (Style)FindResource("TouchButtonStyle"), Background = new SolidColorBrush(Color.FromRgb(51, 65, 85)), Tag = item };
-                var minusBtn = new Button { Content = "-", Width = 36, Height = 36, FontSize = 18, FontWeight = FontWeights.Bold, Margin = new Thickness(2, 0, 2, 0), Style = (Style)FindResource("TouchButtonStyle"), Background = new SolidColorBrush(Color.FromRgb(51, 65, 85)), Tag = item };
-                var qtyBlock = new TextBlock { Text = item.Quantity.ToString(), Width = 30, TextAlignment = TextAlignment.Center, FontSize = 16, FontWeight = FontWeights.ExtraBold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
-                var plusBtn = new Button { Content = "+", Width = 36, Height = 36, FontSize = 18, FontWeight = FontWeights.Bold, Margin = new Thickness(2, 0, 0, 0), Style = (Style)FindResource("TouchButtonStyle"), Background = new SolidColorBrush(Color.FromRgb(51, 65, 85)), Tag = item };
+                var noteBtn = new Button { Content = "✎ Izoh", Height = 40, Padding = new Thickness(10, 0, 10, 0), FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 8, 0), Style = (Style)FindResource("TouchSecondaryButton"), Tag = item };
+                var minusBtn = new Button { Content = "—", Width = 40, Height = 40, FontSize = 18, FontWeight = FontWeights.Black, Margin = new Thickness(2, 0, 2, 0), Style = (Style)FindResource("TouchSecondaryButton"), Tag = item };
+                var qtyBlock = new TextBlock { Text = item.Quantity.ToString(), Width = 34, TextAlignment = TextAlignment.Center, FontSize = 17, FontWeight = FontWeights.Black, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
+                var plusBtn = new Button { Content = "+", Width = 40, Height = 40, FontSize = 18, FontWeight = FontWeights.Black, Margin = new Thickness(2, 0, 0, 0), Style = (Style)FindResource("TouchSecondaryButton"), Tag = item };
 
                 noteBtn.Click += (s, e) =>
                 {
@@ -612,6 +787,7 @@ namespace DilkashPos
                     it.Quantity--;
                     if (it.Quantity <= 0) _currentCart.Items.Remove(it);
                     UpdateCartUI();
+                    RenderProducts(ProductSearchBox.Text);
                 };
 
                 plusBtn.Click += (s, e) =>
@@ -619,6 +795,7 @@ namespace DilkashPos
                     var it = (OrderItem)((Button)s).Tag;
                     it.Quantity++;
                     UpdateCartUI();
+                    RenderProducts(ProductSearchBox.Text);
                 };
 
                 rightStack.Children.Add(noteBtn);
@@ -634,7 +811,7 @@ namespace DilkashPos
                 CartItemsStackPanel.Children.Add(border);
             }
 
-            // Xizmat haqi va chegirma hisobi
+            // Moliyaviy hisob-kitoblar
             decimal subtotal = _currentCart.Items.Sum(i => i.Total);
             _currentCart.ProductsTotal = subtotal;
 
@@ -647,11 +824,10 @@ namespace DilkashPos
                     serviceFee = _currentCart.GuestsCount * _settings.ServiceFeePerPerson;
             }
             _currentCart.ServiceFeeAmount = serviceFee;
-
             _currentCart.RecalculateTotals();
 
             CartSubtotalText.Text = $"{subtotal:N0} so'm";
-            DiscountPillBtn.Content = $"🏷 Chegirma: {_currentCart.DiscountPercent:0}%";
+            DiscountPillBtn.Content = $"🏷 Chegirma: {_currentCart.DiscountPercent:0}% (F4)";
             CartDiscountText.Text = $"-{_currentCart.DiscountAmount:N0} so'm";
             ServiceFeeLabelText.Text = $"Xizmat haqi ({(_settings.ServiceFeeType == "percent" ? $"{_settings.ServiceFeePercent:0}%" : "Odam boshiga")}):";
             CartServiceFeeText.Text = $"{serviceFee:N0} so'm";
@@ -676,13 +852,10 @@ namespace DilkashPos
                 return;
             }
 
-            // Buyurtmani serverga saqlash
             await _api.CreateOrUpdateOrderAsync(_currentCart);
-
-            // Bo'lim printerlariga chiqarish
             await PrintOrderKitchenSlipsAsync(_currentCart);
 
-            MessageBox.Show("Buyurtma bo'lim printerlariga (Shashlik, Somsa, Oshxona, Fast-food, Bar) yuborildi!", "Oshxonaga Yuborildi", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("Buyurtma barcha bo'lim printerlariga (Shashlik, Somsa, Oshxona, Fast-food, Bar) yuborildi!", "Oshxonaga Yuborildi", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private async void OnPrintPreChekClick(object sender, RoutedEventArgs e)
@@ -730,7 +903,6 @@ namespace DilkashPos
                 _currentCart.IsPaid = true;
                 _currentCart.PaymentMethod = dialog.SelectedPaymentMethod;
 
-                // 1. Serverga saqlash yoki Offline navbatga qo'yish
                 var savedOrder = await _api.CreateOrUpdateOrderAsync(_currentCart);
                 if (savedOrder != null)
                 {
@@ -742,7 +914,6 @@ namespace DilkashPos
                     await _db.EnqueueOfflineOrderAsync(_currentCart);
                 }
 
-                // 2. Kassa va Bo'lim printerlariga yuborish
                 await PrintOrderKitchenSlipsAsync(_currentCart);
                 string kassaIp = IpKassaBox.Text.Trim();
                 if (!string.IsNullOrEmpty(kassaIp))
@@ -750,17 +921,17 @@ namespace DilkashPos
                     await _printer.PrintKassaReceiptAsync(_currentCart, kassaIp, dialog.PaidCash, dialog.PaidCard, dialog.ChangeAmount);
                 }
 
-                // 3. Smena statistikasini yangilash
+                // Smena hisoboti yangilash
                 _currentShift.TotalOrdersCount++;
                 _currentShift.TotalRevenue += _currentCart.TotalAmount;
                 if (dialog.SelectedPaymentMethod == "naqd") _currentShift.CashRevenue += _currentCart.TotalAmount;
                 else if (dialog.SelectedPaymentMethod == "karta") _currentShift.CardRevenue += _currentCart.TotalAmount;
-                else _currentShift.CashRevenue += dialog.PaidCash; _currentShift.CardRevenue += dialog.PaidCard;
+                else { _currentShift.CashRevenue += dialog.PaidCash; _currentShift.CardRevenue += dialog.PaidCard; }
 
                 _currentShift.ServiceFeesCollected += _currentCart.ServiceFeeAmount;
                 _currentShift.DiscountsGiven += _currentCart.DiscountAmount;
+                UpdateShiftReportUI();
 
-                // 4. Stol kontekstini tozalash
                 if (_activeTableContext != null)
                 {
                     _activeTableContext.IsOccupied = false;
@@ -771,11 +942,12 @@ namespace DilkashPos
                 }
 
                 _currentCart = new Order { ServiceType = "pickup" };
-                CartTitleText.Text = "TEZKOR SABOY (OLIB KETISH)";
+                CartTitleText.Text = "⚡ TEZKOR SABOY (OLIB KETISH)";
                 CartSubtitleText.Text = "Kassir: " + _settings.CashierName;
                 UpdateCartUI();
+                RenderProducts();
 
-                MessageBox.Show("To'lov muvaffaqiyatli amalga oshirildi va chek chiqarildi!", "Muvaffaqiyatli", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("To'lov muvaffaqiyatli qabul qilindi va kassa cheki chop etildi!", "To'lov Yakunlandi", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
@@ -825,6 +997,7 @@ namespace DilkashPos
             _currentCart.DiscountPercent = 0;
             _currentCart.DiscountAmount = 0;
             UpdateCartUI();
+            RenderProducts(ProductSearchBox.Text);
         }
 
         private void OnProductSearchChanged(object sender, TextChangedEventArgs e)
@@ -835,6 +1008,7 @@ namespace DilkashPos
         private void OnClearSearchClick(object sender, RoutedEventArgs e)
         {
             ProductSearchBox.Text = "";
+            RenderProducts();
         }
         #endregion
 
@@ -850,18 +1024,22 @@ namespace DilkashPos
             int stopped = _products.Count(p => !p.IsAvailable);
             StopListSummaryText.Text = $"Jami: {total} ta | Mavjud: {total - stopped} ta | Stop-listda: {stopped} ta";
 
+            NavStopListCountBadge.Text = stopped.ToString();
+            NavStopListBadgeBorder.Visibility = stopped > 0 ? Visibility.Visible : Visibility.Collapsed;
+
             foreach (var prod in list)
             {
+                // Keng 380x100px Stop-list kartasi
                 var card = new Border
                 {
-                    Width = 270,
-                    Height = 90,
-                    Margin = new Thickness(6),
-                    CornerRadius = new CornerRadius(10),
+                    Width = 380,
+                    Height = 100,
+                    Margin = new Thickness(8),
+                    CornerRadius = new CornerRadius(12),
                     Background = (Brush)FindResource("CardDarkBrush"),
                     BorderThickness = new Thickness(2),
                     BorderBrush = prod.IsAvailable ? (Brush)FindResource("SuccessGreenBrush") : (Brush)FindResource("DangerRedBrush"),
-                    Padding = new Thickness(14)
+                    Padding = new Thickness(16)
                 };
 
                 var grid = new Grid();
@@ -869,17 +1047,17 @@ namespace DilkashPos
                 grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
                 var leftStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                leftStack.Children.Add(new TextBlock { Text = prod.Name, FontSize = 15, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
-                leftStack.Children.Add(new TextBlock { Text = $"{prod.CategoryName} • {prod.FormattedPrice}", FontSize = 12, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), Margin = new Thickness(0, 2, 0, 0) });
+                leftStack.Children.Add(new TextBlock { Text = prod.Name, FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
+                leftStack.Children.Add(new TextBlock { Text = $"{prod.CategoryName} • {prod.FormattedPrice}", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), Margin = new Thickness(0, 3, 0, 0) });
                 Grid.SetColumn(leftStack, 0);
 
                 var toggleBtn = new Button
                 {
-                    Content = prod.IsAvailable ? "MAVJUD" : "STOP-LIST",
-                    Width = 96,
-                    Height = 46,
-                    FontSize = 12,
-                    FontWeight = FontWeights.ExtraBold,
+                    Content = prod.IsAvailable ? "🟢 MAVJUD" : "🛑 STOP",
+                    Width = 110,
+                    Height = 50,
+                    FontSize = 13,
+                    FontWeight = FontWeights.Black,
                     Style = (Style)FindResource("TouchButtonStyle"),
                     Background = prod.IsAvailable ? (Brush)FindResource("SuccessGreenBrush") : (Brush)FindResource("DangerRedBrush"),
                     Tag = prod
@@ -915,13 +1093,19 @@ namespace DilkashPos
             OnlineOrdersStackPanel.Children.Clear();
             if (_onlineOrders.Count == 0)
             {
-                OnlineOrdersStackPanel.Children.Add(new TextBlock
+                var emptyCard = new Border
                 {
-                    Text = "Hozircha yangi online buyurtmalar kelmadi",
-                    FontSize = 16,
-                    Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
-                    Margin = new Thickness(0, 30, 0, 0)
-                });
+                    Background = (Brush)FindResource("CardDarkBrush"),
+                    CornerRadius = new CornerRadius(14),
+                    Padding = new Thickness(30),
+                    Margin = new Thickness(0, 20, 0, 0)
+                };
+                var emptyStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
+                emptyStack.Children.Add(new TextBlock { Text = "📲", FontSize = 48, HorizontalAlignment = HorizontalAlignment.Center });
+                emptyStack.Children.Add(new TextBlock { Text = "Hozircha yangi online buyurtmalar yo'q", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) });
+                emptyStack.Children.Add(new TextBlock { Text = "Telegram bot yoki mobil ilovadan yangi buyurtma tushganda shu yerda avtomatik ko'rinadi.", FontSize = 14, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) });
+                emptyCard.Child = emptyStack;
+                OnlineOrdersStackPanel.Children.Add(emptyCard);
                 return;
             }
 
@@ -930,9 +1114,9 @@ namespace DilkashPos
                 var card = new Border
                 {
                     Background = (Brush)FindResource("CardDarkBrush"),
-                    CornerRadius = new CornerRadius(12),
-                    Padding = new Thickness(18),
-                    Margin = new Thickness(0, 0, 0, 14),
+                    CornerRadius = new CornerRadius(14),
+                    Padding = new Thickness(20),
+                    Margin = new Thickness(0, 0, 0, 16),
                     BorderThickness = new Thickness(2),
                     BorderBrush = (Brush)FindResource("AccentGoldBrush")
                 };
@@ -943,28 +1127,28 @@ namespace DilkashPos
 
                 var leftStack = new StackPanel();
                 var headerStack = new StackPanel { Orientation = Orientation.Horizontal };
-                headerStack.Children.Add(new TextBlock { Text = order.ServiceType == "delivery" ? "🚴 DOSTAVKA " : "🛍 SABOY ", FontSize = 18, FontWeight = FontWeights.ExtraBold, Foreground = (Brush)FindResource("AccentGoldBrush") });
-                headerStack.Children.Add(new TextBlock { Text = $"#{order.OrderNumber}", FontSize = 18, FontWeight = FontWeights.ExtraBold, Foreground = Brushes.White });
+                headerStack.Children.Add(new TextBlock { Text = order.ServiceType == "delivery" ? "🚴 DOSTAVKA " : "🛍 SABOY ", FontSize = 20, FontWeight = FontWeights.Black, Foreground = (Brush)FindResource("AccentGoldBrush") });
+                headerStack.Children.Add(new TextBlock { Text = $"#{order.OrderNumber}", FontSize = 20, FontWeight = FontWeights.Black, Foreground = Brushes.White });
                 leftStack.Children.Add(headerStack);
 
-                leftStack.Children.Add(new TextBlock { Text = $"Mijoz: {order.CustomerName} | Tel: {order.CustomerPhone}", FontSize = 14, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), Margin = new Thickness(0, 4, 0, 8) });
+                leftStack.Children.Add(new TextBlock { Text = $"👤 Mijoz: {order.CustomerName} | 📞 Tel: {order.CustomerPhone}", FontSize = 15, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), Margin = new Thickness(0, 6, 0, 10) });
 
                 foreach (var it in order.Items)
                 {
-                    leftStack.Children.Add(new TextBlock { Text = $"• {it.Quantity}x {it.ProductName} — {it.Total:N0} so'm", FontSize = 14, Foreground = Brushes.White });
+                    leftStack.Children.Add(new TextBlock { Text = $"• {it.Quantity}x {it.ProductName} — {it.Total:N0} so'm", FontSize = 15, Foreground = Brushes.White, Margin = new Thickness(0, 1, 0, 1) });
                 }
 
-                leftStack.Children.Add(new TextBlock { Text = $"Jami summa: {order.TotalAmount:N0} so'm", FontSize = 17, FontWeight = FontWeights.ExtraBold, Foreground = (Brush)FindResource("SuccessGreenBrush"), Margin = new Thickness(0, 8, 0, 0) });
+                leftStack.Children.Add(new TextBlock { Text = $"JAMI SUMMA: {order.TotalAmount:N0} SO'M", FontSize = 19, FontWeight = FontWeights.Black, Foreground = (Brush)FindResource("SuccessGreenBrush"), Margin = new Thickness(0, 10, 0, 0) });
                 Grid.SetColumn(leftStack, 0);
 
                 var rightStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
                 var acceptBtn = new Button
                 {
-                    Content = "✅ QABUL QILISH VA CHEK CHIQARISH",
-                    Height = 56,
-                    Padding = new Thickness(18, 10, 18, 10),
-                    FontSize = 14,
-                    FontWeight = FontWeights.Bold,
+                    Content = "✅ QABUL QILISH VA CHOP ETISH",
+                    Height = 60,
+                    Padding = new Thickness(22, 10, 22, 10),
+                    FontSize = 15,
+                    FontWeight = FontWeights.Black,
                     Style = (Style)FindResource("TouchButtonStyle"),
                     Background = (Brush)FindResource("SuccessGreenBrush"),
                     Tag = order
@@ -979,6 +1163,8 @@ namespace DilkashPos
                         await _printer.PrintKassaReceiptAsync(ord, kassaIp, ord.TotalAmount, 0, 0);
                     }
                     _onlineOrders.Remove(ord);
+                    NavOnlineBadgeText.Text = _onlineOrders.Count.ToString();
+                    NavOnlineBadgeBorder.Visibility = _onlineOrders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
                     RenderOnlineOrders();
                     MessageBox.Show($"Buyurtma #{ord.OrderNumber} qabul qilindi va barcha oshxona bo'limlariga tarqatildi!", "Qabul Qilindi", MessageBoxButton.OK, MessageBoxImage.Information);
                 };
@@ -997,11 +1183,73 @@ namespace DilkashPos
         private async void OnRefreshOnlineOrdersClick(object sender, RoutedEventArgs e)
         {
             _onlineOrders = await _api.GetOnlineOrdersAsync();
+            NavOnlineBadgeText.Text = _onlineOrders.Count.ToString();
+            NavOnlineBadgeBorder.Visibility = _onlineOrders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             RenderOnlineOrders();
         }
         #endregion
 
-        #region 5. Sozlamalar va Printer Testlari
+        #region 5. Smena va Z-Hisobot (Analytics & Shift Management)
+        private void UpdateShiftReportUI()
+        {
+            SidebarCashierNameText.Text = _settings.CashierName;
+            ShiftHeaderInfoText.Text = $"Smena ochiq • Kassir: {_settings.CashierName} • Boshlanish: Bugun 08:30";
+
+            ShiftTotalRevenueText.Text = $"{_currentShift.TotalRevenue:N0} so'm";
+            ShiftCashRevenueText.Text = $"{_currentShift.CashRevenue:N0} so'm";
+            ShiftCardRevenueText.Text = $"{_currentShift.CardRevenue:N0} so'm";
+            ShiftOrdersCountText.Text = $"{_currentShift.TotalOrdersCount} ta";
+
+            ShiftServiceFeeText.Text = $"{_currentShift.ServiceFeesCollected:N0} so'm";
+            ShiftDiscountsText.Text = $"{_currentShift.DiscountsGiven:N0} so'm";
+        }
+
+        private async void OnPrintXReportDirect(object sender, RoutedEventArgs e)
+        {
+            string kassaIp = IpKassaBox.Text.Trim();
+            if (string.IsNullOrEmpty(kassaIp))
+            {
+                MessageBox.Show("Kassa printeri IP manzili kiritilmagan!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var res = await _printer.PrintShiftReportAsync(_currentShift, false, kassaIp);
+            if (res.Success)
+            {
+                MessageBox.Show("Oraliq X-Hisobot kassa printerida chop etildi!", "X-Hisobot", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show(res.Message, "Printer Xatosi", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private async void OnCloseShiftDirect(object sender, RoutedEventArgs e)
+        {
+            var conf = MessageBox.Show("Haqiqatan ham kassa smenasini yopib, Z-Hisobot chiqarmoqchimisiz?", "Smenani Yopish", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (conf == MessageBoxResult.Yes)
+            {
+                string kassaIp = IpKassaBox.Text.Trim();
+                if (!string.IsNullOrEmpty(kassaIp))
+                {
+                    await _printer.PrintShiftReportAsync(_currentShift, true, kassaIp);
+                }
+
+                // Smena ma'lumotlarini nolga tushirish
+                _currentShift.TotalOrdersCount = 0;
+                _currentShift.TotalRevenue = 0;
+                _currentShift.CashRevenue = 0;
+                _currentShift.CardRevenue = 0;
+                _currentShift.ServiceFeesCollected = 0;
+                _currentShift.DiscountsGiven = 0;
+
+                UpdateShiftReportUI();
+                MessageBox.Show("Kassa smenasi muvaffaqiyatli yopildi va Z-Hisobot chop etildi!", "Smena Yopildi", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        #endregion
+
+        #region 6. Printerlar va Sozlamalar
         private void ApplySettingsToUI()
         {
             if (_settings.Printers.TryGetValue("kassa", out var kassa)) IpKassaBox.Text = kassa;
@@ -1017,6 +1265,7 @@ namespace DilkashPos
 
             ServerUrlBox.Text = _settings.ServerUrl;
             CashierNameBox.Text = _settings.CashierName;
+            SidebarCashierNameText.Text = _settings.CashierName;
             AutoPrintCheck.IsChecked = _settings.AutoPrintNetwork;
         }
 
@@ -1064,6 +1313,7 @@ namespace DilkashPos
                 }
             }
 
+            SidebarCashierNameText.Text = _settings.CashierName;
             MessageBox.Show("Barcha sozlamalar muvaffaqiyatli saqlandi!", "Sozlamalar", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         #endregion
