@@ -166,6 +166,11 @@ namespace DilkashPos
 
         private void OnWindowKeyDown(object sender, KeyEventArgs e)
         {
+            if (LockOverlay.Visibility == Visibility.Visible)
+            {
+                return;
+            }
+
             if (e.Key == Key.F12)
             {
                 OnPayCartClick(sender, new RoutedEventArgs());

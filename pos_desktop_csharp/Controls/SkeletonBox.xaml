@@ -7,16 +7,25 @@
             BorderThickness="1"
             CornerRadius="{StaticResource RadiusMd}"
             Opacity="0.65">
-        <Border.Triggers>
-            <EventTrigger RoutedEvent="Loaded">
-                <BeginStoryboard>
-                    <Storyboard RepeatBehavior="Forever" AutoReverse="True">
-                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                         From="0.45" To="0.85"
-                                         Duration="0:0:0.9" />
-                    </Storyboard>
-                </BeginStoryboard>
-            </EventTrigger>
-        </Border.Triggers>
+        <Border.Style>
+            <Style TargetType="{x:Type Border}">
+                <Style.Triggers>
+                    <Trigger Property="IsVisible" Value="True">
+                        <Trigger.EnterActions>
+                            <BeginStoryboard x:Name="ShimmerStoryboard">
+                                <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                     From="0.45" To="0.85"
+                                                     Duration="0:0:0.9" />
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </Trigger.EnterActions>
+                        <Trigger.ExitActions>
+                            <StopStoryboard BeginStoryboardName="ShimmerStoryboard" />
+                        </Trigger.ExitActions>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
     </Border>
 </UserControl>

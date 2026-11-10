@@ -45,6 +45,7 @@
     <Color x:Key="ColorReserved">#8B5CF6</Color>
     <Color x:Key="ColorReservedTint">#2A1B4E</Color>
     <Color x:Key="ColorReservedText">#DDD6FE</Color>
+    <Color x:Key="ColorShadow">#000000</Color>
 
     <!-- 2. Frozen SolidColorBrushes -->
     <SolidColorBrush x:Key="BrushBg" Color="{StaticResource ColorBg}" po:Freeze="True" />
