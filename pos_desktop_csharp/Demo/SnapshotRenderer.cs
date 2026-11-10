@@ -240,6 +240,13 @@ namespace DilkashPos.Demo
                         RenderWindowToPng(win, width, height, Path.Combine(resDir, "tables_empty.png"));
                         win.SetDemoTablesState(isLoading: false, forceEmpty: false);
 
+                        // Order screen empty search state
+                        win.SwitchToTabPublic("quick_pos");
+                        win.SetDemoQuickPosEmpty(true);
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "quick_pos_empty.png"));
+                        win.SetDemoQuickPosEmpty(false);
+                        win.SwitchToTabPublic("tables");
+
                         // Toast
                         win.ShowDemoToast("Toʻlov qabul qilindi va kassa cheki chop etildi", Utils.ToastTone.Success, "Qaytarish");
                         RenderWindowToPng(win, width, height, Path.Combine(resDir, "shell_toast.png"));
@@ -254,8 +261,46 @@ namespace DilkashPos.Demo
                 }
             }
 
+            // Effective DPI viewport checks (1920x1080 @ 125% = 1536x864, 1920x1080 @ 150% = 1280x720)
+            foreach (var (dWidth, dHeight, dTag) in DpiEffectiveSizes)
+            {
+                string dpiDir = Path.Combine(outputDir, dTag);
+                Directory.CreateDirectory(dpiDir);
+                foreach (var tab in new[] { "tables", "quick_pos" })
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        var win = new MainWindow
+                        {
+                            WindowStartupLocation = WindowStartupLocation.Manual,
+                            Left = -20000,
+                            Top = -20000,
+                            Width = dWidth,
+                            Height = dHeight,
+                            WindowState = WindowState.Normal
+                        };
+                        win.PrepareDemoMode();
+                        win.Show();
+                        win.LoadDemoData();
+                        win.UpdateShellLayoutForWidth(dWidth);
+                        win.SwitchToTabPublic(tab);
+                        string filename = Path.Combine(dpiDir, $"{tab}.png");
+                        RenderWindowToPng(win, dWidth, dHeight, filename);
+                        Console.WriteLine($"[SnapshotRenderer] Wrote {filename}");
+                        win.Close();
+                    });
+                    await Task.Delay(50);
+                }
+            }
+
             Console.WriteLine("[SnapshotRenderer] Completed capturing all snapshots.");
         }
+
+        private static readonly (int Width, int Height, string Tag)[] DpiEffectiveSizes = new[]
+        {
+            (1536, 864, "1920x1080_dpi125"),
+            (1280, 720, "1920x1080_dpi150")
+        };
 
         private static void RenderWindowToPng(Window window, int width, int height, string filePath)
         {
@@ -317,8 +362,19 @@ namespace DilkashPos.Demo
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(rtb));
 
-            using var fs = File.Create(filePath);
-            encoder.Save(fs);
+            for (int attempt = 0; attempt < 5; attempt++)
+            {
+                try
+                {
+                    using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite);
+                    encoder.Save(fs);
+                    break;
+                }
+                catch (IOException) when (attempt < 4)
+                {
+                    System.Threading.Thread.Sleep(60);
+                }
+            }
         }
 
         private static void InvalidateTreeMeasure(DependencyObject obj)

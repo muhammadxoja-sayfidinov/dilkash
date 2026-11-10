@@ -45,10 +45,23 @@ namespace DilkashPos
         private readonly HashSet<string> _selectedTableStatuses = new();
         private readonly ObservableCollection<TableZoneSectionVM> _tableZoneSections = new();
         private readonly Dictionary<int, TableCardVM> _tableCardVMs = new();
+        private readonly ObservableCollection<CategoryChipVM> _categoryChips = new();
+        private readonly ObservableCollection<ProductTileVM> _visibleProductTiles = new();
+        private readonly Dictionary<int, ProductTileVM> _productTileMap = new();
+        private readonly ObservableCollection<CartLineVM> _cartLines = new();
         private int _tableColumns = 4;
         private bool _isLoadingTables = false;
         private string _activeTabTag = "tables";
         private bool _isDemoMode = false;
+
+        public static readonly DependencyProperty ProductColumnsProperty =
+            DependencyProperty.Register(nameof(ProductColumns), typeof(int), typeof(MainWindow), new PropertyMetadata(4));
+
+        public int ProductColumns
+        {
+            get => (int)GetValue(ProductColumnsProperty);
+            set => SetValue(ProductColumnsProperty, value);
+        }
 
         public MainWindow()
         {
@@ -60,6 +73,9 @@ namespace DilkashPos
             _syncEngine = new SyncEngine(_api, _db, _printer);
 
             TableZonesItemsControl.ItemsSource = _tableZoneSections;
+            CategoryChipsItemsControl.ItemsSource = _categoryChips;
+            ProductsItemsControl.ItemsSource = _visibleProductTiles;
+            CartLinesItemsControl.ItemsSource = _cartLines;
 
             Dialogs.RegisterScrimHandler(visible => ModalScrim.Visibility = visible ? Visibility.Visible : Visibility.Collapsed);
             Toast.RegisterHost(MainToastHost);
@@ -95,6 +111,13 @@ namespace DilkashPos
         public void UpdateShellLayoutForWidth(double width)
         {
             RailColumn.Width = new GridLength(width < 1366 ? 80 : 88);
+            CartColumn.Width = new GridLength(width >= 1600 ? 440 : 380);
+
+            int newProductCols = width >= 2200 ? 6 : width >= 1800 ? 5 : width >= 1550 ? 4 : 3;
+            if (newProductCols != ProductColumns)
+            {
+                ProductColumns = newProductCols;
+            }
 
             int newCols = width >= 2200 ? 5 : width >= 1550 ? 4 : 3;
             if (newCols != _tableColumns)
@@ -282,9 +305,20 @@ namespace DilkashPos
 
             if (tag == "quick_pos" && _activeTableContext == null)
             {
-                _currentCart = new Order { ServiceType = "pickup" };
-                CartTitleText.Text = "Tezkor savdo (Saboy)";
+                if (_currentCart.ServiceType != "pickup" && !_isDemoMode)
+                {
+                    _currentCart = new Order { ServiceType = "pickup" };
+                }
+                CartTitleText.Text = "Saboy";
                 CartSubtitleText.Text = "Kassir: " + _settings.CashierName;
+                SyncProductInCartQuantities();
+                UpdateCartUI();
+            }
+            else if (tag == "quick_pos" && _activeTableContext != null)
+            {
+                CartTitleText.Text = $"{_activeTableContext.Name} · {_activeTableContext.Zone}";
+                CartSubtitleText.Text = $"Ofitsiant: {_currentCart.WaiterName} · {_currentCart.GuestsCount} mehmon";
+                SyncProductInCartQuantities();
                 UpdateCartUI();
             }
             else if (tag == "shift")
@@ -536,6 +570,7 @@ namespace DilkashPos
             CartTitleText.Text = $"{table.Name} · {table.Zone}";
             CartSubtitleText.Text = $"Ofitsiant: {_currentCart.WaiterName} · {_currentCart.GuestsCount} mehmon";
             SwitchToTab("quick_pos");
+            SyncProductInCartQuantities();
             UpdateCartUI();
         }
 
@@ -570,176 +605,96 @@ namespace DilkashPos
         }
         #endregion
 
-        #region 2. Tezkor Saboy & Buyurtma Qabul Qilish (3-Column POS)
+        #region 2. Tezkor Savdo & Buyurtma Qabul Qilish (2-Column Responsive POS)
         private void RenderCategories()
         {
-            CategoriesStackPanel.Children.Clear();
-            var allBtn = new Button
-            {
-                Content = $"🍽 Barcha Taomlar ({_products.Count})",
-                Height = 56,
-                Margin = new Thickness(0, 0, 0, 8),
-                FontSize = 15,
-                FontWeight = FontWeights.Bold,
-                Style = (Style)FindResource("TouchButtonStyle"),
-                Background = _selectedCategory == null ? (Brush)FindResource("BrandPrimaryBrush") : (Brush)FindResource("CardDarkBrush")
-            };
-            allBtn.Click += (s, e) =>
-            {
-                _selectedCategory = null;
-                RenderCategories();
-                RenderProducts(ProductSearchBox.Text);
-            };
-            CategoriesStackPanel.Children.Add(allBtn);
+            _categoryChips.Clear();
+            _categoryChips.Add(new CategoryChipVM(0, "Barchasi", "all", _products.Count, _selectedCategory == null));
 
             foreach (var cat in _categories)
             {
-                string icon = cat.Department switch
-                {
-                    "shashlik" => "🥩",
-                    "somsa" => "🥟",
-                    "fastfood" => "🍔",
-                    "bar" => "☕",
-                    _ => "🍲"
-                };
-
                 int pCount = _products.Count(p => p.CategoryId == cat.Id);
+                _categoryChips.Add(new CategoryChipVM(cat.Id, cat.Name, cat.Department, pCount, _selectedCategory?.Id == cat.Id));
+            }
+        }
 
-                var btn = new Button
+        private void OnCategoryChipClicked(object sender, RoutedEventArgs e)
+        {
+            if (sender is RadioButton rb && rb.Tag is CategoryChipVM chip)
+            {
+                _selectedCategory = chip.Id == 0 ? null : _categories.FirstOrDefault(c => c.Id == chip.Id);
+                foreach (var c in _categoryChips)
                 {
-                    Content = $"{icon} {cat.Name} ({pCount})",
-                    Height = 54,
-                    Margin = new Thickness(0, 0, 0, 8),
-                    FontSize = 14,
-                    FontWeight = FontWeights.SemiBold,
-                    Style = (Style)FindResource("TouchButtonStyle"),
-                    Background = _selectedCategory?.Id == cat.Id ? (Brush)FindResource("BrandPrimaryBrush") : (Brush)FindResource("CardDarkBrush"),
-                    Tag = cat
-                };
-                btn.Click += (s, e) =>
-                {
-                    _selectedCategory = (Category)((Button)s).Tag;
-                    RenderCategories();
-                    RenderProducts(ProductSearchBox.Text);
-                };
-                CategoriesStackPanel.Children.Add(btn);
+                    c.IsSelected = c.Id == chip.Id;
+                }
+                RenderProducts(ProductSearchBox.Text);
+            }
+        }
+
+        private void EnsureProductTileMap()
+        {
+            if (_productTileMap.Count == _products.Count && _products.All(p => _productTileMap.ContainsKey(p.Id)))
+            {
+                return;
+            }
+
+            _productTileMap.Clear();
+            foreach (var prod in _products)
+            {
+                int inCartQty = _currentCart.Items.FirstOrDefault(i => i.ProductId == prod.Id)?.Quantity ?? 0;
+                _productTileMap[prod.Id] = new ProductTileVM(prod, inCartQty);
+            }
+        }
+
+        private void SyncProductInCartQuantities()
+        {
+            EnsureProductTileMap();
+            foreach (var kv in _productTileMap)
+            {
+                int qty = _currentCart.Items.FirstOrDefault(i => i.ProductId == kv.Key)?.Quantity ?? 0;
+                kv.Value.InCartQty = qty;
+            }
+        }
+
+        private void SyncSingleProductTileQty(int productId)
+        {
+            if (_productTileMap.TryGetValue(productId, out var tile))
+            {
+                tile.InCartQty = _currentCart.Items.FirstOrDefault(i => i.ProductId == productId)?.Quantity ?? 0;
             }
         }
 
         private void RenderProducts(string? query = null)
         {
-            ProductsWrapPanel.Children.Clear();
-            var list = _products;
+            EnsureProductTileMap();
+            _visibleProductTiles.Clear();
 
+            IEnumerable<Product> list = _products;
             if (_selectedCategory != null)
-                list = list.Where(p => p.CategoryId == _selectedCategory.Id).ToList();
+                list = list.Where(p => p.CategoryId == _selectedCategory.Id);
 
             if (!string.IsNullOrWhiteSpace(query))
-                list = list.Where(p => p.Name.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
+                list = list.Where(p => p.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
 
             foreach (var prod in list)
             {
-                int inCartQty = _currentCart.Items.FirstOrDefault(i => i.ProductId == prod.Id)?.Quantity ?? 0;
-
-                // Katta sensorli taom kartasi (220x165px)
-                var card = new Border
+                if (_productTileMap.TryGetValue(prod.Id, out var vm))
                 {
-                    Width = 220,
-                    Height = 165,
-                    Margin = new Thickness(8),
-                    CornerRadius = new CornerRadius(12),
-                    Background = prod.IsAvailable ? (Brush)FindResource("CardDarkBrush") : new SolidColorBrush(Color.FromRgb(45, 20, 20)),
-                    BorderThickness = new Thickness(2),
-                    BorderBrush = !prod.IsAvailable ? (Brush)FindResource("DangerRedBrush") :
-                                 inCartQty > 0 ? (Brush)FindResource("AccentGoldBrush") : new SolidColorBrush(Color.FromRgb(51, 65, 85)),
-                    Padding = new Thickness(14),
-                    Cursor = prod.IsAvailable ? Cursors.Hand : Cursors.No,
-                    Tag = prod,
-                    Opacity = prod.IsAvailable ? 1.0 : 0.65
-                };
-
-                var grid = new Grid();
-                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-                // 1. Toifa va Savatdagi soni badge
-                var topGrid = new Grid();
-                var deptPill = new TextBlock
-                {
-                    Text = prod.CategoryName.ToUpper(),
-                    FontSize = 11,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                topGrid.Children.Add(deptPill);
-
-                if (inCartQty > 0)
-                {
-                    var qtyBadge = new Border
-                    {
-                        HorizontalAlignment = HorizontalAlignment.Right,
-                        Background = (Brush)FindResource("AccentGoldBrush"),
-                        CornerRadius = new CornerRadius(6),
-                        Padding = new Thickness(8, 2, 8, 2)
-                    };
-                    qtyBadge.Child = new TextBlock { Text = $"x{inCartQty}", FontSize = 12, FontWeight = FontWeights.Black, Foreground = Brushes.White };
-                    topGrid.Children.Add(qtyBadge);
+                    int qty = _currentCart.Items.FirstOrDefault(i => i.ProductId == prod.Id)?.Quantity ?? 0;
+                    vm.InCartQty = qty;
+                    vm.SyncAvailabilityFromModel();
+                    _visibleProductTiles.Add(vm);
                 }
-                Grid.SetRow(topGrid, 0);
-
-                // 2. Taom Nomi
-                var nameBlock = new TextBlock
-                {
-                    Text = prod.Name,
-                    FontSize = 16,
-                    FontWeight = FontWeights.ExtraBold,
-                    Foreground = Brushes.White,
-                    TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 6, 0, 6),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                Grid.SetRow(nameBlock, 1);
-
-                // 3. Pastki Narx va Status
-                var bottomGrid = new Grid();
-                var priceText = new TextBlock
-                {
-                    Text = prod.FormattedPrice,
-                    FontSize = 17,
-                    FontWeight = FontWeights.Black,
-                    Foreground = (Brush)FindResource("SuccessGreenBrush"),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                bottomGrid.Children.Add(priceText);
-
-                if (!prod.IsAvailable)
-                {
-                    var stopPill = new Border
-                    {
-                        HorizontalAlignment = HorizontalAlignment.Right,
-                        Background = (Brush)FindResource("DangerRedBrush"),
-                        CornerRadius = new CornerRadius(6),
-                        Padding = new Thickness(8, 3, 8, 3)
-                    };
-                    stopPill.Child = new TextBlock { Text = "STOP-LIST", FontSize = 11, FontWeight = FontWeights.Black, Foreground = Brushes.White };
-                    bottomGrid.Children.Add(stopPill);
-                }
-                Grid.SetRow(bottomGrid, 2);
-
-                grid.Children.Add(topGrid);
-                grid.Children.Add(nameBlock);
-                grid.Children.Add(bottomGrid);
-                card.Child = grid;
-
-                if (prod.IsAvailable)
-                {
-                    card.MouseLeftButtonUp += (s, e) => AddProductToCart((Product)((Border)s).Tag);
-                }
-
-                ProductsWrapPanel.Children.Add(card);
             }
+
+            bool isEmpty = _visibleProductTiles.Count == 0;
+            ProductsScrollViewer.Visibility = isEmpty ? Visibility.Collapsed : Visibility.Visible;
+            ProductsEmptyState.Visibility = isEmpty ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void OnProductTileClicked(object? sender, ProductTileVM tile)
+        {
+            AddProductToCart(tile.Model);
         }
 
         private void AddProductToCart(Product prod)
@@ -748,10 +703,12 @@ namespace DilkashPos
             if (existing != null)
             {
                 existing.Quantity++;
+                var lineVm = _cartLines.FirstOrDefault(l => l.ProductId == prod.Id);
+                lineVm?.SyncFromModel();
             }
             else
             {
-                _currentCart.Items.Add(new OrderItem
+                var newItem = new OrderItem
                 {
                     ProductId = prod.Id,
                     ProductName = prod.Name,
@@ -759,93 +716,65 @@ namespace DilkashPos
                     Quantity = 1,
                     Department = prod.Department,
                     CategoryName = prod.CategoryName
-                });
+                };
+                _currentCart.Items.Add(newItem);
+                _cartLines.Add(new CartLineVM(newItem));
             }
-            UpdateCartUI();
-            RenderProducts(ProductSearchBox.Text);
+
+            // Update ONLY the tapped tile without rebuilding the product grid!
+            SyncSingleProductTileQty(prod.Id);
+            RecalculateAndDisplayCartSummary();
+        }
+
+        private void OnCartLineIncrement(object? sender, CartLineVM line)
+        {
+            line.Quantity++;
+            SyncSingleProductTileQty(line.ProductId);
+            RecalculateAndDisplayCartSummary();
+        }
+
+        private void OnCartLineDecrement(object? sender, CartLineVM line)
+        {
+            if (line.Quantity > 1)
+            {
+                line.Quantity--;
+            }
+            else
+            {
+                _currentCart.Items.Remove(line.Model);
+                _cartLines.Remove(line);
+            }
+
+            SyncSingleProductTileQty(line.ProductId);
+            RecalculateAndDisplayCartSummary();
+        }
+
+        private void OnCartLineEditNote(object? sender, CartLineVM line)
+        {
+            var dlg = new ItemModifierDialog(line.ProductName, line.Notes);
+            if (Dialogs.ShowModal(dlg, this) == true)
+            {
+                line.Notes = dlg.Notes;
+            }
         }
 
         private void UpdateCartUI()
         {
-            CartItemsStackPanel.Children.Clear();
-
+            _cartLines.Clear();
             foreach (var item in _currentCart.Items)
             {
-                var border = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
-                    CornerRadius = new CornerRadius(10),
-                    Padding = new Thickness(12),
-                    Margin = new Thickness(0, 0, 0, 10),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(30, 41, 59)),
-                    BorderThickness = new Thickness(1)
-                };
-
-                var grid = new Grid();
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                // Chap: Taom nomi, Izohi va Hisobi
-                var leftStack = new StackPanel();
-                leftStack.Children.Add(new TextBlock { Text = item.ProductName, FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
-                leftStack.Children.Add(new TextBlock { Text = $"{item.Price:N0} so'm × {item.Quantity} = {item.Total:N0} so'm", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), Margin = new Thickness(0, 2, 0, 0) });
-
-                if (!string.IsNullOrEmpty(item.Notes))
-                {
-                    leftStack.Children.Add(new TextBlock { Text = $"💬 {item.Notes}", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("AccentGoldBrush"), Margin = new Thickness(0, 4, 0, 0) });
-                }
-                Grid.SetColumn(leftStack, 0);
-
-                // O'ng: Sensorli Katta Stepper (- / +) va Izoh tugmasi
-                var rightStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-
-                var noteBtn = new Button { Content = "✎ Izoh", Height = 40, Padding = new Thickness(10, 0, 10, 0), FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 8, 0), Style = (Style)FindResource("TouchSecondaryButton"), Tag = item };
-                var minusBtn = new Button { Content = "—", Width = 40, Height = 40, FontSize = 18, FontWeight = FontWeights.Black, Margin = new Thickness(2, 0, 2, 0), Style = (Style)FindResource("TouchSecondaryButton"), Tag = item };
-                var qtyBlock = new TextBlock { Text = item.Quantity.ToString(), Width = 34, TextAlignment = TextAlignment.Center, FontSize = 17, FontWeight = FontWeights.Black, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
-                var plusBtn = new Button { Content = "+", Width = 40, Height = 40, FontSize = 18, FontWeight = FontWeights.Black, Margin = new Thickness(2, 0, 0, 0), Style = (Style)FindResource("TouchSecondaryButton"), Tag = item };
-
-                noteBtn.Click += (s, e) =>
-                {
-                    var it = (OrderItem)((Button)s).Tag;
-                    var dlg = new ItemModifierDialog(it.ProductName, it.Notes);
-                    if (Dialogs.ShowModal(dlg, this) == true)
-                    {
-                        it.Notes = dlg.Notes;
-                        UpdateCartUI();
-                    }
-                };
-
-                minusBtn.Click += (s, e) =>
-                {
-                    var it = (OrderItem)((Button)s).Tag;
-                    it.Quantity--;
-                    if (it.Quantity <= 0) _currentCart.Items.Remove(it);
-                    UpdateCartUI();
-                    RenderProducts(ProductSearchBox.Text);
-                };
-
-                plusBtn.Click += (s, e) =>
-                {
-                    var it = (OrderItem)((Button)s).Tag;
-                    it.Quantity++;
-                    UpdateCartUI();
-                    RenderProducts(ProductSearchBox.Text);
-                };
-
-                rightStack.Children.Add(noteBtn);
-                rightStack.Children.Add(minusBtn);
-                rightStack.Children.Add(qtyBlock);
-                rightStack.Children.Add(plusBtn);
-                Grid.SetColumn(rightStack, 1);
-
-                grid.Children.Add(leftStack);
-                grid.Children.Add(rightStack);
-                border.Child = grid;
-
-                CartItemsStackPanel.Children.Add(border);
+                _cartLines.Add(new CartLineVM(item));
             }
 
-            // Moliyaviy hisob-kitoblar
+            RecalculateAndDisplayCartSummary();
+        }
+
+        private void RecalculateAndDisplayCartSummary()
+        {
+            bool hasLines = _cartLines.Count > 0;
+            CartLinesScrollViewer.Visibility = hasLines ? Visibility.Visible : Visibility.Collapsed;
+            CartEmptyHint.Visibility = hasLines ? Visibility.Collapsed : Visibility.Visible;
+
             decimal subtotal = _currentCart.Items.Sum(i => i.Total);
             _currentCart.ProductsTotal = subtotal;
 
@@ -860,12 +789,13 @@ namespace DilkashPos
             _currentCart.ServiceFeeAmount = serviceFee;
             _currentCart.RecalculateTotals();
 
-            CartSubtotalText.Text = $"{subtotal:N0} so'm";
-            DiscountPillBtn.Content = $"🏷 Chegirma: {_currentCart.DiscountPercent:0}% (F4)";
-            CartDiscountText.Text = $"-{_currentCart.DiscountAmount:N0} so'm";
-            ServiceFeeLabelText.Text = $"Xizmat haqi ({(_settings.ServiceFeeType == "percent" ? $"{_settings.ServiceFeePercent:0}%" : "Odam boshiga")}):";
-            CartServiceFeeText.Text = $"{serviceFee:N0} so'm";
-            CartTotalText.Text = $"{_currentCart.TotalAmount:N0} so'm";
+            CartSubtotalText.Text = MoneyFormatter.Format(subtotal);
+            DiscountBtnLabelText.Text = $"Chegirma: {_currentCart.DiscountPercent:0}%";
+            CartDiscountText.Text = MoneyFormatter.FormatDiscount(_currentCart.DiscountAmount);
+            ServiceFeeLabelText.Text = $"Xizmat haqi ({(_settings.ServiceFeeType == "percent" ? $"{_settings.ServiceFeePercent:0}%" : "Odam boshiga")})";
+            CartServiceFeeText.Text = MoneyFormatter.Format(serviceFee);
+            CartTotalText.Text = MoneyFormatter.Format(_currentCart.TotalAmount);
+            PayButtonText.Text = $"Toʻlov · {MoneyFormatter.Format(_currentCart.TotalAmount)}";
         }
 
         private void OnDiscountPillClick(object sender, RoutedEventArgs e)
@@ -874,7 +804,7 @@ namespace DilkashPos
             if (Dialogs.ShowModal(dlg, this) == true)
             {
                 _currentCart.DiscountPercent = dlg.DiscountPercent;
-                UpdateCartUI();
+                RecalculateAndDisplayCartSummary();
             }
         }
 
@@ -977,10 +907,10 @@ namespace DilkashPos
                 }
 
                 _currentCart = new Order { ServiceType = "pickup" };
-                CartTitleText.Text = "Tezkor savdo (Saboy)";
+                CartTitleText.Text = "Saboy";
                 CartSubtitleText.Text = "Kassir: " + _settings.CashierName;
+                SyncProductInCartQuantities();
                 UpdateCartUI();
-                RenderProducts();
 
                 Toast.Show("Toʻlov qabul qilindi va kassa cheki chop etildi", ToastTone.Success);
             }
@@ -1031,8 +961,8 @@ namespace DilkashPos
             _currentCart.Items.Clear();
             _currentCart.DiscountPercent = 0;
             _currentCart.DiscountAmount = 0;
+            SyncProductInCartQuantities();
             UpdateCartUI();
-            RenderProducts(ProductSearchBox.Text);
         }
 
         private void OnProductSearchChanged(object sender, TextChangedEventArgs e)
@@ -1040,8 +970,13 @@ namespace DilkashPos
             RenderProducts(ProductSearchBox.Text);
         }
 
-        private void OnClearSearchClick(object sender, RoutedEventArgs e)
+        private void OnResetProductFilter(object? sender, EventArgs e)
         {
+            _selectedCategory = null;
+            foreach (var c in _categoryChips)
+            {
+                c.IsSelected = c.Id == 0;
+            }
             ProductSearchBox.Text = "";
             RenderProducts();
         }
@@ -1104,7 +1039,10 @@ namespace DilkashPos
                     await _db.UpdateProductAvailabilityAsync(p.Id, p.IsAvailable);
                     await _api.ToggleStopListAsync(p.Id, p.IsAvailable);
                     RenderStopList(StopListSearchBox.Text);
-                    RenderProducts();
+                    if (_productTileMap.TryGetValue(p.Id, out var tile))
+                    {
+                        tile.SyncAvailabilityFromModel();
+                    }
                 };
                 Grid.SetColumn(toggleBtn, 1);
 
@@ -1379,6 +1317,7 @@ namespace DilkashPos
             _currentShift = shift;
             _settings = setts;
             _currentCart = Demo.DemoData.GetDemoCart();
+            _activeTableContext = _tables.FirstOrDefault(t => t.Number.ToString() == _currentCart.TableNumber);
 
             RenderTables();
             RenderCategories();
@@ -1420,6 +1359,20 @@ namespace DilkashPos
                 RenderTables();
             }
             UpdateTablesLoadingAndEmptyStates();
+        }
+
+        public void SetDemoQuickPosEmpty(bool empty)
+        {
+            if (empty)
+            {
+                ProductSearchBox.Text = "Mavjud boʻlmagan taom";
+                RenderProducts(ProductSearchBox.Text);
+            }
+            else
+            {
+                ProductSearchBox.Text = "";
+                RenderProducts();
+            }
         }
 
         public void SwitchToTabPublic(string tag)

@@ -158,21 +158,26 @@
                                 CornerRadius="{StaticResource RadiusSm}"
                                 Padding="{TemplateBinding Padding}"
                                 SnapsToDevicePixels="True">
-                            <StackPanel Orientation="Horizontal"
-                                        HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                        VerticalAlignment="{TemplateBinding VerticalContentAlignment}">
+                            <Grid HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
                                 <controls:Icon x:Name="loadingIcon"
+                                               Grid.Column="0"
                                                Data="{StaticResource IconRefresh}"
                                                Size="18"
                                                Foreground="{TemplateBinding Foreground}"
                                                Margin="0,0,8,0"
                                                Visibility="Collapsed" />
                                 <ContentPresenter x:Name="contentPresenter"
+                                                  Grid.Column="1"
                                                   Focusable="False"
-                                                  HorizontalAlignment="Center"
-                                                  VerticalAlignment="Center"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                                   SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
-                            </StackPanel>
+                            </Grid>
                         </Border>
                         <Border x:Name="focusRing"
                                 Margin="-2"

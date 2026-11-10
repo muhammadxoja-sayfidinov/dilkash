@@ -583,152 +583,413 @@
             </Grid>
 
             <!-- ===================================================== -->
-            <!-- 2. TAB: TEZKOR KASSA & SABOY (3-COLUMN POS WORKSPACE) -->
+            <!-- 2. TAB: TEZKOR SAVDO (2-COLUMN RESPONSIVE ORDER UI)   -->
             <!-- ===================================================== -->
             <Grid x:Name="QuickPosTab" Visibility="Collapsed">
                 <Grid.ColumnDefinitions>
-                    <!-- Chap: Toifalar Tanlovi (260px) -->
-                    <ColumnDefinition Width="260" />
-                    <!-- O'rta: Taomlar Katalogi va Qidiruv (Keng) -->
+                    <!-- Left: Category Bar + Search + Product Grid (Flex) -->
                     <ColumnDefinition Width="*" />
-                    <!-- O'ng: Buyurtma Cheki Savatchasi (460px) -->
-                    <ColumnDefinition Width="460" />
+                    <ColumnDefinition Width="12" />
+                    <!-- Right: Cart Panel (440px >=1600, 380px <1600) -->
+                    <ColumnDefinition x:Name="CartColumn" Width="440" />
                 </Grid.ColumnDefinitions>
 
-                <!-- 1. TOIFALAR USTUNI (WIDTH: 260PX) -->
-                <Border Grid.Column="0" Background="{StaticResource CardDarkBrush}" CornerRadius="12" Padding="12" Margin="0,0,12,0" BorderBrush="#334155" BorderThickness="1">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0" Text="MENYU TOIFALARI" FontSize="14" FontWeight="Black" Foreground="#94A3B8" Margin="8,4,0,12" />
-
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                            <StackPanel x:Name="CategoriesStackPanel">
-                                <!-- Kategoriya tugmalari (54px balandlikda) -->
-                            </StackPanel>
-                        </ScrollViewer>
-                    </Grid>
-                </Border>
-
-                <!-- 2. TAOMLAR KATALOGI USTUNI (MARKAZIY) -->
-                <Grid Grid.Column="1" Margin="0,0,12,0">
+                <!-- LEFT COLUMN: CATEGORIES + SEARCH + PRODUCTS -->
+                <Grid Grid.Column="0">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="56" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <!-- Qidiruv va Tezkor Filtrlash Qatori -->
-                    <Border Grid.Row="0" Background="{StaticResource CardDarkBrush}" CornerRadius="12" Padding="12,8" Margin="0,0,0,12" BorderBrush="#334155" BorderThickness="1">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="🔍" FontSize="20" VerticalAlignment="Center" Margin="8,0,10,0" />
-                            <TextBox x:Name="ProductSearchBox" Grid.Column="1" Height="46" Padding="6,10" FontSize="17" 
-                                     Background="Transparent" Foreground="White" BorderThickness="0"
-                                     TextChanged="OnProductSearchChanged" VerticalContentAlignment="Center" />
-                            <Button Grid.Column="2" Content="✕ Tozalash" Padding="12,6" Height="36" Style="{StaticResource TouchSecondaryButton}" Click="OnClearSearchClick" />
-                        </Grid>
-                    </Border>
+                    <!-- 56px Horizontal Scrollable Category Chip Bar -->
+                    <ScrollViewer Grid.Row="0"
+                                  HorizontalScrollBarVisibility="Hidden"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  PanningMode="HorizontalOnly"
+                                  VerticalAlignment="Center">
+                        <ScrollViewer.Style>
+                            <Style TargetType="{x:Type ScrollViewer}">
+                                <Setter Property="PanningMode" Value="HorizontalOnly" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="{x:Type ScrollViewer}">
+                                            <ScrollContentPresenter CanContentScroll="{TemplateBinding CanContentScroll}"
+                                                                    CanHorizontallyScroll="True"
+                                                                    CanVerticallyScroll="False" />
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ScrollViewer.Style>
 
-                    <!-- Taomlar Katta Panjarasi -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <WrapPanel x:Name="ProductsWrapPanel" Margin="0,0,0,20">
-                            <!-- Taom kartochkalari (220x165px) -->
-                        </WrapPanel>
+                        <ItemsControl x:Name="CategoryChipsItemsControl" VerticalAlignment="Center">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <RadioButton GroupName="PosCategoryChips"
+                                                 IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                 MinHeight="48" Height="48"
+                                                 Padding="14,8"
+                                                 Margin="0,0,8,0"
+                                                 Cursor="Hand"
+                                                 FocusVisualStyle="{x:Null}"
+                                                 Stylus.IsPressAndHoldEnabled="False"
+                                                 Stylus.IsFlicksEnabled="False"
+                                                 Stylus.IsTapFeedbackEnabled="False"
+                                                 Stylus.IsTouchFeedbackEnabled="False"
+                                                 Click="OnCategoryChipClicked"
+                                                 Tag="{Binding}">
+                                        <RadioButton.Template>
+                                            <ControlTemplate TargetType="{x:Type RadioButton}">
+                                                <Grid RenderTransformOrigin="0.5,0.5">
+                                                    <Grid.RenderTransform>
+                                                        <ScaleTransform x:Name="pressScale" ScaleX="1" ScaleY="1" />
+                                                    </Grid.RenderTransform>
+                                                    <Border x:Name="chipBorder"
+                                                            Background="{DynamicResource BrushSurface}"
+                                                            BorderBrush="{DynamicResource BrushBorder}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="24"
+                                                            Padding="{TemplateBinding Padding}">
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <controls:Icon Size="16" Margin="0,0,8,0" VerticalAlignment="Center">
+                                                                <controls:Icon.Style>
+                                                                    <Style TargetType="{x:Type controls:Icon}" BasedOn="{StaticResource {x:Type controls:Icon}}">
+                                                                        <Setter Property="Data" Value="{StaticResource IconBowl}" />
+                                                                        <Setter Property="Foreground" Value="{DynamicResource BrushTextSecondary}" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Department}" Value="all">
+                                                                                <Setter Property="Data" Value="{StaticResource IconTables}" />
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Department}" Value="shashlik">
+                                                                                <Setter Property="Data" Value="{StaticResource IconGrill}" />
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Department}" Value="somsa">
+                                                                                <Setter Property="Data" Value="{StaticResource IconChef}" />
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Department}" Value="fastfood">
+                                                                                <Setter Property="Data" Value="{StaticResource IconBurger}" />
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Department}" Value="bar">
+                                                                                <Setter Property="Data" Value="{StaticResource IconCoffee}" />
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                                <Setter Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </controls:Icon.Style>
+                                                            </controls:Icon>
+                                                            <TextBlock x:Name="chipText"
+                                                                       Text="{Binding DisplayLabel}"
+                                                                       Style="{StaticResource TextLabel}"
+                                                                       Foreground="{DynamicResource BrushTextSecondary}"
+                                                                       Typography.NumeralAlignment="Tabular"
+                                                                       VerticalAlignment="Center" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <Border x:Name="focusRing"
+                                                            Margin="-1"
+                                                            BorderBrush="{DynamicResource BrushFocusRing}"
+                                                            BorderThickness="2"
+                                                            CornerRadius="24"
+                                                            Visibility="Collapsed"
+                                                            IsHitTestVisible="False" />
+                                                </Grid>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsChecked" Value="True">
+                                                        <Setter TargetName="chipBorder" Property="Background" Value="{DynamicResource BrushPrimary}" />
+                                                        <Setter TargetName="chipBorder" Property="BorderBrush" Value="{DynamicResource BrushPrimaryBright}" />
+                                                        <Setter TargetName="chipText" Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
+                                                    </Trigger>
+                                                    <MultiTrigger>
+                                                        <MultiTrigger.Conditions>
+                                                            <Condition Property="IsMouseOver" Value="True" />
+                                                            <Condition Property="IsChecked" Value="False" />
+                                                        </MultiTrigger.Conditions>
+                                                        <Setter TargetName="chipBorder" Property="Background" Value="{DynamicResource BrushSurfaceElevated}" />
+                                                        <Setter TargetName="chipText" Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
+                                                    </MultiTrigger>
+                                                    <Trigger Property="IsPressed" Value="True">
+                                                        <Trigger.EnterActions>
+                                                            <BeginStoryboard>
+                                                                <Storyboard>
+                                                                    <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleX" To="0.97" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
+                                                                    <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleY" To="0.97" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </Trigger.EnterActions>
+                                                        <Trigger.ExitActions>
+                                                            <BeginStoryboard>
+                                                                <Storyboard>
+                                                                    <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleX" To="1.0" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
+                                                                    <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleY" To="1.0" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
+                                                                </Storyboard>
+                                                            </BeginStoryboard>
+                                                        </Trigger.ExitActions>
+                                                    </Trigger>
+                                                    <Trigger Property="IsKeyboardFocused" Value="True">
+                                                        <Setter TargetName="focusRing" Property="Visibility" Value="Visible" />
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </RadioButton.Template>
+                                    </RadioButton>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </ScrollViewer>
+
+                    <!-- Search Field -->
+                    <controls:SearchBox x:Name="ProductSearchBox"
+                                        Grid.Row="1"
+                                        Placeholder="Taom nomi boʻyicha qidirish..."
+                                        Margin="0,10,0,12"
+                                        TextChanged="OnProductSearchChanged" />
+
+                    <!-- Product Grid / EmptyState -->
+                    <Grid Grid.Row="2">
+                        <ScrollViewer x:Name="ProductsScrollViewer" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl x:Name="ProductsItemsControl" Margin="0,0,-12,16">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="{Binding ProductColumns, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                     VerticalAlignment="Top" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <controls:ProductTile Margin="0,0,12,12" TileClicked="OnProductTileClicked" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+
+                        <controls:EmptyState x:Name="ProductsEmptyState"
+                                             IconData="{StaticResource IconSearch}"
+                                             Title="Taom topilmadi"
+                                             Subtitle="Qidiruv soʻzini oʻzgartiring yoki boshqa toifani tanlang."
+                                             ActionLabel="Filtrni tozalash"
+                                             ActionClicked="OnResetProductFilter"
+                                             VerticalAlignment="Center"
+                                             HorizontalAlignment="Center"
+                                             Visibility="Collapsed" />
+                    </Grid>
                 </Grid>
 
-                <!-- 3. BUYURTMA CHEKI SAVATCHASI (RECEIPT CART - 460PX) -->
-                <Border Grid.Column="2" Background="{StaticResource CardDarkBrush}" CornerRadius="12" Padding="18" BorderBrush="#334155" BorderThickness="1">
+                <!-- RIGHT COLUMN: CART PANEL -->
+                <Border Grid.Column="2"
+                        Background="{DynamicResource BrushSurface}"
+                        BorderBrush="{DynamicResource BrushBorder}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource RadiusMd}"
+                        Padding="14">
                     <Grid>
                         <Grid.RowDefinitions>
-                            <!-- Chek Sarlavhasi (Auto) -->
                             <RowDefinition Height="Auto" />
-                            <!-- Elementlar Ro'yxati (*) -->
                             <RowDefinition Height="*" />
-                            <!-- Summa va Hisob-kitob (Auto) -->
                             <RowDefinition Height="Auto" />
-                            <!-- Katta To'lov va Chek Tugmalari (Auto) -->
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
-                        <!-- Chek Sarlavhasi va Konteksti -->
-                        <Border Grid.Row="0" Background="#0B1323" CornerRadius="10" Padding="14,12" Margin="0,0,0,12" BorderBrush="#1E293B" BorderThickness="1">
-                            <Grid>
-                                <StackPanel>
-                                    <TextBlock x:Name="CartTitleText" Text="⚡ TEZKOR SABOY (OLIB KETISH)" FontSize="18" FontWeight="Black" Foreground="White" />
-                                    <TextBlock x:Name="CartSubtitleText" Text="Kassir: Jasur • Sana: Bugun" FontSize="12" Foreground="#94A3B8" Margin="0,3,0,0" />
-                                </StackPanel>
-                                <Button Content="🗑 Tozalash" HorizontalAlignment="Right" VerticalAlignment="Center" Padding="12,6" Style="{StaticResource TouchDangerButton}" Height="36" FontSize="12" Click="OnClearCartClick" />
-                            </Grid>
-                        </Border>
+                        <!-- 1. Context Header + Ghost Clear -->
+                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                        <!-- Elementlar Ro'yxati (Scrollable) -->
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                            <StackPanel x:Name="CartItemsStackPanel">
-                                <!-- Savatcha elementlari -->
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0">
+                                <TextBlock x:Name="CartTitleText"
+                                           Text="Saboy"
+                                           Style="{StaticResource TextTitle}" />
+                                <TextBlock x:Name="CartSubtitleText"
+                                           Text="Kassir: Jasur Rahimov"
+                                           Style="{StaticResource TextCaption}"
+                                           Margin="0,2,0,0" />
                             </StackPanel>
-                        </ScrollViewer>
 
-                        <!-- Moliyaviy Xulosa Qutisi -->
-                        <Border Grid.Row="2" Background="#0B1323" CornerRadius="10" Padding="16,14" Margin="0,10,0,10" BorderBrush="#1E293B" BorderThickness="1">
+                            <Button Grid.Column="1"
+                                    Style="{StaticResource GhostButton}"
+                                    MinHeight="48"
+                                    Padding="12,8"
+                                    Click="OnClearCartClick"
+                                    ToolTip="Savatchani tozalash">
+                                <StackPanel Orientation="Horizontal">
+                                    <controls:Icon Data="{StaticResource IconTrash}" Size="16" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Tozalash" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+
+                        <!-- 2. Cart Lines (Scrollable) -->
+                        <Grid Grid.Row="1">
+                            <ScrollViewer x:Name="CartLinesScrollViewer" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl x:Name="CartLinesItemsControl">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <controls:CartLine Margin="0,0,0,8"
+                                                               IncrementClicked="OnCartLineIncrement"
+                                                               DecrementClicked="OnCartLineDecrement"
+                                                               EditNoteClicked="OnCartLineEditNote" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
+                            <!-- Quiet Empty Cart Placeholder -->
+                            <StackPanel x:Name="CartEmptyHint"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Visibility="Collapsed">
+                                <Border Width="56" Height="56" CornerRadius="28" Background="{DynamicResource BrushBg}" BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="1" HorizontalAlignment="Center" Margin="0,0,0,12">
+                                    <controls:Icon Data="{StaticResource IconQuickSale}" Size="24" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock Text="Savatcha boʻsh" Style="{StaticResource TextBodyBold}" HorizontalAlignment="Center" />
+                                <TextBlock Text="Taom qoʻshish uchun chapdan tanlang" Style="{StaticResource TextCaption}" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- 3. Financial Summary -->
+                        <Border Grid.Row="2"
+                                Background="{DynamicResource BrushBg}"
+                                BorderBrush="{DynamicResource BrushBorderSubtle}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource RadiusSm}"
+                                Padding="12,10"
+                                Margin="0,8,0,10">
                             <StackPanel>
                                 <!-- Taomlar summasi -->
-                                <Grid Margin="0,0,0,6">
-                                    <TextBlock Text="Taomlar summasi:" FontSize="15" Foreground="#94A3B8" />
-                                    <TextBlock x:Name="CartSubtotalText" Text="0 so'm" FontSize="15" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Right" />
+                                <Grid Margin="0,0,0,4">
+                                    <TextBlock Text="Taomlar summasi" Style="{StaticResource TextLabel}" VerticalAlignment="Center" />
+                                    <TextBlock x:Name="CartSubtotalText" Text="0&#160;soʻm" Style="{StaticResource TextAmount}" FontSize="15" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
 
-                                <!-- Chegirma Qatori (Bosiladigan F4) -->
-                                <Grid Margin="0,0,0,6">
-                                    <Button x:Name="DiscountPillBtn" Content="🏷 Chegirma: 0%" Height="32" Padding="10,2" FontSize="12" FontWeight="Bold" Style="{StaticResource TouchGoldButton}" HorizontalAlignment="Left" Click="OnDiscountPillClick" />
-                                    <TextBlock x:Name="CartDiscountText" Text="-0 so'm" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource AccentGoldBrush}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                <!-- Chegirma Pill (F4) -->
+                                <Grid Margin="0,2,0,4">
+                                    <Button x:Name="DiscountPillBtn"
+                                            Style="{StaticResource SecondaryButton}"
+                                            MinHeight="48" Height="48"
+                                            Padding="12,6"
+                                            HorizontalAlignment="Left"
+                                            Click="OnDiscountPillClick">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <controls:Icon Data="{StaticResource IconTag}" Size="15" Foreground="{DynamicResource BrushAmberBright}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="DiscountBtnLabelText" Text="Chegirma: 0%" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                                            <Border Style="{StaticResource KeycapBadge}" Margin="8,0,0,0">
+                                                <TextBlock Text="F4" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" />
+                                            </Border>
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock x:Name="CartDiscountText"
+                                               Text="-0&#160;soʻm"
+                                               Style="{StaticResource TextAmount}"
+                                               FontSize="15"
+                                               Foreground="{DynamicResource BrushAmberBright}"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" />
                                 </Grid>
 
                                 <!-- Xizmat haqi -->
                                 <Grid Margin="0,0,0,8">
-                                    <TextBlock x:Name="ServiceFeeLabelText" Text="Xizmat haqi (10%):" FontSize="15" Foreground="#94A3B8" />
-                                    <TextBlock x:Name="CartServiceFeeText" Text="0 so'm" FontSize="15" FontWeight="SemiBold" Foreground="White" HorizontalAlignment="Right" />
+                                    <TextBlock x:Name="ServiceFeeLabelText" Text="Xizmat haqi (10%)" Style="{StaticResource TextLabel}" VerticalAlignment="Center" />
+                                    <TextBlock x:Name="CartServiceFeeText" Text="0&#160;soʻm" Style="{StaticResource TextAmount}" FontSize="15" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                 </Grid>
 
-                                <Border BorderBrush="#1E293B" BorderThickness="0,1,0,0" Margin="0,4,0,8" />
+                                <!-- Hairline -->
+                                <Border Height="1" Background="{DynamicResource BrushBorder}" Margin="0,2,0,8" />
 
-                                <!-- JAMI TO'LOV -->
+                                <!-- Jami (40px Grand Total) -->
                                 <Grid>
-                                    <TextBlock Text="JAMI TO'LOV:" FontSize="19" FontWeight="Black" Foreground="White" VerticalAlignment="Center" />
-                                    <TextBlock x:Name="CartTotalText" Text="0 so'm" FontSize="30" FontWeight="Black" Foreground="{StaticResource SuccessGreenBrush}" HorizontalAlignment="Right" />
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Text="Jami"
+                                               Style="{StaticResource TextTitle}"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,12,0" />
+                                    <Viewbox Grid.Column="1" StretchDirection="DownOnly" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <TextBlock x:Name="CartTotalText"
+                                                   Text="0&#160;soʻm"
+                                                   Style="{StaticResource TextGrandTotal}" />
+                                    </Viewbox>
                                 </Grid>
                             </StackPanel>
                         </Border>
 
-                        <!-- Pastki Harakatlar Paneli -->
+                        <!-- 4. Actions: Send + Hisob, then Full-Width 72px Primary Pay -->
                         <Grid Grid.Row="3">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
-                                <RowDefinition Height="10" />
+                                <RowDefinition Height="8" />
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
 
-                            <!-- Bo'limlarga Yuborish va Pre-chek -->
                             <Grid Grid.Row="0">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="10" />
-                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="1.35*" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="0.85*" />
                                 </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" Content="🍳 BO'LIMLARGA YUBORISH" Height="50" FontSize="13" FontWeight="Bold" Style="{StaticResource TouchSecondaryButton}" Click="OnSendToKitchenClick" />
-                                <Button Grid.Column="2" Content="📄 PRE-CHEK CHIQARISH" Height="50" FontSize="13" FontWeight="Bold" Style="{StaticResource TouchSecondaryButton}" Click="OnPrintPreChekClick" />
+
+                                <Button Grid.Column="0"
+                                        Style="{StaticResource SecondaryButton}"
+                                        MinHeight="48" Height="48"
+                                        Padding="8,8"
+                                        Click="OnSendToKitchenClick">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <controls:Icon Data="{StaticResource IconSendToKitchen}" Size="15" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Boʻlimlarga yuborish" FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <Button Grid.Column="2"
+                                        Style="{StaticResource SecondaryButton}"
+                                        MinHeight="48" Height="48"
+                                        Padding="8,8"
+                                        Click="OnPrintPreChekClick">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <controls:Icon Data="{StaticResource IconReceipt}" Size="15" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Hisob" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
                             </Grid>
 
-                            <!-- Katta To'lov Qabul Qilish Tugmasi -->
-                            <Button Grid.Row="2" Content="💳 TO'LOV QABUL QILISH (F12)" Height="72" FontSize="21" FontWeight="Black"
-                                    Style="{StaticResource TouchButtonStyle}" Background="{StaticResource SuccessGreenBrush}" Click="OnPayCartClick" />
+                            <Button Grid.Row="2"
+                                    Style="{StaticResource PrimaryButton}"
+                                    MinHeight="72" Height="72"
+                                    Padding="16,12"
+                                    HorizontalContentAlignment="Stretch"
+                                    Click="OnPayCartClick">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Viewbox Grid.Column="0" StretchDirection="DownOnly" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,10,0">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <controls:Icon Data="{StaticResource IconCash}" Size="22" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="PayButtonText"
+                                                       Text="Toʻlov · 0&#160;soʻm"
+                                                       Style="{StaticResource TextAmount}"
+                                                       FontSize="20"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource BrushTextPrimary}"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Viewbox>
+                                    <Border Grid.Column="1" Style="{StaticResource KeycapBadge}" VerticalAlignment="Center">
+                                        <TextBlock Text="F12" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextPrimary}" />
+                                    </Border>
+                                </Grid>
+                            </Button>
                         </Grid>
                     </Grid>
                 </Border>
