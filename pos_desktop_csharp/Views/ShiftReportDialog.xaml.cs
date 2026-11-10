@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using DilkashPos.Models;
 using DilkashPos.Services;
+using DilkashPos.Utils;
 
 namespace DilkashPos.Views
 {
@@ -18,59 +19,71 @@ namespace DilkashPos.Views
             _printer = printer;
             _kassaPrinterIp = kassaPrinterIp;
 
-            ShiftTimeText.Text = $"Smena: {_report.OpenedAt:dd.MM.yyyy HH:mm} | Kassir: {_report.CashierName}";
-            TotalRevenueText.Text = $"{_report.TotalRevenue:N0} so'm";
-            TotalOrdersCountText.Text = $"Jami buyurtmalar: {_report.TotalOrdersCount} ta";
+            Chrome.Subtitle = $"Smena: {_report.OpenedAt:dd.MM.yyyy HH:mm} · Kassir: {_report.CashierName}";
+            TotalRevenueText.Text = MoneyFormatter.Format(_report.TotalRevenue);
+            TotalOrdersCountText.Text = $"{_report.TotalOrdersCount} ta chek";
 
-            CashRevenueText.Text = $"{_report.CashRevenue:N0} so'm";
-            CardRevenueText.Text = $"{_report.CardRevenue:N0} so'm";
-            OnlineRevenueText.Text = $"{_report.OnlineRevenue:N0} so'm";
+            CashRevenueText.Text = MoneyFormatter.Format(_report.CashRevenue);
+            CardRevenueText.Text = MoneyFormatter.Format(_report.CardRevenue);
+            OnlineRevenueText.Text = MoneyFormatter.Format(_report.OnlineRevenue);
 
-            ServiceFeeText.Text = $"{_report.ServiceFeesCollected:N0} so'm";
-            DiscountText.Text = $"{_report.DiscountsGiven:N0} so'm";
+            ServiceFeeText.Text = MoneyFormatter.Format(_report.ServiceFeesCollected);
+            DiscountText.Text = MoneyFormatter.Format(_report.DiscountsGiven);
+
+            decimal splitTotal = _report.CashRevenue + _report.CardRevenue + _report.OnlineRevenue;
+            if (splitTotal > 0)
+            {
+                CashBarCol.Width = new GridLength((double)Math.Max(0.5m, _report.CashRevenue), GridUnitType.Star);
+                CardBarCol.Width = new GridLength((double)Math.Max(0.5m, _report.CardRevenue), GridUnitType.Star);
+                OnlineBarCol.Width = new GridLength((double)Math.Max(0.5m, _report.OnlineRevenue), GridUnitType.Star);
+            }
+            else
+            {
+                CashBarCol.Width = new GridLength(1, GridUnitType.Star);
+                CardBarCol.Width = new GridLength(1, GridUnitType.Star);
+                OnlineBarCol.Width = new GridLength(1, GridUnitType.Star);
+            }
         }
 
         private async void OnPrintXReportClick(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(_kassaPrinterIp))
             {
-                MessageBox.Show("Kassa printeri IP manzili sozlanmagan!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show("Kassa printeri IP manzili sozlanmagan", ToastTone.Warning);
                 return;
             }
 
             var res = await _printer.PrintShiftReportAsync(_report, isZReport: false, _kassaPrinterIp);
             if (res.Success)
             {
-                MessageBox.Show("X-Hisobot kassa printeriga muvaffaqiyatli chop etildi!", "X-Hisobot", MessageBoxButton.OK, MessageBoxImage.Information);
+                Toast.Show("X-hisobot kassa printerida chop etildi", ToastTone.Success);
             }
             else
             {
-                MessageBox.Show(res.Message, "Printer Xatosi", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show(res.Message, ToastTone.Warning);
             }
         }
 
         private async void OnPrintZReportClick(object sender, RoutedEventArgs e)
         {
-            var confirm = MessageBox.Show("Diqqat! Z-Hisobot chop etilgach smena yopiladi va yangi kun hisobi boshlanadi. Davom ettirasizmi?",
-                "Z-Hisobot Tasdig'i", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            bool confirmed = Dialogs.Confirm(
+                "Z-hisobot tasdigʻi",
+                "Z-hisobot chop etilgach smena yopiladi va yangi hisob boshlanadi. Davom etasizmi?",
+                "Smenani yopish",
+                "Bekor qilish",
+                isDestructive: true,
+                owner: this);
 
-            if (confirm != MessageBoxResult.Yes) return;
+            if (!confirmed) return;
 
             if (!string.IsNullOrEmpty(_kassaPrinterIp))
             {
                 await _printer.PrintShiftReportAsync(_report, isZReport: true, _kassaPrinterIp);
             }
 
-            MessageBox.Show("Smena muvaffaqiyatli yopildi va Z-Hisobot chop etildi!", "Smena Yopildi", MessageBoxButton.OK, MessageBoxImage.Information);
+            Toast.Show("Smena yopildi va Z-hisobot chop etildi", ToastTone.Success);
             DialogResult = true;
-            Close();
-        }
-
-        private void OnCloseClick(object sender, RoutedEventArgs e)
-        {
-            DialogResult = false;
             Close();
         }
     }
 }
-

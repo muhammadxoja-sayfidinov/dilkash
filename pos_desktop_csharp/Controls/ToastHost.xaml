@@ -1,0 +1,70 @@
+<UserControl x:Class="DilkashPos.Controls.ToastHost"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:DilkashPos.Controls"
+             IsHitTestVisible="False">
+    <Grid HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="24,0,24,28">
+        <Border x:Name="ToastCard"
+                Background="{DynamicResource BrushSurfaceElevated}"
+                BorderBrush="{DynamicResource BrushBorder}"
+                BorderThickness="1"
+                CornerRadius="{StaticResource RadiusMd}"
+                Padding="16,10"
+                MinHeight="56"
+                MaxWidth="640"
+                Visibility="Collapsed"
+                IsHitTestVisible="True"
+                Opacity="0">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="ToastSlide" Y="12" />
+            </Border.RenderTransform>
+            <Border.Effect>
+                <DropShadowEffect Color="{StaticResource ColorShadow}" BlurRadius="24" ShadowDepth="6" Opacity="0.5" />
+            </Border.Effect>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Tone Icon Container -->
+                <Border x:Name="ToneBadge"
+                        Grid.Column="0"
+                        Width="36" Height="36"
+                        CornerRadius="18"
+                        Background="{DynamicResource BrushPrimaryTint}"
+                        VerticalAlignment="Center"
+                        Margin="0,0,12,0">
+                    <local:Icon x:Name="ToneIcon"
+                                Data="{StaticResource IconCheck}"
+                                Size="18"
+                                Foreground="{DynamicResource BrushPrimaryBright}"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                </Border>
+
+                <!-- Message -->
+                <TextBlock x:Name="MessageText"
+                           Grid.Column="1"
+                           Style="{StaticResource TextBody}"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center"
+                           Margin="0,0,12,0" />
+
+                <!-- Optional Undo / Action Button (48px touch target) -->
+                <Button x:Name="ActionBtn"
+                        Grid.Column="2"
+                        Style="{StaticResource GhostButton}"
+                        Foreground="{DynamicResource BrushAmberBright}"
+                        FontWeight="Bold"
+                        MinHeight="48"
+                        Padding="14,8"
+                        Content="Qaytarish"
+                        Visibility="Collapsed"
+                        Click="OnActionClick" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

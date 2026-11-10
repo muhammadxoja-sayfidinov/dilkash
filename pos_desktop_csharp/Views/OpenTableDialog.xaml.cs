@@ -1,7 +1,5 @@
-using System;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 
 namespace DilkashPos.Views
 {
@@ -15,48 +13,48 @@ namespace DilkashPos.Views
         {
             InitializeComponent();
             TableNumber = tableNumber;
-            TitleText.Text = string.IsNullOrEmpty(tableName) ? $"Stol #{tableNumber} Ochish" : $"{tableName} Ochish";
+            Chrome.Title = string.IsNullOrWhiteSpace(tableName) ? $"Stol #{tableNumber}" : tableName;
             WaiterNameBox.Text = defaultWaiter;
+            SelectedGuestCountText.Text = $"{SelectedGuestsCount} kishi";
 
             PopulateGuestButtons();
         }
 
         private void PopulateGuestButtons()
         {
-            GuestButtonsPanel.Children.Clear();
-            int[] counts = { 1, 2, 3, 4, 5, 6, 7, 8, 10, 12 };
+            GuestButtonsGrid.Children.Clear();
+            var segStyle = (Style)FindResource("SegmentedItem");
 
-            foreach (var count in counts)
+            for (int count = 1; count <= 12; count++)
             {
-                var btn = new Button
+                var chip = new RadioButton
                 {
-                    Content = $"{count}",
-                    Width = 60,
-                    Height = 52,
+                    GroupName = "GuestCountChips",
+                    Content = count.ToString(),
+                    MinWidth = 56,
+                    MinHeight = 56,
+                    Height = 56,
                     Margin = new Thickness(4),
+                    Padding = new Thickness(0),
                     FontSize = 18,
                     FontWeight = FontWeights.Bold,
-                    Foreground = Brushes.White,
-                    Background = count == SelectedGuestsCount ? (Brush)FindResource("BrandPrimaryBrush") : (Brush)FindResource("CardDarkBrush"),
-                    BorderThickness = new Thickness(1),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(51, 65, 85)),
+                    Style = segStyle,
+                    IsChecked = count == SelectedGuestsCount,
                     Tag = count
                 };
+                chip.SetResourceReference(BackgroundProperty, "BrushInput");
+                chip.SetResourceReference(BorderBrushProperty, "BrushBorder");
 
-                btn.Click += (s, e) =>
+                chip.Checked += (s, e) =>
                 {
-                    SelectedGuestsCount = (int)((Button)s).Tag;
-                    SelectedGuestCountText.Text = $"{SelectedGuestsCount} kishi";
-
-                    // Ranglarni yangilash
-                    foreach (Button b in GuestButtonsPanel.Children)
+                    if (s is RadioButton rb && rb.Tag is int c)
                     {
-                        int c = (int)b.Tag;
-                        b.Background = c == SelectedGuestsCount ? (Brush)FindResource("BrandPrimaryBrush") : (Brush)FindResource("CardDarkBrush");
+                        SelectedGuestsCount = c;
+                        SelectedGuestCountText.Text = $"{SelectedGuestsCount} kishi";
                     }
                 };
 
-                GuestButtonsPanel.Children.Add(btn);
+                GuestButtonsGrid.Children.Add(chip);
             }
         }
 
@@ -73,4 +71,3 @@ namespace DilkashPos.Views
         }
     }
 }
-

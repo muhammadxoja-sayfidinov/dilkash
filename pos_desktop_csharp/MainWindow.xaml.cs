@@ -1,16 +1,21 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using DilkashPos.Data;
 using DilkashPos.Models;
 using DilkashPos.Services;
+using DilkashPos.Utils;
+using DilkashPos.ViewModels;
 using DilkashPos.Views;
 
 namespace DilkashPos
@@ -30,14 +35,48 @@ namespace DilkashPos
         private List<RestaurantTable> _tables = new();
         private PosSettings _settings = new();
         private List<Order> _onlineOrders = new();
-        private readonly ShiftReport _currentShift = new();
+        private ShiftReport _currentShift = new();
 
         // Savatcha va Tanlangan elementlar
         private Order _currentCart = new() { ServiceType = "pickup" };
         private Category? _selectedCategory;
         private RestaurantTable? _activeTableContext;
         private string _currentTableFilter = "all";
+        private readonly HashSet<string> _selectedTableStatuses = new();
+        private readonly ObservableCollection<TableZoneSectionVM> _tableZoneSections = new();
+        private readonly Dictionary<int, TableCardVM> _tableCardVMs = new();
+        private readonly ObservableCollection<CategoryChipVM> _categoryChips = new();
+        private readonly ObservableCollection<ProductTileVM> _visibleProductTiles = new();
+        private readonly Dictionary<int, ProductTileVM> _productTileMap = new();
+        private readonly ObservableCollection<CartLineVM> _cartLines = new();
+        private readonly ObservableCollection<StopListItemVM> _stopListVMs = new();
+        private readonly ObservableCollection<OnlineOrderCardVM> _onlineOrderVMs = new();
+        private readonly ObservableCollection<PrinterCardVM> _printerCardVMs = new();
+        private string _stopListFilter = "all";
+        private bool _isApplyingSettings = false;
+        private bool _settingsDirty = false;
+        private int _tableColumns = 4;
+        private bool _isLoadingTables = false;
         private string _activeTabTag = "tables";
+        private bool _isDemoMode = false;
+
+        public static readonly DependencyProperty ProductColumnsProperty =
+            DependencyProperty.Register(nameof(ProductColumns), typeof(int), typeof(MainWindow), new PropertyMetadata(4));
+
+        public int ProductColumns
+        {
+            get => (int)GetValue(ProductColumnsProperty);
+            set => SetValue(ProductColumnsProperty, value);
+        }
+
+        public static readonly DependencyProperty StopListColumnsProperty =
+            DependencyProperty.Register(nameof(StopListColumns), typeof(int), typeof(MainWindow), new PropertyMetadata(3));
+
+        public int StopListColumns
+        {
+            get => (int)GetValue(StopListColumnsProperty);
+            set => SetValue(StopListColumnsProperty, value);
+        }
 
         public MainWindow()
         {
@@ -48,26 +87,90 @@ namespace DilkashPos
             _printer = new EscPosPrinterService();
             _syncEngine = new SyncEngine(_api, _db, _printer);
 
+            TableZonesItemsControl.ItemsSource = _tableZoneSections;
+            CategoryChipsItemsControl.ItemsSource = _categoryChips;
+            ProductsItemsControl.ItemsSource = _visibleProductTiles;
+            CartLinesItemsControl.ItemsSource = _cartLines;
+            StopListItemsControl.ItemsSource = _stopListVMs;
+            OnlineOrdersItemsControl.ItemsSource = _onlineOrderVMs;
+            PrintersItemsControl.ItemsSource = _printerCardVMs;
+
+            Dialogs.RegisterScrimHandler(visible => ModalScrim.Visibility = visible ? Visibility.Visible : Visibility.Collapsed);
+            Toast.RegisterHost(MainToastHost);
+
+            UpdateClockDisplay();
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _clockTimer.Tick += (s, e) =>
-            {
-                var now = DateTime.Now;
-                ClockText.Text = now.ToString("HH:mm:ss");
-                DateText.Text = now.ToString("dddd, d MMMM yyyy", new CultureInfo("uz-Latn-UZ"));
-            };
+            _clockTimer.Tick += (s, e) => UpdateClockDisplay();
             _clockTimer.Start();
+
+            TopConnectionPill.Update(true, 0, DateTime.Now);
 
             _syncEngine.SyncStatusUpdated += OnSyncStatusUpdated;
             _syncEngine.OnlineOrdersReceived += OnOnlineOrdersReceived;
         }
 
+        private void UpdateClockDisplay()
+        {
+            var now = DateTime.Now;
+            ClockText.Text = UzbekDateFormatter.FormatTime24(now);
+            DateText.Text = UzbekDateFormatter.FormatDate(now);
+
+            var openedAt = _currentShift.OpenedAt == default ? DateTime.Today.AddHours(8).AddMinutes(30) : _currentShift.OpenedAt;
+            var elapsed = now - openedAt;
+            if (elapsed < TimeSpan.Zero) elapsed = TimeSpan.Zero;
+            ShiftChipText.Text = $"Smena: {openedAt:HH:mm} · {UzbekDateFormatter.FormatDuration(elapsed)}";
+        }
+
+        private void OnWindowSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateShellLayoutForWidth(e.NewSize.Width);
+        }
+
+        public void UpdateShellLayoutForWidth(double width)
+        {
+            RailColumn.Width = new GridLength(width < 1366 ? 84 : 88);
+            CartColumn.Width = new GridLength(width >= 1600 ? 440 : 380);
+
+            int newProductCols = width >= 2200 ? 6 : width >= 1800 ? 5 : width >= 1550 ? 4 : 3;
+            if (newProductCols != ProductColumns)
+            {
+                ProductColumns = newProductCols;
+            }
+
+            int newStopCols = width >= 2200 ? 4 : width >= 1550 ? 3 : 2;
+            if (newStopCols != StopListColumns)
+            {
+                StopListColumns = newStopCols;
+                StopListLoadingGrid.Columns = newStopCols;
+            }
+
+            int newCols = width >= 2200 ? 5 : width >= 1550 ? 4 : 3;
+            if (newCols != _tableColumns)
+            {
+                _tableColumns = newCols;
+                TablesLoadingGrid.Columns = newCols;
+                foreach (var sec in _tableZoneSections)
+                {
+                    sec.Columns = newCols;
+                }
+            }
+        }
+
         private async void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
-            await LoadDataAsync();
+            if (!_isDemoMode)
+            {
+                await LoadDataAsync();
+            }
         }
 
         private void OnWindowKeyDown(object sender, KeyEventArgs e)
         {
+            if (LockOverlay.Visibility == Visibility.Visible)
+            {
+                return;
+            }
+
             if (e.Key == Key.F12)
             {
                 OnPayCartClick(sender, new RoutedEventArgs());
@@ -102,6 +205,9 @@ namespace DilkashPos
 
         private async Task LoadDataAsync()
         {
+            _isLoadingTables = true;
+            UpdateTablesLoadingAndEmptyStates();
+
             // 1. Lokal SQLite keshidan o'qish (Darhol yuklanadi)
             _products = await _db.GetCachedProductsAsync();
             _categories = await _db.GetCachedCategoriesAsync();
@@ -111,19 +217,21 @@ namespace DilkashPos
             {
                 // Standart 12 ta stol (Zal, Terrasa, VIP)
                 for (int i = 1; i <= 6; i++)
-                    _tables.Add(new RestaurantTable { Number = i, Name = $"Stol #{i}", Zone = "Zal", Capacity = 4 });
+                    _tables.Add(new RestaurantTable { Id = i, Number = i, Name = $"Stol #{i}", Zone = "Zal", Capacity = 4 });
                 for (int i = 7; i <= 9; i++)
-                    _tables.Add(new RestaurantTable { Number = i, Name = $"Terrasa #{i - 6}", Zone = "Terrasa", Capacity = 6 });
+                    _tables.Add(new RestaurantTable { Id = i, Number = i, Name = $"Terrasa #{i - 6}", Zone = "Terrasa", Capacity = 6 });
                 for (int i = 10; i <= 12; i++)
-                    _tables.Add(new RestaurantTable { Number = i, Name = $"VIP Xona #{i - 9}", Zone = "VIP", Capacity = 10 });
+                    _tables.Add(new RestaurantTable { Id = i, Number = i, Name = $"VIP Xona #{i - 9}", Zone = "VIP", Capacity = 10 });
             }
 
+            _isLoadingTables = false;
             RenderTables();
             RenderCategories();
             RenderProducts();
             RenderStopList();
             UpdateCartUI();
             UpdateShiftReportUI();
+            ApplySettingsToUI();
 
             // 2. Server bilan sinxronlash
             var bootstrap = await _api.GetBootstrapAsync();
@@ -161,30 +269,20 @@ namespace DilkashPos
         {
             Dispatcher.Invoke(() =>
             {
-                if (e.IsOnline)
-                {
-                    StatusBadgeBorder.Background = (Brush)FindResource("SuccessGreenBrush");
-                    StatusBadgeText.Text = "● REST API ONLINE";
-                }
-                else
-                {
-                    StatusBadgeBorder.Background = (Brush)FindResource("DangerRedBrush");
-                    StatusBadgeText.Text = "● OFFLINE (SQLITE KESH)";
-                }
-
-                if (e.PendingOfflineOrdersCount > 0)
-                {
-                    QueueBadgeBorder.Visibility = Visibility.Visible;
-                    QueueBadgeText.Text = $"⏳ Navbat: {e.PendingOfflineOrdersCount} ta";
-                }
-                else
-                {
-                    QueueBadgeBorder.Visibility = Visibility.Collapsed;
-                }
-
-                NavOnlineBadgeText.Text = e.OnlineOrdersCount.ToString();
-                NavOnlineBadgeBorder.Visibility = e.OnlineOrdersCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+                ApplySyncStatusUI(e.IsOnline, e.PendingOfflineOrdersCount, e.OnlineOrdersCount, e.LastSyncTime);
             });
+        }
+
+        private void ApplySyncStatusUI(bool isOnline, int pendingCount, int onlineOrdersCount, DateTime lastSync)
+        {
+            TopConnectionPill.Update(isOnline, pendingCount, lastSync);
+
+            OfflineStrip.Visibility = isOnline ? Visibility.Collapsed : Visibility.Visible;
+            OfflineStripQueueText.Text = pendingCount > 0 ? $"Navbat: {pendingCount} ta" : "Kesh faol";
+            OfflineStripQueueText.Visibility = Visibility.Visible;
+
+            NavOnlineBadgeText.Text = onlineOrdersCount.ToString();
+            NavOnlineBadgeBorder.Visibility = onlineOrdersCount > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void OnOnlineOrdersReceived(object? sender, List<Order> orders)
@@ -201,7 +299,7 @@ namespace DilkashPos
         #region Navigatsiya va Kiosk
         private void OnNavClicked(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is string tag)
+            if (sender is System.Windows.Controls.Primitives.ToggleButton btn && btn.Tag is string tag)
             {
                 SwitchToTab(tag);
             }
@@ -218,21 +316,40 @@ namespace DilkashPos
             ShiftReportTab.Visibility = tag == "shift" ? Visibility.Visible : Visibility.Collapsed;
             SettingsTab.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
 
-            var activeBrush = (Brush)FindResource("BrandPrimaryBrush");
-            var inactiveBrush = (Brush)FindResource("CardDarkBrush");
+            NavTablesBtn.IsChecked = tag == "tables";
+            NavQuickPosBtn.IsChecked = tag == "quick_pos";
+            NavStopListBtn.IsChecked = tag == "stop_list";
+            NavOnlineBtn.IsChecked = tag == "online";
+            NavShiftBtn.IsChecked = tag == "shift";
+            NavSettingsBtn.IsChecked = tag == "settings";
 
-            NavTablesBtn.Background = tag == "tables" ? activeBrush : inactiveBrush;
-            NavQuickPosBtn.Background = tag == "quick_pos" ? activeBrush : inactiveBrush;
-            NavStopListBtn.Background = tag == "stop_list" ? activeBrush : inactiveBrush;
-            NavOnlineBtn.Background = tag == "online" ? activeBrush : inactiveBrush;
-            NavShiftBtn.Background = tag == "shift" ? activeBrush : inactiveBrush;
-            NavSettingsBtn.Background = tag == "settings" ? activeBrush : inactiveBrush;
+            ScreenTitleText.Text = tag switch
+            {
+                "tables" => "Stollar",
+                "quick_pos" => "Tezkor savdo",
+                "stop_list" => "Stop-list",
+                "online" => "Onlayn buyurtmalar",
+                "shift" => "Smena",
+                "settings" => "Sozlamalar",
+                _ => "Dilkash POS"
+            };
 
             if (tag == "quick_pos" && _activeTableContext == null)
             {
-                _currentCart = new Order { ServiceType = "pickup" };
-                CartTitleText.Text = "⚡ TEZKOR SABOY (OLIB KETISH)";
+                if (_currentCart.ServiceType != "pickup" && !_isDemoMode)
+                {
+                    _currentCart = new Order { ServiceType = "pickup" };
+                }
+                CartTitleText.Text = "Saboy";
                 CartSubtitleText.Text = "Kassir: " + _settings.CashierName;
+                SyncProductInCartQuantities();
+                UpdateCartUI();
+            }
+            else if (tag == "quick_pos" && _activeTableContext != null)
+            {
+                CartTitleText.Text = $"{_activeTableContext.Name} · {_activeTableContext.Zone}";
+                CartSubtitleText.Text = $"Ofitsiant: {_currentCart.WaiterName} · {_currentCart.GuestsCount} mehmon";
+                SyncProductInCartQuantities();
                 UpdateCartUI();
             }
             else if (tag == "shift")
@@ -257,212 +374,179 @@ namespace DilkashPos
 
         private void OnLockAppClick(object sender, RoutedEventArgs e)
         {
-            var res = MessageBox.Show("Kassa ekranini qulflaysizmi?", "Kassani Qulflash", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (res == MessageBoxResult.Yes)
-            {
-                MessageBox.Show("Kassa qulflandi. Kassir parolini kiritib davom eting.", "Qulflangan", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
+            SetLockedState(true);
+        }
+
+        private void OnUnlockAppClick(object sender, RoutedEventArgs e)
+        {
+            SetLockedState(false);
+        }
+
+        public void SetLockedState(bool locked)
+        {
+            LockCashierNameText.Text = _settings.CashierName;
+            LockOverlay.Visibility = locked ? Visibility.Visible : Visibility.Collapsed;
+            WorkspaceShellGrid.Effect = locked ? new BlurEffect { Radius = 10 } : null;
         }
         #endregion
 
-        #region 1. Stollar Xaritasi (1920x1080 Full HD Tables Map)
+        #region 1. Stollar Xaritasi (Responsive Zone-Sectioned Tables Map)
+        private static string GetTableStatusKey(RestaurantTable tbl)
+        {
+            if (tbl.Status == "bill_printed") return "bill_printed";
+            if (tbl.Status == "reserved") return "reserved";
+            if (tbl.IsOccupied || tbl.Status == "occupied") return "occupied";
+            return "empty";
+        }
+
+        private void UpdateTableCounts()
+        {
+            int allCount = _tables.Count;
+            int zalCount = _tables.Count(t => t.Zone == "Zal");
+            int terrasaCount = _tables.Count(t => t.Zone == "Terrasa");
+            int vipCount = _tables.Count(t => t.Zone == "VIP");
+
+            FilterAllBtn.Content = $"Barchasi ({allCount})";
+            FilterZalBtn.Content = $"Asosiy zal ({zalCount})";
+            FilterTerrasaBtn.Content = $"Terrasa ({terrasaCount})";
+            FilterVipBtn.Content = $"VIP ({vipCount})";
+
+            int emptyCount = _tables.Count(t => GetTableStatusKey(t) == "empty");
+            int occCount = _tables.Count(t => GetTableStatusKey(t) == "occupied");
+            int billCount = _tables.Count(t => GetTableStatusKey(t) == "bill_printed");
+            int reservedCount = _tables.Count(t => GetTableStatusKey(t) == "reserved");
+
+            EmptyChipLabel.Text = $"Boʻsh ({emptyCount})";
+            OccupiedChipLabel.Text = $"Band ({occCount})";
+            BillChipLabel.Text = $"Hisob berildi ({billCount})";
+            ReservedChipLabel.Text = $"Bron ({reservedCount})";
+
+            int activeTablesCount = occCount + billCount;
+            NavTablesCountBadge.Text = activeTablesCount.ToString();
+            NavTablesCountBorder.Visibility = activeTablesCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
         private void RenderTables()
         {
-            TablesWrapPanel.Children.Clear();
-            var list = _tables;
+            UpdateTableCounts();
+            _tableZoneSections.Clear();
+            _tableCardVMs.Clear();
 
-            if (_currentTableFilter == "zal") list = list.Where(t => t.Zone == "Zal").ToList();
-            else if (_currentTableFilter == "terrasa") list = list.Where(t => t.Zone == "Terrasa").ToList();
-            else if (_currentTableFilter == "vip") list = list.Where(t => t.Zone == "VIP").ToList();
+            var filtered = _tables.AsEnumerable();
+            if (_currentTableFilter == "zal") filtered = filtered.Where(t => t.Zone == "Zal");
+            else if (_currentTableFilter == "terrasa") filtered = filtered.Where(t => t.Zone == "Terrasa");
+            else if (_currentTableFilter == "vip") filtered = filtered.Where(t => t.Zone == "VIP");
 
-            int emptyCount = _tables.Count(t => !t.IsOccupied && t.Status != "bill_printed");
-            int occCount = _tables.Count(t => t.IsOccupied && t.Status != "bill_printed");
-            int billCount = _tables.Count(t => t.Status == "bill_printed");
-
-            EmptyTablesCountText.Text = emptyCount.ToString();
-            OccupiedTablesCountText.Text = occCount.ToString();
-            BillPrintedCountText.Text = billCount.ToString();
-            NavTablesCountBadge.Text = $"{occCount} band";
-
-            foreach (var tbl in list)
+            if (_selectedTableStatuses.Count > 0)
             {
-                // Keng 380x215px stol kartasi (1920x1080 da 4 ta ustun hosil qiladi)
-                var card = new Border
-                {
-                    Width = 380,
-                    Height = 215,
-                    Margin = new Thickness(10),
-                    CornerRadius = new CornerRadius(14),
-                    Background = tbl.IsOccupied 
-                        ? new SolidColorBrush(Color.FromRgb(30, 41, 59)) // #1E293B
-                        : new SolidColorBrush(Color.FromRgb(15, 27, 30)),
-                    BorderThickness = new Thickness(2),
-                    BorderBrush = tbl.Status == "bill_printed" ? (Brush)FindResource("AccentGoldBrush") :
-                                 tbl.IsOccupied ? (Brush)FindResource("DangerRedBrush") : (Brush)FindResource("BrandPrimaryBrush"),
-                    Padding = new Thickness(16),
-                    Cursor = Cursors.Hand,
-                    Tag = tbl
-                };
-
-                var grid = new Grid();
-                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-                // 1. Qator: Stol nomi, Zonasi va Holat Pill
-                var headerGrid = new Grid();
-                var leftStack = new StackPanel { Orientation = Orientation.Horizontal };
-                leftStack.Children.Add(new TextBlock { Text = tbl.Zone == "VIP" ? "👑 " : "🍽 ", FontSize = 20, VerticalAlignment = VerticalAlignment.Center });
-                leftStack.Children.Add(new TextBlock { Text = tbl.Name, FontSize = 20, FontWeight = FontWeights.ExtraBold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
-
-                var zoneBorder = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromRgb(51, 65, 85)),
-                    CornerRadius = new CornerRadius(6),
-                    Padding = new Thickness(8, 2, 8, 2),
-                    Margin = new Thickness(10, 0, 0, 0),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                zoneBorder.Child = new TextBlock { Text = tbl.Zone, FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Brushes.White };
-                leftStack.Children.Add(zoneBorder);
-
-                var badgeBorder = new Border
-                {
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    CornerRadius = new CornerRadius(8),
-                    Background = tbl.Status == "bill_printed" ? (Brush)FindResource("AccentGoldBrush") :
-                                 tbl.IsOccupied ? (Brush)FindResource("DangerRedBrush") : (Brush)FindResource("SuccessGreenBrush"),
-                    Padding = new Thickness(10, 4, 10, 4),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                badgeBorder.Child = new TextBlock { Text = tbl.StatusBadge, FontSize = 12, FontWeight = FontWeights.Black, Foreground = Brushes.White };
-
-                headerGrid.Children.Add(leftStack);
-                headerGrid.Children.Add(badgeBorder);
-                Grid.SetRow(headerGrid, 0);
-
-                // 2. Qator: Stol tanasi (Ma'lumotlar)
-                var bodyStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 10, 0, 10) };
-                if (!tbl.IsOccupied)
-                {
-                    bodyStack.Children.Add(new TextBlock
-                    {
-                        Text = $"👥 Sig'imi: {tbl.Capacity} kishilik qulay stol",
-                        FontSize = 14,
-                        Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184))
-                    });
-                    bodyStack.Children.Add(new TextBlock
-                    {
-                        Text = "✨ Mehmonlarni kutib olishga to'liq tayyor",
-                        FontSize = 13,
-                        Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129)),
-                        Margin = new Thickness(0, 4, 0, 0)
-                    });
-                }
-                else
-                {
-                    string waiter = tbl.ActiveOrder?.WaiterName ?? tbl.AssignedWaiter ?? "Jasur";
-                    int mins = tbl.ActiveOrder?.ElapsedMinutes ?? 0;
-                    int itemsCount = tbl.ActiveOrder?.Items.Sum(i => i.Quantity) ?? 0;
-
-                    var infoGrid = new Grid();
-                    infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                    var col1 = new StackPanel();
-                    col1.Children.Add(new TextBlock { Text = $"👤 {tbl.GuestsCount} kishi (sig'im: {tbl.Capacity})", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
-                    col1.Children.Add(new TextBlock { Text = $"🤵 Ofitsiant: {waiter}", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), Margin = new Thickness(0, 2, 0, 0) });
-
-                    var col2 = new StackPanel();
-                    col2.Children.Add(new TextBlock { Text = $"⏱ {mins} daqiqadan beri", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = (Brush)FindResource("AccentGoldBrush") });
-                    col2.Children.Add(new TextBlock { Text = $"🍲 {itemsCount} ta taom buyurtmada", FontSize = 13, Foreground = Brushes.White, Margin = new Thickness(0, 2, 0, 0) });
-
-                    infoGrid.Children.Add(col1);
-                    Grid.SetColumn(col2, 1);
-                    infoGrid.Children.Add(col2);
-                    bodyStack.Children.Add(infoGrid);
-                }
-                Grid.SetRow(bodyStack, 1);
-
-                // 3. Qator: Jami summa va Katta sensorli amallar
-                var footerGrid = new Grid();
-                if (!tbl.IsOccupied)
-                {
-                    var openBtn = new Button
-                    {
-                        Content = "➕ STOLNI OCHISH",
-                        Height = 44,
-                        FontSize = 14,
-                        FontWeight = FontWeights.Black,
-                        Style = (Style)FindResource("TouchButtonStyle"),
-                        Background = (Brush)FindResource("BrandPrimaryBrush"),
-                        Tag = tbl
-                    };
-                    openBtn.Click += (s, e) => OnTableCardClicked((RestaurantTable)((Button)s).Tag);
-                    footerGrid.Children.Add(openBtn);
-                }
-                else
-                {
-                    footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                    footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                    var sumStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                    sumStack.Children.Add(new TextBlock { Text = "HISOB SUMMASI:", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)) });
-                    sumStack.Children.Add(new TextBlock { Text = tbl.TotalSumFormatted, FontSize = 20, FontWeight = FontWeights.Black, Foreground = (Brush)FindResource("SuccessGreenBrush") });
-                    Grid.SetColumn(sumStack, 0);
-
-                    var actionsStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-
-                    var addFoodBtn = new Button { Content = "📝 Taom", Height = 40, Padding = new Thickness(10, 0, 10, 0), FontSize = 12, FontWeight = FontWeights.Bold, Style = (Style)FindResource("TouchSecondaryButton"), Margin = new Thickness(0, 0, 6, 0), Tag = tbl };
-                    var prechekBtn = new Button { Content = "📄 Pre-chek", Height = 40, Padding = new Thickness(10, 0, 10, 0), FontSize = 12, FontWeight = FontWeights.Bold, Style = (Style)FindResource("TouchGoldButton"), Margin = new Thickness(0, 0, 6, 0), Tag = tbl };
-                    var payBtn = new Button { Content = "💳 To'lov", Height = 40, Padding = new Thickness(12, 0, 12, 0), FontSize = 12, FontWeight = FontWeights.Black, Style = (Style)FindResource("TouchButtonStyle"), Background = (Brush)FindResource("SuccessGreenBrush"), Tag = tbl };
-
-                    addFoodBtn.Click += (s, e) => OpenTableOrderInQuickPos((RestaurantTable)((Button)s).Tag);
-                    prechekBtn.Click += async (s, e) =>
-                    {
-                        var t = (RestaurantTable)((Button)s).Tag;
-                        if (t.ActiveOrder != null && t.ActiveOrder.Items.Count > 0)
-                        {
-                            string kassaIp = IpKassaBox.Text.Trim();
-                            await _printer.PrintPreChekAsync(t.ActiveOrder, kassaIp);
-                            t.Status = "bill_printed";
-                            RenderTables();
-                            MessageBox.Show($"{t.Name} uchun hisob pre-cheki chiqarildi!", "Pre-Chek", MessageBoxButton.OK, MessageBoxImage.Information);
-                        }
-                    };
-                    payBtn.Click += (s, e) =>
-                    {
-                        var t = (RestaurantTable)((Button)s).Tag;
-                        OpenTableOrderInQuickPos(t);
-                        OnPayCartClick(s, e);
-                    };
-
-                    actionsStack.Children.Add(addFoodBtn);
-                    actionsStack.Children.Add(prechekBtn);
-                    actionsStack.Children.Add(payBtn);
-                    Grid.SetColumn(actionsStack, 1);
-
-                    footerGrid.Children.Add(sumStack);
-                    footerGrid.Children.Add(actionsStack);
-                }
-                Grid.SetRow(footerGrid, 2);
-
-                grid.Children.Add(headerGrid);
-                grid.Children.Add(bodyStack);
-                grid.Children.Add(footerGrid);
-                card.Child = grid;
-
-                card.MouseLeftButtonUp += (s, e) =>
-                {
-                    // Agar tugma bosilmagan bo'lsa, stol kartasining o'zi bosilganda
-                    if (e.OriginalSource is not Button)
-                    {
-                        OnTableCardClicked((RestaurantTable)((Border)s).Tag);
-                    }
-                };
-
-                TablesWrapPanel.Children.Add(card);
+                filtered = filtered.Where(t => _selectedTableStatuses.Contains(GetTableStatusKey(t)));
             }
+
+            var filteredList = filtered.ToList();
+            var zoneOrder = new[]
+            {
+                ("Zal", "ASOSIY ZAL"),
+                ("Terrasa", "TERRASA"),
+                ("VIP", "VIP XONALAR")
+            };
+
+            foreach (var (zoneKey, zoneHeader) in zoneOrder)
+            {
+                var zoneTables = filteredList.Where(t => t.Zone == zoneKey).ToList();
+                if (zoneTables.Count == 0) continue;
+
+                int busyInZone = zoneTables.Count(t => GetTableStatusKey(t) is "occupied" or "bill_printed");
+                var sec = new TableZoneSectionVM
+                {
+                    ZoneKey = zoneKey,
+                    ZoneTitle = zoneHeader,
+                    ZoneSummary = busyInZone > 0 ? $"{zoneTables.Count} ta stol · {busyInZone} band" : $"{zoneTables.Count} ta stol",
+                    Columns = _tableColumns
+                };
+
+                foreach (var tbl in zoneTables)
+                {
+                    var vm = new TableCardVM(tbl);
+                    _tableCardVMs[tbl.Number] = vm;
+                    sec.Tables.Add(vm);
+                }
+
+                _tableZoneSections.Add(sec);
+            }
+
+            UpdateTablesLoadingAndEmptyStates();
+        }
+
+        private void RefreshSingleTableCard(RestaurantTable tbl)
+        {
+            UpdateTableCounts();
+            if (_selectedTableStatuses.Count > 0)
+            {
+                RenderTables();
+                return;
+            }
+
+            if (_tableCardVMs.TryGetValue(tbl.Number, out var vm))
+            {
+                vm.Refresh();
+                var sec = _tableZoneSections.FirstOrDefault(s => s.ZoneKey == tbl.Zone);
+                if (sec != null)
+                {
+                    int busyInZone = sec.Tables.Count(t => t.IsOccupiedOrBill);
+                    sec.ZoneSummary = busyInZone > 0 ? $"{sec.Tables.Count} ta stol · {busyInZone} band" : $"{sec.Tables.Count} ta stol";
+                }
+            }
+            else
+            {
+                RenderTables();
+            }
+        }
+
+        private void UpdateTablesLoadingAndEmptyStates()
+        {
+            if (_isLoadingTables)
+            {
+                TablesLoadingGrid.Visibility = Visibility.Visible;
+                TablesScrollViewer.Visibility = Visibility.Collapsed;
+                TablesEmptyState.Visibility = Visibility.Collapsed;
+            }
+            else if (_tableZoneSections.Count == 0)
+            {
+                TablesLoadingGrid.Visibility = Visibility.Collapsed;
+                TablesScrollViewer.Visibility = Visibility.Collapsed;
+                TablesEmptyState.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                TablesLoadingGrid.Visibility = Visibility.Collapsed;
+                TablesScrollViewer.Visibility = Visibility.Visible;
+                TablesEmptyState.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void OnTableCardControlClicked(object? sender, TableCardVM vm)
+        {
+            OnTableCardClicked(vm.Model);
+        }
+
+        private async void OnTablePreChekClicked(object? sender, TableCardVM vm)
+        {
+            var t = vm.Model;
+            if (t.ActiveOrder != null && t.ActiveOrder.Items.Count > 0)
+            {
+                string kassaIp = GetPrinterIpForDept("kassa");
+                await _printer.PrintPreChekAsync(t.ActiveOrder, kassaIp);
+                t.Status = "bill_printed";
+                RefreshSingleTableCard(t);
+                Toast.Show($"{t.Name} uchun hisob pre-cheki chop etildi", ToastTone.Success);
+            }
+        }
+
+        private void OnTablePayClicked(object? sender, TableCardVM vm)
+        {
+            var t = vm.Model;
+            OpenTableOrderInQuickPos(t);
+            OnPayCartClick(this, new RoutedEventArgs());
         }
 
         private async void OnTableCardClicked(RestaurantTable table)
@@ -470,7 +554,7 @@ namespace DilkashPos
             if (!table.IsOccupied)
             {
                 var dialog = new OpenTableDialog(table.Number, table.Name, _settings.CashierName);
-                if (dialog.ShowDialog() == true)
+                if (Dialogs.ShowModal(dialog, this) == true)
                 {
                     table.IsOccupied = true;
                     table.GuestsCount = dialog.SelectedGuestsCount;
@@ -493,7 +577,7 @@ namespace DilkashPos
                         };
                     }
 
-                    RenderTables();
+                    RefreshSingleTableCard(table);
                     OpenTableOrderInQuickPos(table);
                 }
             }
@@ -514,198 +598,134 @@ namespace DilkashPos
                 WaiterName = table.AssignedWaiter ?? _settings.CashierName
             };
 
-            CartTitleText.Text = $"🍽 {table.Name.ToUpper()} ({table.Zone})";
-            CartSubtitleText.Text = $"Ofitsiant: {_currentCart.WaiterName} • Mehmon: {_currentCart.GuestsCount} kishi";
+            CartTitleText.Text = $"{table.Name} · {table.Zone}";
+            CartSubtitleText.Text = $"Ofitsiant: {_currentCart.WaiterName} · {_currentCart.GuestsCount} mehmon";
             SwitchToTab("quick_pos");
+            SyncProductInCartQuantities();
             UpdateCartUI();
         }
 
-        private void OnTableFilterAll(object sender, RoutedEventArgs e) { _currentTableFilter = "all"; HighlightFilterBtn(FilterAllBtn); RenderTables(); }
-        private void OnTableFilterZal(object sender, RoutedEventArgs e) { _currentTableFilter = "zal"; HighlightFilterBtn(FilterZalBtn); RenderTables(); }
-        private void OnTableFilterTerrasa(object sender, RoutedEventArgs e) { _currentTableFilter = "terrasa"; HighlightFilterBtn(FilterTerrasaBtn); RenderTables(); }
-        private void OnTableFilterVip(object sender, RoutedEventArgs e) { _currentTableFilter = "vip"; HighlightFilterBtn(FilterVipBtn); RenderTables(); }
+        private void OnTableFilterAll(object sender, RoutedEventArgs e) { _currentTableFilter = "all"; RenderTables(); }
+        private void OnTableFilterZal(object sender, RoutedEventArgs e) { _currentTableFilter = "zal"; RenderTables(); }
+        private void OnTableFilterTerrasa(object sender, RoutedEventArgs e) { _currentTableFilter = "terrasa"; RenderTables(); }
+        private void OnTableFilterVip(object sender, RoutedEventArgs e) { _currentTableFilter = "vip"; RenderTables(); }
 
-        private void HighlightFilterBtn(Button active)
+        private void OnStatusFilterChipClick(object sender, RoutedEventArgs e)
         {
-            var secondaryBrush = (Brush)FindResource("CardDarkBrush");
-            FilterAllBtn.Background = secondaryBrush;
-            FilterZalBtn.Background = secondaryBrush;
-            FilterTerrasaBtn.Background = secondaryBrush;
-            FilterVipBtn.Background = secondaryBrush;
-            active.Background = (Brush)FindResource("BrandPrimaryBrush");
+            if (sender is ToggleButton tb && tb.Tag is string statusKey)
+            {
+                if (tb.IsChecked == true)
+                    _selectedTableStatuses.Add(statusKey);
+                else
+                    _selectedTableStatuses.Remove(statusKey);
+
+                RenderTables();
+            }
+        }
+
+        private void OnResetTableFilters(object? sender, EventArgs e)
+        {
+            _currentTableFilter = "all";
+            FilterAllBtn.IsChecked = true;
+            _selectedTableStatuses.Clear();
+            StatusFilterEmptyChip.IsChecked = false;
+            StatusFilterOccupiedChip.IsChecked = false;
+            StatusFilterBillChip.IsChecked = false;
+            StatusFilterReservedChip.IsChecked = false;
+            RenderTables();
         }
         #endregion
 
-        #region 2. Tezkor Saboy & Buyurtma Qabul Qilish (3-Column POS)
+        #region 2. Tezkor Savdo & Buyurtma Qabul Qilish (2-Column Responsive POS)
         private void RenderCategories()
         {
-            CategoriesStackPanel.Children.Clear();
-            var allBtn = new Button
-            {
-                Content = $"🍽 Barcha Taomlar ({_products.Count})",
-                Height = 56,
-                Margin = new Thickness(0, 0, 0, 8),
-                FontSize = 15,
-                FontWeight = FontWeights.Bold,
-                Style = (Style)FindResource("TouchButtonStyle"),
-                Background = _selectedCategory == null ? (Brush)FindResource("BrandPrimaryBrush") : (Brush)FindResource("CardDarkBrush")
-            };
-            allBtn.Click += (s, e) =>
-            {
-                _selectedCategory = null;
-                RenderCategories();
-                RenderProducts(ProductSearchBox.Text);
-            };
-            CategoriesStackPanel.Children.Add(allBtn);
+            _categoryChips.Clear();
+            _categoryChips.Add(new CategoryChipVM(0, "Barchasi", "all", _products.Count, _selectedCategory == null));
 
             foreach (var cat in _categories)
             {
-                string icon = cat.Department switch
-                {
-                    "shashlik" => "🥩",
-                    "somsa" => "🥟",
-                    "fastfood" => "🍔",
-                    "bar" => "☕",
-                    _ => "🍲"
-                };
-
                 int pCount = _products.Count(p => p.CategoryId == cat.Id);
+                _categoryChips.Add(new CategoryChipVM(cat.Id, cat.Name, cat.Department, pCount, _selectedCategory?.Id == cat.Id));
+            }
+        }
 
-                var btn = new Button
+        private void OnCategoryChipClicked(object sender, RoutedEventArgs e)
+        {
+            if (sender is RadioButton rb && rb.Tag is CategoryChipVM chip)
+            {
+                _selectedCategory = chip.Id == 0 ? null : _categories.FirstOrDefault(c => c.Id == chip.Id);
+                foreach (var c in _categoryChips)
                 {
-                    Content = $"{icon} {cat.Name} ({pCount})",
-                    Height = 54,
-                    Margin = new Thickness(0, 0, 0, 8),
-                    FontSize = 14,
-                    FontWeight = FontWeights.SemiBold,
-                    Style = (Style)FindResource("TouchButtonStyle"),
-                    Background = _selectedCategory?.Id == cat.Id ? (Brush)FindResource("BrandPrimaryBrush") : (Brush)FindResource("CardDarkBrush"),
-                    Tag = cat
-                };
-                btn.Click += (s, e) =>
-                {
-                    _selectedCategory = (Category)((Button)s).Tag;
-                    RenderCategories();
-                    RenderProducts(ProductSearchBox.Text);
-                };
-                CategoriesStackPanel.Children.Add(btn);
+                    c.IsSelected = c.Id == chip.Id;
+                }
+                RenderProducts(ProductSearchBox.Text);
+            }
+        }
+
+        private void EnsureProductTileMap()
+        {
+            if (_productTileMap.Count == _products.Count && _products.All(p => _productTileMap.ContainsKey(p.Id)))
+            {
+                return;
+            }
+
+            _productTileMap.Clear();
+            foreach (var prod in _products)
+            {
+                int inCartQty = _currentCart.Items.FirstOrDefault(i => i.ProductId == prod.Id)?.Quantity ?? 0;
+                _productTileMap[prod.Id] = new ProductTileVM(prod, inCartQty);
+            }
+        }
+
+        private void SyncProductInCartQuantities()
+        {
+            EnsureProductTileMap();
+            foreach (var kv in _productTileMap)
+            {
+                int qty = _currentCart.Items.FirstOrDefault(i => i.ProductId == kv.Key)?.Quantity ?? 0;
+                kv.Value.InCartQty = qty;
+            }
+        }
+
+        private void SyncSingleProductTileQty(int productId)
+        {
+            if (_productTileMap.TryGetValue(productId, out var tile))
+            {
+                tile.InCartQty = _currentCart.Items.FirstOrDefault(i => i.ProductId == productId)?.Quantity ?? 0;
             }
         }
 
         private void RenderProducts(string? query = null)
         {
-            ProductsWrapPanel.Children.Clear();
-            var list = _products;
+            EnsureProductTileMap();
+            _visibleProductTiles.Clear();
 
+            IEnumerable<Product> list = _products;
             if (_selectedCategory != null)
-                list = list.Where(p => p.CategoryId == _selectedCategory.Id).ToList();
+                list = list.Where(p => p.CategoryId == _selectedCategory.Id);
 
             if (!string.IsNullOrWhiteSpace(query))
-                list = list.Where(p => p.Name.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
+                list = list.Where(p => p.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
 
             foreach (var prod in list)
             {
-                int inCartQty = _currentCart.Items.FirstOrDefault(i => i.ProductId == prod.Id)?.Quantity ?? 0;
-
-                // Katta sensorli taom kartasi (220x165px)
-                var card = new Border
+                if (_productTileMap.TryGetValue(prod.Id, out var vm))
                 {
-                    Width = 220,
-                    Height = 165,
-                    Margin = new Thickness(8),
-                    CornerRadius = new CornerRadius(12),
-                    Background = prod.IsAvailable ? (Brush)FindResource("CardDarkBrush") : new SolidColorBrush(Color.FromRgb(45, 20, 20)),
-                    BorderThickness = new Thickness(2),
-                    BorderBrush = !prod.IsAvailable ? (Brush)FindResource("DangerRedBrush") :
-                                 inCartQty > 0 ? (Brush)FindResource("AccentGoldBrush") : new SolidColorBrush(Color.FromRgb(51, 65, 85)),
-                    Padding = new Thickness(14),
-                    Cursor = prod.IsAvailable ? Cursors.Hand : Cursors.No,
-                    Tag = prod,
-                    Opacity = prod.IsAvailable ? 1.0 : 0.65
-                };
-
-                var grid = new Grid();
-                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-                // 1. Toifa va Savatdagi soni badge
-                var topGrid = new Grid();
-                var deptPill = new TextBlock
-                {
-                    Text = prod.CategoryName.ToUpper(),
-                    FontSize = 11,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                topGrid.Children.Add(deptPill);
-
-                if (inCartQty > 0)
-                {
-                    var qtyBadge = new Border
-                    {
-                        HorizontalAlignment = HorizontalAlignment.Right,
-                        Background = (Brush)FindResource("AccentGoldBrush"),
-                        CornerRadius = new CornerRadius(6),
-                        Padding = new Thickness(8, 2, 8, 2)
-                    };
-                    qtyBadge.Child = new TextBlock { Text = $"x{inCartQty}", FontSize = 12, FontWeight = FontWeights.Black, Foreground = Brushes.White };
-                    topGrid.Children.Add(qtyBadge);
+                    int qty = _currentCart.Items.FirstOrDefault(i => i.ProductId == prod.Id)?.Quantity ?? 0;
+                    vm.InCartQty = qty;
+                    vm.SyncAvailabilityFromModel();
+                    _visibleProductTiles.Add(vm);
                 }
-                Grid.SetRow(topGrid, 0);
-
-                // 2. Taom Nomi
-                var nameBlock = new TextBlock
-                {
-                    Text = prod.Name,
-                    FontSize = 16,
-                    FontWeight = FontWeights.ExtraBold,
-                    Foreground = Brushes.White,
-                    TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 6, 0, 6),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                Grid.SetRow(nameBlock, 1);
-
-                // 3. Pastki Narx va Status
-                var bottomGrid = new Grid();
-                var priceText = new TextBlock
-                {
-                    Text = prod.FormattedPrice,
-                    FontSize = 17,
-                    FontWeight = FontWeights.Black,
-                    Foreground = (Brush)FindResource("SuccessGreenBrush"),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                bottomGrid.Children.Add(priceText);
-
-                if (!prod.IsAvailable)
-                {
-                    var stopPill = new Border
-                    {
-                        HorizontalAlignment = HorizontalAlignment.Right,
-                        Background = (Brush)FindResource("DangerRedBrush"),
-                        CornerRadius = new CornerRadius(6),
-                        Padding = new Thickness(8, 3, 8, 3)
-                    };
-                    stopPill.Child = new TextBlock { Text = "STOP-LIST", FontSize = 11, FontWeight = FontWeights.Black, Foreground = Brushes.White };
-                    bottomGrid.Children.Add(stopPill);
-                }
-                Grid.SetRow(bottomGrid, 2);
-
-                grid.Children.Add(topGrid);
-                grid.Children.Add(nameBlock);
-                grid.Children.Add(bottomGrid);
-                card.Child = grid;
-
-                if (prod.IsAvailable)
-                {
-                    card.MouseLeftButtonUp += (s, e) => AddProductToCart((Product)((Border)s).Tag);
-                }
-
-                ProductsWrapPanel.Children.Add(card);
             }
+
+            bool isEmpty = _visibleProductTiles.Count == 0;
+            ProductsScrollViewer.Visibility = isEmpty ? Visibility.Collapsed : Visibility.Visible;
+            ProductsEmptyState.Visibility = isEmpty ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void OnProductTileClicked(object? sender, ProductTileVM tile)
+        {
+            AddProductToCart(tile.Model);
         }
 
         private void AddProductToCart(Product prod)
@@ -714,10 +734,12 @@ namespace DilkashPos
             if (existing != null)
             {
                 existing.Quantity++;
+                var lineVm = _cartLines.FirstOrDefault(l => l.ProductId == prod.Id);
+                lineVm?.SyncFromModel();
             }
             else
             {
-                _currentCart.Items.Add(new OrderItem
+                var newItem = new OrderItem
                 {
                     ProductId = prod.Id,
                     ProductName = prod.Name,
@@ -725,93 +747,65 @@ namespace DilkashPos
                     Quantity = 1,
                     Department = prod.Department,
                     CategoryName = prod.CategoryName
-                });
+                };
+                _currentCart.Items.Add(newItem);
+                _cartLines.Add(new CartLineVM(newItem));
             }
-            UpdateCartUI();
-            RenderProducts(ProductSearchBox.Text);
+
+            // Update ONLY the tapped tile without rebuilding the product grid!
+            SyncSingleProductTileQty(prod.Id);
+            RecalculateAndDisplayCartSummary();
+        }
+
+        private void OnCartLineIncrement(object? sender, CartLineVM line)
+        {
+            line.Quantity++;
+            SyncSingleProductTileQty(line.ProductId);
+            RecalculateAndDisplayCartSummary();
+        }
+
+        private void OnCartLineDecrement(object? sender, CartLineVM line)
+        {
+            if (line.Quantity > 1)
+            {
+                line.Quantity--;
+            }
+            else
+            {
+                _currentCart.Items.Remove(line.Model);
+                _cartLines.Remove(line);
+            }
+
+            SyncSingleProductTileQty(line.ProductId);
+            RecalculateAndDisplayCartSummary();
+        }
+
+        private void OnCartLineEditNote(object? sender, CartLineVM line)
+        {
+            var dlg = new ItemModifierDialog(line.ProductName, line.Notes);
+            if (Dialogs.ShowModal(dlg, this) == true)
+            {
+                line.Notes = dlg.Notes;
+            }
         }
 
         private void UpdateCartUI()
         {
-            CartItemsStackPanel.Children.Clear();
-
+            _cartLines.Clear();
             foreach (var item in _currentCart.Items)
             {
-                var border = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
-                    CornerRadius = new CornerRadius(10),
-                    Padding = new Thickness(12),
-                    Margin = new Thickness(0, 0, 0, 10),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(30, 41, 59)),
-                    BorderThickness = new Thickness(1)
-                };
-
-                var grid = new Grid();
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                // Chap: Taom nomi, Izohi va Hisobi
-                var leftStack = new StackPanel();
-                leftStack.Children.Add(new TextBlock { Text = item.ProductName, FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
-                leftStack.Children.Add(new TextBlock { Text = $"{item.Price:N0} so'm × {item.Quantity} = {item.Total:N0} so'm", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), Margin = new Thickness(0, 2, 0, 0) });
-
-                if (!string.IsNullOrEmpty(item.Notes))
-                {
-                    leftStack.Children.Add(new TextBlock { Text = $"💬 {item.Notes}", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("AccentGoldBrush"), Margin = new Thickness(0, 4, 0, 0) });
-                }
-                Grid.SetColumn(leftStack, 0);
-
-                // O'ng: Sensorli Katta Stepper (- / +) va Izoh tugmasi
-                var rightStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-
-                var noteBtn = new Button { Content = "✎ Izoh", Height = 40, Padding = new Thickness(10, 0, 10, 0), FontSize = 12, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 8, 0), Style = (Style)FindResource("TouchSecondaryButton"), Tag = item };
-                var minusBtn = new Button { Content = "—", Width = 40, Height = 40, FontSize = 18, FontWeight = FontWeights.Black, Margin = new Thickness(2, 0, 2, 0), Style = (Style)FindResource("TouchSecondaryButton"), Tag = item };
-                var qtyBlock = new TextBlock { Text = item.Quantity.ToString(), Width = 34, TextAlignment = TextAlignment.Center, FontSize = 17, FontWeight = FontWeights.Black, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center };
-                var plusBtn = new Button { Content = "+", Width = 40, Height = 40, FontSize = 18, FontWeight = FontWeights.Black, Margin = new Thickness(2, 0, 0, 0), Style = (Style)FindResource("TouchSecondaryButton"), Tag = item };
-
-                noteBtn.Click += (s, e) =>
-                {
-                    var it = (OrderItem)((Button)s).Tag;
-                    var dlg = new ItemModifierDialog(it.ProductName, it.Notes);
-                    if (dlg.ShowDialog() == true)
-                    {
-                        it.Notes = dlg.Notes;
-                        UpdateCartUI();
-                    }
-                };
-
-                minusBtn.Click += (s, e) =>
-                {
-                    var it = (OrderItem)((Button)s).Tag;
-                    it.Quantity--;
-                    if (it.Quantity <= 0) _currentCart.Items.Remove(it);
-                    UpdateCartUI();
-                    RenderProducts(ProductSearchBox.Text);
-                };
-
-                plusBtn.Click += (s, e) =>
-                {
-                    var it = (OrderItem)((Button)s).Tag;
-                    it.Quantity++;
-                    UpdateCartUI();
-                    RenderProducts(ProductSearchBox.Text);
-                };
-
-                rightStack.Children.Add(noteBtn);
-                rightStack.Children.Add(minusBtn);
-                rightStack.Children.Add(qtyBlock);
-                rightStack.Children.Add(plusBtn);
-                Grid.SetColumn(rightStack, 1);
-
-                grid.Children.Add(leftStack);
-                grid.Children.Add(rightStack);
-                border.Child = grid;
-
-                CartItemsStackPanel.Children.Add(border);
+                _cartLines.Add(new CartLineVM(item));
             }
 
-            // Moliyaviy hisob-kitoblar
+            RecalculateAndDisplayCartSummary();
+        }
+
+        private void RecalculateAndDisplayCartSummary()
+        {
+            bool hasLines = _cartLines.Count > 0;
+            CartLinesScrollViewer.Visibility = hasLines ? Visibility.Visible : Visibility.Collapsed;
+            CartEmptyHint.Visibility = hasLines ? Visibility.Collapsed : Visibility.Visible;
+
             decimal subtotal = _currentCart.Items.Sum(i => i.Total);
             _currentCart.ProductsTotal = subtotal;
 
@@ -826,21 +820,22 @@ namespace DilkashPos
             _currentCart.ServiceFeeAmount = serviceFee;
             _currentCart.RecalculateTotals();
 
-            CartSubtotalText.Text = $"{subtotal:N0} so'm";
-            DiscountPillBtn.Content = $"🏷 Chegirma: {_currentCart.DiscountPercent:0}% (F4)";
-            CartDiscountText.Text = $"-{_currentCart.DiscountAmount:N0} so'm";
-            ServiceFeeLabelText.Text = $"Xizmat haqi ({(_settings.ServiceFeeType == "percent" ? $"{_settings.ServiceFeePercent:0}%" : "Odam boshiga")}):";
-            CartServiceFeeText.Text = $"{serviceFee:N0} so'm";
-            CartTotalText.Text = $"{_currentCart.TotalAmount:N0} so'm";
+            CartSubtotalText.Text = MoneyFormatter.Format(subtotal);
+            DiscountBtnLabelText.Text = $"Chegirma: {_currentCart.DiscountPercent:0}%";
+            CartDiscountText.Text = MoneyFormatter.FormatDiscount(_currentCart.DiscountAmount);
+            ServiceFeeLabelText.Text = $"Xizmat haqi ({(_settings.ServiceFeeType == "percent" ? $"{_settings.ServiceFeePercent:0}%" : "Odam boshiga")})";
+            CartServiceFeeText.Text = MoneyFormatter.Format(serviceFee);
+            CartTotalText.Text = MoneyFormatter.Format(_currentCart.TotalAmount);
+            PayButtonText.Text = $"Toʻlov · {MoneyFormatter.Format(_currentCart.TotalAmount)}";
         }
 
         private void OnDiscountPillClick(object sender, RoutedEventArgs e)
         {
-            var dlg = new DiscountDialog(_currentCart.DiscountPercent);
-            if (dlg.ShowDialog() == true)
+            var dlg = new DiscountDialog(_currentCart.DiscountPercent, _currentCart.ProductsTotal);
+            if (Dialogs.ShowModal(dlg, this) == true)
             {
                 _currentCart.DiscountPercent = dlg.DiscountPercent;
-                UpdateCartUI();
+                RecalculateAndDisplayCartSummary();
             }
         }
 
@@ -848,28 +843,28 @@ namespace DilkashPos
         {
             if (_currentCart.Items.Count == 0)
             {
-                MessageBox.Show("Oshxonaga yuborish uchun savatchaga taom qo'shing!", "Ogohlantirish", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show("Oshxonaga yuborish uchun savatchaga taom qoʻshing", ToastTone.Warning);
                 return;
             }
 
             await _api.CreateOrUpdateOrderAsync(_currentCart);
             await PrintOrderKitchenSlipsAsync(_currentCart);
 
-            MessageBox.Show("Buyurtma barcha bo'lim printerlariga (Shashlik, Somsa, Oshxona, Fast-food, Bar) yuborildi!", "Oshxonaga Yuborildi", MessageBoxButton.OK, MessageBoxImage.Information);
+            Toast.Show("Buyurtma barcha boʻlim printerlariga yuborildi", ToastTone.Success);
         }
 
         private async void OnPrintPreChekClick(object sender, RoutedEventArgs e)
         {
             if (_currentCart.Items.Count == 0)
             {
-                MessageBox.Show("Hisob cheki chiqarish uchun savatchaga taom qo'shing!", "Ogohlantirish", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show("Hisob cheki chiqarish uchun savatchaga taom qoʻshing", ToastTone.Warning);
                 return;
             }
 
-            string kassaIp = IpKassaBox.Text.Trim();
+            string kassaIp = GetPrinterIpForDept("kassa");
             if (string.IsNullOrEmpty(kassaIp))
             {
-                MessageBox.Show("Kassa printeri IP manzili kiritilmagan!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show("Kassa printeri IP manzili kiritilmagan", ToastTone.Warning);
                 return;
             }
 
@@ -879,13 +874,13 @@ namespace DilkashPos
                 if (_activeTableContext != null)
                 {
                     _activeTableContext.Status = "bill_printed";
-                    RenderTables();
+                    RefreshSingleTableCard(_activeTableContext);
                 }
-                MessageBox.Show("Mijoz uchun hisob pre-cheki chop etildi!", "Pre-Chek", MessageBoxButton.OK, MessageBoxImage.Information);
+                Toast.Show("Mijoz uchun hisob pre-cheki chop etildi", ToastTone.Success);
             }
             else
             {
-                MessageBox.Show(res.Message, "Printer Xatosi", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show(res.Message, ToastTone.Warning);
             }
         }
 
@@ -893,12 +888,12 @@ namespace DilkashPos
         {
             if (_currentCart.Items.Count == 0)
             {
-                MessageBox.Show("Savatcha bo'sh! To'lov uchun taom tanlang.", "Ogohlantirish", MessageBoxButton.OK, MessageBoxImage.Information);
+                Toast.Show("Savatcha boʻsh. Toʻlov uchun taom tanlang", ToastTone.Info);
                 return;
             }
 
             var dialog = new PaymentDialog(_currentCart.TotalAmount, _currentCart.OrderNumber ?? "YANGI", _currentCart.TableNumber, _currentCart.GuestsCount);
-            if (dialog.ShowDialog() == true)
+            if (Dialogs.ShowModal(dialog, this) == true)
             {
                 _currentCart.IsPaid = true;
                 _currentCart.PaymentMethod = dialog.SelectedPaymentMethod;
@@ -915,7 +910,7 @@ namespace DilkashPos
                 }
 
                 await PrintOrderKitchenSlipsAsync(_currentCart);
-                string kassaIp = IpKassaBox.Text.Trim();
+                string kassaIp = GetPrinterIpForDept("kassa");
                 if (!string.IsNullOrEmpty(kassaIp))
                 {
                     await _printer.PrintKassaReceiptAsync(_currentCart, kassaIp, dialog.PaidCash, dialog.PaidCard, dialog.ChangeAmount);
@@ -934,20 +929,21 @@ namespace DilkashPos
 
                 if (_activeTableContext != null)
                 {
-                    _activeTableContext.IsOccupied = false;
-                    _activeTableContext.Status = "empty";
-                    _activeTableContext.ActiveOrder = null;
+                    var closed = _activeTableContext;
+                    closed.IsOccupied = false;
+                    closed.Status = "empty";
+                    closed.ActiveOrder = null;
                     _activeTableContext = null;
-                    RenderTables();
+                    RefreshSingleTableCard(closed);
                 }
 
                 _currentCart = new Order { ServiceType = "pickup" };
-                CartTitleText.Text = "⚡ TEZKOR SABOY (OLIB KETISH)";
+                CartTitleText.Text = "Saboy";
                 CartSubtitleText.Text = "Kassir: " + _settings.CashierName;
+                SyncProductInCartQuantities();
                 UpdateCartUI();
-                RenderProducts();
 
-                MessageBox.Show("To'lov muvaffaqiyatli qabul qilindi va kassa cheki chop etildi!", "To'lov Yakunlandi", MessageBoxButton.OK, MessageBoxImage.Information);
+                Toast.Show("Toʻlov qabul qilindi va kassa cheki chop etildi", ToastTone.Success);
             }
         }
 
@@ -967,15 +963,24 @@ namespace DilkashPos
 
         private string GetPrinterIpForDept(string dept)
         {
-            return dept.ToLower() switch
+            string code = (dept ?? "").ToLowerInvariant() switch
             {
-                "shashlik" => IpShashlikBox.Text.Trim(),
-                "somsa" => IpSomsaBox.Text.Trim(),
-                "kitchen" => IpKitchenBox.Text.Trim(),
-                "fastfood" => IpFastfoodBox.Text.Trim(),
-                "bar" => IpBarBox.Text.Trim(),
-                _ => IpKitchenBox.Text.Trim()
+                "kassa" => "kassa",
+                "shashlik" => "shashlik",
+                "somsa" => "somsa",
+                "kitchen" => "kitchen",
+                "fastfood" => "fastfood",
+                "bar" => "bar",
+                _ => "kitchen"
             };
+
+            var card = _printerCardVMs.FirstOrDefault(p => string.Equals(p.Code, code, StringComparison.OrdinalIgnoreCase));
+            if (card != null)
+            {
+                return (card.PrinterIp ?? "").Trim();
+            }
+
+            return _settings.Printers.TryGetValue(code, out var ip) ? (ip ?? "").Trim() : "";
         }
 
         private string GetDepartmentName(string dept)
@@ -996,8 +1001,8 @@ namespace DilkashPos
             _currentCart.Items.Clear();
             _currentCart.DiscountPercent = 0;
             _currentCart.DiscountAmount = 0;
+            SyncProductInCartQuantities();
             UpdateCartUI();
-            RenderProducts(ProductSearchBox.Text);
         }
 
         private void OnProductSearchChanged(object sender, TextChangedEventArgs e)
@@ -1005,287 +1010,469 @@ namespace DilkashPos
             RenderProducts(ProductSearchBox.Text);
         }
 
-        private void OnClearSearchClick(object sender, RoutedEventArgs e)
+        private void OnResetProductFilter(object? sender, EventArgs e)
         {
+            _selectedCategory = null;
+            foreach (var c in _categoryChips)
+            {
+                c.IsSelected = c.Id == 0;
+            }
             ProductSearchBox.Text = "";
             RenderProducts();
         }
         #endregion
 
         #region 3. Stop-List Boshqaruvi
-        private void RenderStopList(string? query = null)
+        private void UpdateStopListCountsAndBadge()
         {
-            StopListWrapPanel.Children.Clear();
-            var list = _products;
-            if (!string.IsNullOrWhiteSpace(query))
-                list = list.Where(p => p.Name.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
-
             int total = _products.Count;
             int stopped = _products.Count(p => !p.IsAvailable);
-            StopListSummaryText.Text = $"Jami: {total} ta | Mavjud: {total - stopped} ta | Stop-listda: {stopped} ta";
+            int available = total - stopped;
+
+            StopFilterAllBtn.Content = $"Hammasi ({total})";
+            StopFilterAvailableBtn.Content = $"Mavjud ({available})";
+            StopFilterStoppedBtn.Content = $"Stop-listda ({stopped})";
 
             NavStopListCountBadge.Text = stopped.ToString();
             NavStopListBadgeBorder.Visibility = stopped > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
 
-            foreach (var prod in list)
+        private void UpdateStopListVisualStates(bool isLoading)
+        {
+            if (isLoading)
             {
-                // Keng 380x100px Stop-list kartasi
-                var card = new Border
-                {
-                    Width = 380,
-                    Height = 100,
-                    Margin = new Thickness(8),
-                    CornerRadius = new CornerRadius(12),
-                    Background = (Brush)FindResource("CardDarkBrush"),
-                    BorderThickness = new Thickness(2),
-                    BorderBrush = prod.IsAvailable ? (Brush)FindResource("SuccessGreenBrush") : (Brush)FindResource("DangerRedBrush"),
-                    Padding = new Thickness(16)
-                };
-
-                var grid = new Grid();
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var leftStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                leftStack.Children.Add(new TextBlock { Text = prod.Name, FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
-                leftStack.Children.Add(new TextBlock { Text = $"{prod.CategoryName} • {prod.FormattedPrice}", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), Margin = new Thickness(0, 3, 0, 0) });
-                Grid.SetColumn(leftStack, 0);
-
-                var toggleBtn = new Button
-                {
-                    Content = prod.IsAvailable ? "🟢 MAVJUD" : "🛑 STOP",
-                    Width = 110,
-                    Height = 50,
-                    FontSize = 13,
-                    FontWeight = FontWeights.Black,
-                    Style = (Style)FindResource("TouchButtonStyle"),
-                    Background = prod.IsAvailable ? (Brush)FindResource("SuccessGreenBrush") : (Brush)FindResource("DangerRedBrush"),
-                    Tag = prod
-                };
-                toggleBtn.Click += async (s, e) =>
-                {
-                    var p = (Product)((Button)s).Tag;
-                    p.IsAvailable = !p.IsAvailable;
-                    await _db.UpdateProductAvailabilityAsync(p.Id, p.IsAvailable);
-                    await _api.ToggleStopListAsync(p.Id, p.IsAvailable);
-                    RenderStopList(StopListSearchBox.Text);
-                    RenderProducts();
-                };
-                Grid.SetColumn(toggleBtn, 1);
-
-                grid.Children.Add(leftStack);
-                grid.Children.Add(toggleBtn);
-                card.Child = grid;
-
-                StopListWrapPanel.Children.Add(card);
+                StopListLoadingGrid.Visibility = Visibility.Visible;
+                StopListScrollViewer.Visibility = Visibility.Collapsed;
+                StopListEmptyState.Visibility = Visibility.Collapsed;
             }
+            else if (_stopListVMs.Count == 0)
+            {
+                StopListLoadingGrid.Visibility = Visibility.Collapsed;
+                StopListScrollViewer.Visibility = Visibility.Collapsed;
+                StopListEmptyState.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                StopListLoadingGrid.Visibility = Visibility.Collapsed;
+                StopListScrollViewer.Visibility = Visibility.Visible;
+                StopListEmptyState.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void RenderStopList(string? query = null)
+        {
+            query ??= StopListSearchBox?.Text;
+            UpdateStopListCountsAndBadge();
+
+            IEnumerable<Product> filtered = _products;
+            if (_stopListFilter == "available")
+            {
+                filtered = filtered.Where(p => p.IsAvailable);
+            }
+            else if (_stopListFilter == "stopped")
+            {
+                filtered = filtered.Where(p => !p.IsAvailable);
+            }
+
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                string q = query.Trim();
+                filtered = filtered.Where(p =>
+                    p.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                    p.CategoryName.Contains(q, StringComparison.OrdinalIgnoreCase));
+            }
+
+            _stopListVMs.Clear();
+            foreach (var prod in filtered)
+            {
+                _stopListVMs.Add(new StopListItemVM(prod));
+            }
+
+            UpdateStopListVisualStates(isLoading: false);
         }
 
         private void OnStopListSearchChanged(object sender, TextChangedEventArgs e)
         {
             RenderStopList(StopListSearchBox.Text);
         }
+
+        private void OnStopListFilterClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is RadioButton rb && rb.Tag is string filter)
+            {
+                _stopListFilter = filter;
+                RenderStopList(StopListSearchBox.Text);
+            }
+        }
+
+        private async void OnStopListToggleClicked(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox cb && cb.Tag is StopListItemVM vm)
+            {
+                bool newAvail = cb.IsChecked == true;
+                vm.IsAvailable = newAvail;
+                var p = vm.Model;
+
+                await _db.UpdateProductAvailabilityAsync(p.Id, newAvail);
+                await _api.ToggleStopListAsync(p.Id, newAvail);
+
+                if (_productTileMap.TryGetValue(p.Id, out var tile))
+                {
+                    tile.SyncAvailabilityFromModel();
+                }
+
+                if (_stopListFilter != "all")
+                {
+                    RenderStopList(StopListSearchBox.Text);
+                }
+                else
+                {
+                    UpdateStopListCountsAndBadge();
+                }
+            }
+        }
+
+        private void OnResetStopListFilter(object? sender, EventArgs e)
+        {
+            _stopListFilter = "all";
+            StopFilterAllBtn.IsChecked = true;
+            StopListSearchBox.Text = "";
+            RenderStopList();
+        }
         #endregion
 
         #region 4. Online Buyurtmalar (Live Kitchen Dispatcher)
+        private void UpdateOnlineVisualStates(bool isLoading)
+        {
+            if (isLoading)
+            {
+                OnlineLoadingStack.Visibility = Visibility.Visible;
+                OnlineScrollViewer.Visibility = Visibility.Collapsed;
+                OnlineEmptyState.Visibility = Visibility.Collapsed;
+            }
+            else if (_onlineOrderVMs.Count == 0)
+            {
+                OnlineLoadingStack.Visibility = Visibility.Collapsed;
+                OnlineScrollViewer.Visibility = Visibility.Collapsed;
+                OnlineEmptyState.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                OnlineLoadingStack.Visibility = Visibility.Collapsed;
+                OnlineScrollViewer.Visibility = Visibility.Visible;
+                OnlineEmptyState.Visibility = Visibility.Collapsed;
+            }
+        }
+
         private void RenderOnlineOrders()
         {
-            OnlineOrdersStackPanel.Children.Clear();
-            if (_onlineOrders.Count == 0)
-            {
-                var emptyCard = new Border
-                {
-                    Background = (Brush)FindResource("CardDarkBrush"),
-                    CornerRadius = new CornerRadius(14),
-                    Padding = new Thickness(30),
-                    Margin = new Thickness(0, 20, 0, 0)
-                };
-                var emptyStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-                emptyStack.Children.Add(new TextBlock { Text = "📲", FontSize = 48, HorizontalAlignment = HorizontalAlignment.Center });
-                emptyStack.Children.Add(new TextBlock { Text = "Hozircha yangi online buyurtmalar yo'q", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) });
-                emptyStack.Children.Add(new TextBlock { Text = "Telegram bot yoki mobil ilovadan yangi buyurtma tushganda shu yerda avtomatik ko'rinadi.", FontSize = 14, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) });
-                emptyCard.Child = emptyStack;
-                OnlineOrdersStackPanel.Children.Add(emptyCard);
-                return;
-            }
-
+            _onlineOrderVMs.Clear();
             foreach (var order in _onlineOrders)
             {
-                var card = new Border
-                {
-                    Background = (Brush)FindResource("CardDarkBrush"),
-                    CornerRadius = new CornerRadius(14),
-                    Padding = new Thickness(20),
-                    Margin = new Thickness(0, 0, 0, 16),
-                    BorderThickness = new Thickness(2),
-                    BorderBrush = (Brush)FindResource("AccentGoldBrush")
-                };
-
-                var grid = new Grid();
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var leftStack = new StackPanel();
-                var headerStack = new StackPanel { Orientation = Orientation.Horizontal };
-                headerStack.Children.Add(new TextBlock { Text = order.ServiceType == "delivery" ? "🚴 DOSTAVKA " : "🛍 SABOY ", FontSize = 20, FontWeight = FontWeights.Black, Foreground = (Brush)FindResource("AccentGoldBrush") });
-                headerStack.Children.Add(new TextBlock { Text = $"#{order.OrderNumber}", FontSize = 20, FontWeight = FontWeights.Black, Foreground = Brushes.White });
-                leftStack.Children.Add(headerStack);
-
-                leftStack.Children.Add(new TextBlock { Text = $"👤 Mijoz: {order.CustomerName} | 📞 Tel: {order.CustomerPhone}", FontSize = 15, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), Margin = new Thickness(0, 6, 0, 10) });
-
-                foreach (var it in order.Items)
-                {
-                    leftStack.Children.Add(new TextBlock { Text = $"• {it.Quantity}x {it.ProductName} — {it.Total:N0} so'm", FontSize = 15, Foreground = Brushes.White, Margin = new Thickness(0, 1, 0, 1) });
-                }
-
-                leftStack.Children.Add(new TextBlock { Text = $"JAMI SUMMA: {order.TotalAmount:N0} SO'M", FontSize = 19, FontWeight = FontWeights.Black, Foreground = (Brush)FindResource("SuccessGreenBrush"), Margin = new Thickness(0, 10, 0, 0) });
-                Grid.SetColumn(leftStack, 0);
-
-                var rightStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                var acceptBtn = new Button
-                {
-                    Content = "✅ QABUL QILISH VA CHOP ETISH",
-                    Height = 60,
-                    Padding = new Thickness(22, 10, 22, 10),
-                    FontSize = 15,
-                    FontWeight = FontWeights.Black,
-                    Style = (Style)FindResource("TouchButtonStyle"),
-                    Background = (Brush)FindResource("SuccessGreenBrush"),
-                    Tag = order
-                };
-                acceptBtn.Click += async (s, e) =>
-                {
-                    var ord = (Order)((Button)s).Tag;
-                    await PrintOrderKitchenSlipsAsync(ord);
-                    string kassaIp = IpKassaBox.Text.Trim();
-                    if (!string.IsNullOrEmpty(kassaIp))
-                    {
-                        await _printer.PrintKassaReceiptAsync(ord, kassaIp, ord.TotalAmount, 0, 0);
-                    }
-                    _onlineOrders.Remove(ord);
-                    NavOnlineBadgeText.Text = _onlineOrders.Count.ToString();
-                    NavOnlineBadgeBorder.Visibility = _onlineOrders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-                    RenderOnlineOrders();
-                    MessageBox.Show($"Buyurtma #{ord.OrderNumber} qabul qilindi va barcha oshxona bo'limlariga tarqatildi!", "Qabul Qilindi", MessageBoxButton.OK, MessageBoxImage.Information);
-                };
-
-                rightStack.Children.Add(acceptBtn);
-                Grid.SetColumn(rightStack, 1);
-
-                grid.Children.Add(leftStack);
-                grid.Children.Add(rightStack);
-                card.Child = grid;
-
-                OnlineOrdersStackPanel.Children.Add(card);
+                _onlineOrderVMs.Add(new OnlineOrderCardVM(order));
             }
+
+            NavOnlineBadgeText.Text = _onlineOrders.Count.ToString();
+            NavOnlineBadgeBorder.Visibility = _onlineOrders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            UpdateOnlineVisualStates(isLoading: false);
+        }
+
+        private async void OnAcceptOnlineOrderClicked(object? sender, OnlineOrderCardVM vm)
+        {
+            var ord = vm.Model;
+            await PrintOrderKitchenSlipsAsync(ord);
+            string kassaIp = GetPrinterIpForDept("kassa");
+            if (!string.IsNullOrEmpty(kassaIp))
+            {
+                await _printer.PrintKassaReceiptAsync(ord, kassaIp, ord.TotalAmount, 0, 0);
+            }
+
+            _onlineOrders.Remove(ord);
+            RenderOnlineOrders();
+            Toast.Show($"Buyurtma #{ord.OrderNumber} qabul qilindi va boʻlimlarga yuborildi", ToastTone.Success);
         }
 
         private async void OnRefreshOnlineOrdersClick(object sender, RoutedEventArgs e)
         {
+            UpdateOnlineVisualStates(isLoading: true);
             _onlineOrders = await _api.GetOnlineOrdersAsync();
-            NavOnlineBadgeText.Text = _onlineOrders.Count.ToString();
-            NavOnlineBadgeBorder.Visibility = _onlineOrders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             RenderOnlineOrders();
+        }
+
+        private void OnRefreshOnlineOrdersEmptyAction(object? sender, EventArgs e)
+        {
+            OnRefreshOnlineOrdersClick(this, new RoutedEventArgs());
         }
         #endregion
 
         #region 5. Smena va Z-Hisobot (Analytics & Shift Management)
+        private void UpdateShiftVisualStates(bool isLoading)
+        {
+            if (isLoading)
+            {
+                ShiftLoadingState.Visibility = Visibility.Visible;
+                ShiftContentGrid.Visibility = Visibility.Collapsed;
+                ShiftEmptyState.Visibility = Visibility.Collapsed;
+            }
+            else if (_currentShift.TotalOrdersCount == 0 && _currentShift.TotalRevenue == 0)
+            {
+                ShiftLoadingState.Visibility = Visibility.Collapsed;
+                ShiftContentGrid.Visibility = Visibility.Collapsed;
+                ShiftEmptyState.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                ShiftLoadingState.Visibility = Visibility.Collapsed;
+                ShiftContentGrid.Visibility = Visibility.Visible;
+                ShiftEmptyState.Visibility = Visibility.Collapsed;
+            }
+        }
+
         private void UpdateShiftReportUI()
         {
-            SidebarCashierNameText.Text = _settings.CashierName;
-            ShiftHeaderInfoText.Text = $"Smena ochiq • Kassir: {_settings.CashierName} • Boshlanish: Bugun 08:30";
+            string cashier = string.IsNullOrWhiteSpace(_settings.CashierName) ? _currentShift.CashierName : _settings.CashierName;
+            var openedAt = _currentShift.OpenedAt == default ? DateTime.Today.AddHours(8).AddMinutes(30) : _currentShift.OpenedAt;
 
-            ShiftTotalRevenueText.Text = $"{_currentShift.TotalRevenue:N0} so'm";
-            ShiftCashRevenueText.Text = $"{_currentShift.CashRevenue:N0} so'm";
-            ShiftCardRevenueText.Text = $"{_currentShift.CardRevenue:N0} so'm";
+            SidebarCashierNameText.Text = cashier;
+            ShiftHeaderInfoText.Text = $"Smena ochiq · {openedAt:HH:mm} dan · Kassir: {cashier}";
+
+            ShiftTotalRevenueText.Text = MoneyFormatter.Format(_currentShift.TotalRevenue);
+            KpiCashCard.Value = MoneyFormatter.Format(_currentShift.CashRevenue);
+            KpiCardCard.Value = MoneyFormatter.Format(_currentShift.CardRevenue);
+            KpiOnlineCard.Value = MoneyFormatter.Format(_currentShift.OnlineRevenue);
+
             ShiftOrdersCountText.Text = $"{_currentShift.TotalOrdersCount} ta";
+            ShiftServiceFeeText.Text = MoneyFormatter.Format(_currentShift.ServiceFeesCollected);
+            ShiftDiscountsText.Text = MoneyFormatter.Format(_currentShift.DiscountsGiven);
 
-            ShiftServiceFeeText.Text = $"{_currentShift.ServiceFeesCollected:N0} so'm";
-            ShiftDiscountsText.Text = $"{_currentShift.DiscountsGiven:N0} so'm";
+            decimal avgCheck = _currentShift.TotalOrdersCount > 0
+                ? Math.Round(_currentShift.TotalRevenue / _currentShift.TotalOrdersCount, 0)
+                : 0m;
+            ShiftAvgCheckText.Text = MoneyFormatter.Format(avgCheck);
+
+            decimal payTotal = _currentShift.CashRevenue + _currentShift.CardRevenue + _currentShift.OnlineRevenue;
+            if (payTotal > 0)
+            {
+                int cashPct = (int)Math.Round(_currentShift.CashRevenue * 100m / payTotal);
+                int cardPct = (int)Math.Round(_currentShift.CardRevenue * 100m / payTotal);
+                int onlinePct = Math.Max(0, 100 - cashPct - cardPct);
+                ShiftPaymentMixLabel.Text = $"Naqd {cashPct}% · Karta {cardPct}% · Onlayn {onlinePct}%";
+                ShiftCashShareCol.Width = new GridLength(Math.Max(0.5, (double)_currentShift.CashRevenue), GridUnitType.Star);
+                ShiftCardShareCol.Width = new GridLength(Math.Max(0.5, (double)_currentShift.CardRevenue), GridUnitType.Star);
+                ShiftOnlineShareCol.Width = new GridLength(Math.Max(0.5, (double)_currentShift.OnlineRevenue), GridUnitType.Star);
+            }
+            else
+            {
+                ShiftPaymentMixLabel.Text = "Naqd 0% · Karta 0% · Onlayn 0%";
+                ShiftCashShareCol.Width = new GridLength(1, GridUnitType.Star);
+                ShiftCardShareCol.Width = new GridLength(1, GridUnitType.Star);
+                ShiftOnlineShareCol.Width = new GridLength(1, GridUnitType.Star);
+            }
+
+            ShiftDineInText.Text = MoneyFormatter.Format(_currentShift.DineInRevenue);
+            ShiftTakeawayText.Text = MoneyFormatter.Format(_currentShift.TakeawayRevenue);
+
+            UpdateShiftVisualStates(isLoading: false);
+            UpdateClockDisplay();
         }
 
         private async void OnPrintXReportDirect(object sender, RoutedEventArgs e)
         {
-            string kassaIp = IpKassaBox.Text.Trim();
+            string kassaIp = GetPrinterIpForDept("kassa");
             if (string.IsNullOrEmpty(kassaIp))
             {
-                MessageBox.Show("Kassa printeri IP manzili kiritilmagan!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show("Kassa printeri IP manzili kiritilmagan", ToastTone.Warning);
                 return;
             }
 
             var res = await _printer.PrintShiftReportAsync(_currentShift, false, kassaIp);
             if (res.Success)
             {
-                MessageBox.Show("Oraliq X-Hisobot kassa printerida chop etildi!", "X-Hisobot", MessageBoxButton.OK, MessageBoxImage.Information);
+                Toast.Show("Oraliq X-hisobot kassa printerida chop etildi", ToastTone.Success);
             }
             else
             {
-                MessageBox.Show(res.Message, "Printer Xatosi", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show(res.Message, ToastTone.Warning);
             }
         }
 
         private async void OnCloseShiftDirect(object sender, RoutedEventArgs e)
         {
-            var conf = MessageBox.Show("Haqiqatan ham kassa smenasini yopib, Z-Hisobot chiqarmoqchimisiz?", "Smenani Yopish", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (conf == MessageBoxResult.Yes)
+            bool confirmed = Dialogs.Confirm(
+                "Smenani yopish",
+                "Kassa smenasini yopib, Z-hisobot chiqarmoqchimisiz?",
+                "Smenani yopish",
+                "Bekor qilish",
+                isDestructive: true,
+                owner: this);
+
+            if (confirmed)
             {
-                string kassaIp = IpKassaBox.Text.Trim();
+                string kassaIp = GetPrinterIpForDept("kassa");
                 if (!string.IsNullOrEmpty(kassaIp))
                 {
                     await _printer.PrintShiftReportAsync(_currentShift, true, kassaIp);
                 }
 
-                // Smena ma'lumotlarini nolga tushirish
+                // Smena maʼlumotlarini nolga tushirish
                 _currentShift.TotalOrdersCount = 0;
                 _currentShift.TotalRevenue = 0;
                 _currentShift.CashRevenue = 0;
                 _currentShift.CardRevenue = 0;
+                _currentShift.OnlineRevenue = 0;
+                _currentShift.DineInRevenue = 0;
+                _currentShift.TakeawayRevenue = 0;
                 _currentShift.ServiceFeesCollected = 0;
                 _currentShift.DiscountsGiven = 0;
 
                 UpdateShiftReportUI();
-                MessageBox.Show("Kassa smenasi muvaffaqiyatli yopildi va Z-Hisobot chop etildi!", "Smena Yopildi", MessageBoxButton.OK, MessageBoxImage.Information);
+                Toast.Show("Kassa smenasi yopildi va Z-hisobot chop etildi", ToastTone.Success);
             }
+        }
+
+        private void OnShiftEmptyAction(object? sender, EventArgs e)
+        {
+            SwitchToTab("quick_pos");
         }
         #endregion
 
         #region 6. Printerlar va Sozlamalar
-        private void ApplySettingsToUI()
+        private void UpdateSettingsVisualStates(bool isLoading)
         {
-            if (_settings.Printers.TryGetValue("kassa", out var kassa)) IpKassaBox.Text = kassa;
-            if (_settings.Printers.TryGetValue("shashlik", out var shashlik)) IpShashlikBox.Text = shashlik;
-            if (_settings.Printers.TryGetValue("somsa", out var somsa)) IpSomsaBox.Text = somsa;
-            if (_settings.Printers.TryGetValue("kitchen", out var kitchen)) IpKitchenBox.Text = kitchen;
-            if (_settings.Printers.TryGetValue("fastfood", out var fastfood)) IpFastfoodBox.Text = fastfood;
-            if (_settings.Printers.TryGetValue("bar", out var bar)) IpBarBox.Text = bar;
-
-            ServiceFeeValueBox.Text = _settings.ServiceFeeType == "percent"
-                ? _settings.ServiceFeePercent.ToString("0")
-                : _settings.ServiceFeePerPerson.ToString("0");
-
-            ServerUrlBox.Text = _settings.ServerUrl;
-            CashierNameBox.Text = _settings.CashierName;
-            SidebarCashierNameText.Text = _settings.CashierName;
-            AutoPrintCheck.IsChecked = _settings.AutoPrintNetwork;
+            SettingsLoadingState.Visibility = isLoading ? Visibility.Visible : Visibility.Collapsed;
+            SettingsScrollViewer.Visibility = isLoading ? Visibility.Collapsed : Visibility.Visible;
+            SettingsDirtyBar.Visibility = (!isLoading && _settingsDirty) ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        private async void OnTestPrintKassa(object sender, RoutedEventArgs e) => await TestPrintAsync("Kassa Hisob Printeri", IpKassaBox.Text);
-        private async void OnTestPrintShashlik(object sender, RoutedEventArgs e) => await TestPrintAsync("Shashlikxona Printeri", IpShashlikBox.Text);
-        private async void OnTestPrintSomsa(object sender, RoutedEventArgs e) => await TestPrintAsync("Somsaxona Printeri", IpSomsaBox.Text);
-        private async void OnTestPrintKitchen(object sender, RoutedEventArgs e) => await TestPrintAsync("Issiq Oshxona Printeri", IpKitchenBox.Text);
-        private async void OnTestPrintFastfood(object sender, RoutedEventArgs e) => await TestPrintAsync("Fast-Food Printeri", IpFastfoodBox.Text);
-        private async void OnTestPrintBar(object sender, RoutedEventArgs e) => await TestPrintAsync("Desert & Bar Printeri", IpBarBox.Text);
+        private void SetSettingsDirty(bool dirty)
+        {
+            _settingsDirty = dirty;
+            if (SettingsDirtyBar != null && SettingsLoadingState != null)
+            {
+                SettingsDirtyBar.Visibility = (dirty && SettingsLoadingState.Visibility != Visibility.Visible)
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+        }
+
+        private void MarkSettingsDirty()
+        {
+            if (_isApplyingSettings || !IsLoaded)
+            {
+                return;
+            }
+            SetSettingsDirty(true);
+        }
+
+        private void ApplySettingsToUI()
+        {
+            _isApplyingSettings = true;
+            try
+            {
+                _printerCardVMs.Clear();
+                var defaults = new (string Code, string Name, string Subtitle, string Icon)[]
+                {
+                    ("kassa", "Kassa hisob printeri", "Mijoz cheki, X/Z hisobot", "receipt"),
+                    ("shashlik", "Shashlikxona", "Mangal boʻlimi", "grill"),
+                    ("somsa", "Somsaxona", "Tandir boʻlimi", "chef"),
+                    ("kitchen", "Issiq oshxona", "Milliy issiq taomlar", "bowl"),
+                    ("fastfood", "Fast-food", "Burger va lavash", "burger"),
+                    ("bar", "Bar va ichimliklar", "Choy, qahva, desertlar", "coffee")
+                };
+
+                foreach (var def in defaults)
+                {
+                    var dept = _departments.FirstOrDefault(d => string.Equals(d.Code, def.Code, StringComparison.OrdinalIgnoreCase));
+                    string ip = _settings.Printers.TryGetValue(def.Code, out var savedIp) && !string.IsNullOrWhiteSpace(savedIp)
+                        ? savedIp
+                        : (dept?.PrinterIp ?? "");
+                    bool isOnline = dept?.IsOnline ?? !string.IsNullOrWhiteSpace(ip);
+                    string name = !string.IsNullOrWhiteSpace(dept?.Name) ? dept!.Name : def.Name;
+                    string subtitle = !string.IsNullOrWhiteSpace(dept?.Subtitle) ? dept!.Subtitle : def.Subtitle;
+                    string icon = !string.IsNullOrWhiteSpace(dept?.Icon) ? dept!.Icon : def.Icon;
+
+                    _printerCardVMs.Add(new PrinterCardVM(def.Code, name, subtitle, icon, ip, isOnline));
+                }
+
+                foreach (var obj in ServiceFeeTypeCombo.Items)
+                {
+                    if (obj is ComboBoxItem cbi && string.Equals(cbi.Tag as string, _settings.ServiceFeeType, StringComparison.OrdinalIgnoreCase))
+                    {
+                        ServiceFeeTypeCombo.SelectedItem = cbi;
+                        break;
+                    }
+                }
+
+                ServiceFeeValueBox.Text = _settings.ServiceFeeType == "per_person"
+                    ? _settings.ServiceFeePerPerson.ToString("0")
+                    : _settings.ServiceFeeType == "none"
+                        ? "0"
+                        : _settings.ServiceFeePercent.ToString("0");
+                ServiceFeeValueBox.IsEnabled = _settings.ServiceFeeType != "none";
+
+                ServerUrlBox.Text = _settings.ServerUrl;
+                CashierNameBox.Text = _settings.CashierName;
+                SidebarCashierNameText.Text = _settings.CashierName;
+                LockCashierNameText.Text = _settings.CashierName;
+                AutoPrintCheck.IsChecked = _settings.AutoPrintNetwork;
+
+                SetSettingsDirty(false);
+                UpdateSettingsVisualStates(isLoading: false);
+            }
+            finally
+            {
+                _isApplyingSettings = false;
+            }
+        }
+
+        private async void OnPrinterCardTestClick(object? sender, PrinterCardVM vm)
+        {
+            await TestPrintAsync(vm.Name, vm.PrinterIp);
+        }
+
+        private void OnSettingsInputChanged(object? sender, EventArgs e)
+        {
+            MarkSettingsDirty();
+        }
+
+        private void OnSettingsCheckChanged(object sender, RoutedEventArgs e)
+        {
+            MarkSettingsDirty();
+        }
+
+        private void OnSettingsTextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender is TextBox tb && !tb.IsKeyboardFocusWithin) return;
+            MarkSettingsDirty();
+        }
+
+        private void OnSettingsComboChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ServiceFeeValueBox != null && ServiceFeeTypeCombo.SelectedItem is ComboBoxItem item && item.Tag is string tag)
+            {
+                ServiceFeeValueBox.IsEnabled = tag != "none";
+            }
+            if (sender is ComboBox cb && !cb.IsDropDownOpen && !cb.IsKeyboardFocusWithin) return;
+            MarkSettingsDirty();
+        }
+
+        private void OnDiscardSettingsClick(object sender, RoutedEventArgs e)
+        {
+            ApplySettingsToUI();
+            Toast.Show("Oʻzgarishlar bekor qilindi", ToastTone.Info);
+        }
 
         private async Task TestPrintAsync(string title, string ip)
         {
             var res = await _printer.PrintTestSlipAsync(title, ip);
             if (res.Success)
             {
-                MessageBox.Show(res.Message, "Printer Tekshiruvi", MessageBoxButton.OK, MessageBoxImage.Information);
+                Toast.Show(res.Message, ToastTone.Success);
             }
             else
             {
-                MessageBox.Show(res.Message, "Printer Tekshiruvi Xatosi", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show(res.Message, ToastTone.Warning);
             }
         }
 
@@ -1296,12 +1483,10 @@ namespace DilkashPos
             _settings.CashierName = CashierNameBox.Text.Trim();
             _settings.AutoPrintNetwork = AutoPrintCheck.IsChecked == true;
 
-            _settings.Printers["kassa"] = IpKassaBox.Text.Trim();
-            _settings.Printers["shashlik"] = IpShashlikBox.Text.Trim();
-            _settings.Printers["somsa"] = IpSomsaBox.Text.Trim();
-            _settings.Printers["kitchen"] = IpKitchenBox.Text.Trim();
-            _settings.Printers["fastfood"] = IpFastfoodBox.Text.Trim();
-            _settings.Printers["bar"] = IpBarBox.Text.Trim();
+            foreach (var card in _printerCardVMs)
+            {
+                _settings.Printers[card.Code] = (card.PrinterIp ?? "").Trim();
+            }
 
             if (ServiceFeeTypeCombo.SelectedItem is ComboBoxItem item && item.Tag is string feeType)
             {
@@ -1309,12 +1494,173 @@ namespace DilkashPos
                 if (decimal.TryParse(ServiceFeeValueBox.Text.Trim(), out decimal val))
                 {
                     if (feeType == "percent") _settings.ServiceFeePercent = val;
-                    else _settings.ServiceFeePerPerson = val;
+                    else if (feeType == "per_person") _settings.ServiceFeePerPerson = val;
                 }
             }
 
             SidebarCashierNameText.Text = _settings.CashierName;
-            MessageBox.Show("Barcha sozlamalar muvaffaqiyatli saqlandi!", "Sozlamalar", MessageBoxButton.OK, MessageBoxImage.Information);
+            LockCashierNameText.Text = _settings.CashierName;
+            UpdateShiftReportUI();
+            UpdateCartUI();
+            SetSettingsDirty(false);
+            Toast.Show("Barcha sozlamalar saqlandi", ToastTone.Success);
+        }
+        #endregion
+
+        #region Demo va Test Yordamchilari
+        public void PrepareDemoMode()
+        {
+            _isDemoMode = true;
+        }
+
+        public void LoadDemoData()
+        {
+            _isDemoMode = true;
+            var (depts, cats, prods, tbls, online, shift, setts) = Demo.DemoData.GetDemoDataset();
+            _departments = depts;
+            _categories = cats;
+            _products = prods;
+            _tables = tbls;
+            _onlineOrders = online;
+            _currentShift = shift;
+            _settings = setts;
+            _currentCart = Demo.DemoData.GetDemoCart();
+            _activeTableContext = _tables.FirstOrDefault(t => t.Number.ToString() == _currentCart.TableNumber);
+
+            _stopListFilter = "all";
+            StopFilterAllBtn.IsChecked = true;
+            StopListSearchBox.Text = "";
+
+            RenderTables();
+            RenderCategories();
+            RenderProducts();
+            RenderStopList();
+            RenderOnlineOrders();
+            UpdateCartUI();
+            UpdateShiftReportUI();
+            ApplySettingsToUI();
+
+            ApplySyncStatusUI(true, 0, _onlineOrders.Count, DateTime.Now);
+            UpdateClockDisplay();
+        }
+
+        public void SetDemoSyncState(bool isOnline, int pendingCount)
+        {
+            ApplySyncStatusUI(isOnline, pendingCount, _onlineOrders.Count, DateTime.Now.AddMinutes(-2));
+        }
+
+        public void ShowDemoToast(string message, ToastTone tone, string? actionLabel = null)
+        {
+            MainToastHost.ShowToast(message, tone, actionLabel, actionLabel != null ? () => { } : null, autoHide: false);
+        }
+
+        public void ShowDemoScrim(bool visible)
+        {
+            ModalScrim.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        public void SetDemoTablesState(bool isLoading, bool forceEmpty)
+        {
+            _isLoadingTables = isLoading;
+            if (forceEmpty)
+            {
+                _tableZoneSections.Clear();
+            }
+            else if (!isLoading && _tableZoneSections.Count == 0)
+            {
+                RenderTables();
+            }
+            UpdateTablesLoadingAndEmptyStates();
+        }
+
+        public void SetDemoQuickPosEmpty(bool empty)
+        {
+            if (empty)
+            {
+                ProductSearchBox.Text = "Mavjud boʻlmagan taom";
+                RenderProducts(ProductSearchBox.Text);
+            }
+            else
+            {
+                ProductSearchBox.Text = "";
+                RenderProducts();
+            }
+        }
+
+        public void SetDemoStopListState(bool isLoading, bool forceEmpty)
+        {
+            if (isLoading)
+            {
+                UpdateStopListVisualStates(isLoading: true);
+            }
+            else if (forceEmpty)
+            {
+                _stopListVMs.Clear();
+                UpdateStopListVisualStates(isLoading: false);
+            }
+            else
+            {
+                RenderStopList(StopListSearchBox.Text);
+            }
+        }
+
+        public void SetDemoOnlineState(bool isLoading, bool forceEmpty)
+        {
+            if (isLoading)
+            {
+                UpdateOnlineVisualStates(isLoading: true);
+            }
+            else if (forceEmpty)
+            {
+                _onlineOrderVMs.Clear();
+                UpdateOnlineVisualStates(isLoading: false);
+            }
+            else
+            {
+                RenderOnlineOrders();
+            }
+        }
+
+        public void SetDemoShiftState(bool isLoading, bool forceEmpty)
+        {
+            if (isLoading)
+            {
+                UpdateShiftVisualStates(isLoading: true);
+            }
+            else if (forceEmpty)
+            {
+                ShiftLoadingState.Visibility = Visibility.Collapsed;
+                ShiftContentGrid.Visibility = Visibility.Collapsed;
+                ShiftEmptyState.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                UpdateShiftReportUI();
+            }
+        }
+
+        public void SetDemoSettingsState(bool isLoading, bool forceDirty)
+        {
+            UpdateSettingsVisualStates(isLoading);
+            if (!isLoading)
+            {
+                if (forceDirty)
+                {
+                    _isApplyingSettings = true;
+                    CashierNameBox.Text = "Jasur Rahimov (Tahrir)";
+                    _isApplyingSettings = false;
+                    SetSettingsDirty(true);
+                }
+                else
+                {
+                    ApplySettingsToUI();
+                }
+            }
+        }
+
+        public void SwitchToTabPublic(string tag)
+        {
+            SwitchToTab(tag);
         }
         #endregion
     }

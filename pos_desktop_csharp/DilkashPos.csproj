@@ -3,13 +3,28 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
+    <RollForward>LatestMajor</RollForward>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>Resources\App.ico</ApplicationIcon>
+    <Version>2.0.0</Version>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <FileVersion>2.0.0.0</FileVersion>
+    <Product>Dilkash POS</Product>
+    <Company>Dilkash Milliy Taomlar</Company>
+    <AssemblyTitle>Dilkash POS</AssemblyTitle>
+    <Description>Dilkash restoran tarmoqlari uchun sensorli kassa va oshxona boshqaruv tizimi</Description>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\Fonts\*.ttf" />
+    <Resource Include="Resources\App.ico" />
+    <SplashScreen Include="Resources\Splash.png" />
   </ItemGroup>
 
 </Project>
