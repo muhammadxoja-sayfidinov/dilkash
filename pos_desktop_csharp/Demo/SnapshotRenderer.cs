@@ -74,6 +74,7 @@ namespace DilkashPos.Demo
                             WindowState = WindowState.Normal
                         };
 
+                        win.PrepareDemoMode();
                         win.Show();
                         win.LoadDemoData();
                         win.UpdateShellLayoutForWidth(width);
@@ -220,6 +221,8 @@ namespace DilkashPos.Demo
                             Height = height,
                             WindowState = WindowState.Normal
                         };
+                        win.PrepareDemoMode();
+                        win.PrepareDemoMode();
                         win.Show();
                         win.LoadDemoData();
                         win.UpdateShellLayoutForWidth(width);
@@ -228,8 +231,16 @@ namespace DilkashPos.Demo
                         win.SetDemoSyncState(false, 3);
                         RenderWindowToPng(win, width, height, Path.Combine(resDir, "shell_offline.png"));
 
-                        // Toast
+                        // Tables Loading & Empty states
                         win.SetDemoSyncState(true, 0);
+                        win.SetDemoTablesState(isLoading: true, forceEmpty: false);
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "tables_loading.png"));
+
+                        win.SetDemoTablesState(isLoading: false, forceEmpty: true);
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "tables_empty.png"));
+                        win.SetDemoTablesState(isLoading: false, forceEmpty: false);
+
+                        // Toast
                         win.ShowDemoToast("Toʻlov qabul qilindi va kassa cheki chop etildi", Utils.ToastTone.Success, "Qaytarish");
                         RenderWindowToPng(win, width, height, Path.Combine(resDir, "shell_toast.png"));
 

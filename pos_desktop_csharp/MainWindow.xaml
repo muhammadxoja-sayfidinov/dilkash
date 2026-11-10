@@ -412,62 +412,174 @@
             <!-- ===================================================== -->
             <Grid x:Name="TablesTab" Visibility="Visible">
                 <Grid.RowDefinitions>
-                    <!-- Top Zone & Status Filter Bar (72px) -->
-                    <RowDefinition Height="72" />
-                    <!-- Tables Grid (*) -->
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <!-- Zallar Filtr Qatori va Statistikasi -->
-                <Border Grid.Row="0" Background="{StaticResource CardDarkBrush}" CornerRadius="12" Padding="16,10" Margin="0,0,0,14" BorderBrush="#334155" BorderThickness="1">
-                    <Grid>
-                        <!-- Chap: Zallar Bo'yicha Filtrlar -->
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="Zalni tanlang:" FontSize="15" FontWeight="Bold" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,14,0" />
-                            <Button x:Name="FilterAllBtn" Content="🏛 Barcha Zallar (12)" Style="{StaticResource TouchButtonStyle}" Height="46" Padding="18,8" Margin="0,0,8,0" Click="OnTableFilterAll" />
-                            <Button x:Name="FilterZalBtn" Content="🛋 Asosiy Zal (6)" Style="{StaticResource TouchSecondaryButton}" Height="46" Padding="18,8" Margin="0,0,8,0" Click="OnTableFilterZal" />
-                            <Button x:Name="FilterTerrasaBtn" Content="🌿 Ochiq Terrasa (3)" Style="{StaticResource TouchSecondaryButton}" Height="46" Padding="18,8" Margin="0,0,8,0" Click="OnTableFilterTerrasa" />
-                            <Button x:Name="FilterVipBtn" Content="👑 VIP Xonalar (3)" Style="{StaticResource TouchSecondaryButton}" Height="46" Padding="18,8" Margin="0,0,8,0" Click="OnTableFilterVip" />
+                <!-- Zone Segmented Filter (left) & Status Filter Chips (right) -->
+                <Grid Grid.Row="0" Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Segmented Zone Filter -->
+                    <Border Grid.Column="0"
+                            Background="{DynamicResource BrushSurface}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusSm}"
+                            Padding="4"
+                            VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="FilterAllBtn"
+                                         GroupName="TableZoneFilter"
+                                         Content="Barchasi (12)"
+                                         Style="{StaticResource SegmentedItem}"
+                                         IsChecked="True"
+                                         Click="OnTableFilterAll" />
+                            <RadioButton x:Name="FilterZalBtn"
+                                         GroupName="TableZoneFilter"
+                                         Content="Asosiy zal (6)"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Click="OnTableFilterZal" />
+                            <RadioButton x:Name="FilterTerrasaBtn"
+                                         GroupName="TableZoneFilter"
+                                         Content="Terrasa (3)"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Click="OnTableFilterTerrasa" />
+                            <RadioButton x:Name="FilterVipBtn"
+                                         GroupName="TableZoneFilter"
+                                         Content="VIP (3)"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Click="OnTableFilterVip" />
                         </StackPanel>
+                    </Border>
 
-                        <!-- O'ng: Jonli Holat Ko'rsatkichlari -->
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <!-- Bo'sh -->
-                            <Border Background="#064E3B" CornerRadius="8" Padding="12,8" Margin="0,0,8,0" BorderBrush="#10B981" BorderThickness="1">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Background="#10B981" CornerRadius="6" Width="12" Height="12" Margin="0,0,8,0" VerticalAlignment="Center" />
-                                    <TextBlock Text="Bo'sh stollar: " Foreground="#A7F3D0" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                    <TextBlock x:Name="EmptyTablesCountText" Text="10" FontWeight="Black" Foreground="White" FontSize="15" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </Border>
+                    <!-- Status Filter Chips with Live Counts -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <ToggleButton x:Name="StatusFilterEmptyChip"
+                                      Style="{StaticResource ChipToggle}"
+                                      Margin="0,0,8,0"
+                                      Click="OnStatusFilterChipClick"
+                                      Tag="empty">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="8" Height="8" Fill="{DynamicResource BrushTextMuted}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <TextBlock x:Name="EmptyChipLabel" Text="Boʻsh (0)" Style="{StaticResource TextLabel}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Typography.NumeralAlignment="Tabular" />
+                            </StackPanel>
+                        </ToggleButton>
 
-                            <!-- Band -->
-                            <Border Background="#450A0A" CornerRadius="8" Padding="12,8" Margin="0,0,8,0" BorderBrush="#EF4444" BorderThickness="1">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Background="#EF4444" CornerRadius="6" Width="12" Height="12" Margin="0,0,8,0" VerticalAlignment="Center" />
-                                    <TextBlock Text="Band stollar: " Foreground="#FECACA" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                    <TextBlock x:Name="OccupiedTablesCountText" Text="2" FontWeight="Black" Foreground="White" FontSize="15" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </Border>
+                        <ToggleButton x:Name="StatusFilterOccupiedChip"
+                                      Style="{StaticResource ChipToggle}"
+                                      Margin="0,0,8,0"
+                                      Click="OnStatusFilterChipClick"
+                                      Tag="occupied">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="8" Height="8" Fill="{DynamicResource BrushPrimaryBright}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <TextBlock x:Name="OccupiedChipLabel" Text="Band (0)" Style="{StaticResource TextLabel}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Typography.NumeralAlignment="Tabular" />
+                            </StackPanel>
+                        </ToggleButton>
 
-                            <!-- Pre-chek -->
-                            <Border Background="#451A03" CornerRadius="8" Padding="12,8" BorderBrush="#F59E0B" BorderThickness="1">
-                                <StackPanel Orientation="Horizontal">
-                                    <Border Background="#F59E0B" CornerRadius="6" Width="12" Height="12" Margin="0,0,8,0" VerticalAlignment="Center" />
-                                    <TextBlock Text="Hisob berildi: " Foreground="#FDE68A" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                    <TextBlock x:Name="BillPrintedCountText" Text="0" FontWeight="Black" Foreground="White" FontSize="15" VerticalAlignment="Center" />
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                    </Grid>
-                </Border>
+                        <ToggleButton x:Name="StatusFilterBillChip"
+                                      Style="{StaticResource ChipToggle}"
+                                      Margin="0,0,8,0"
+                                      Click="OnStatusFilterChipClick"
+                                      Tag="bill_printed">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="8" Height="8" Fill="{DynamicResource BrushAmberBright}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <TextBlock x:Name="BillChipLabel" Text="Hisob berildi (0)" Style="{StaticResource TextLabel}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Typography.NumeralAlignment="Tabular" />
+                            </StackPanel>
+                        </ToggleButton>
 
-                <!-- Keng Stollar Maydoni (Spacious 1920x1080 Grid) -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <WrapPanel x:Name="TablesWrapPanel" Margin="0,0,0,20">
-                        <!-- Har bir stol kartasi 380x215px bo'lib, yuqori sifatda dinamik joylanadi -->
-                    </WrapPanel>
-                </ScrollViewer>
+                        <ToggleButton x:Name="StatusFilterReservedChip"
+                                      Style="{StaticResource ChipToggle}"
+                                      Click="OnStatusFilterChipClick"
+                                      Tag="reserved">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="8" Height="8" Fill="{DynamicResource BrushReserved}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <TextBlock x:Name="ReservedChipLabel" Text="Bron (0)" Style="{StaticResource TextLabel}" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" Typography.NumeralAlignment="Tabular" />
+                            </StackPanel>
+                        </ToggleButton>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Tables Content Area: Zone Sections / Loading Skeleton / EmptyState -->
+                <Grid Grid.Row="1">
+                    <!-- Populated Zone Sections -->
+                    <ScrollViewer x:Name="TablesScrollViewer" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="TableZonesItemsControl" Margin="0,0,0,16">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,0,0,18">
+                                        <!-- Zone Header -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                            <TextBlock Text="{Binding ZoneTitle}"
+                                                       Style="{StaticResource TextLabelCaps}"
+                                                       Foreground="{DynamicResource BrushTextSecondary}"
+                                                       VerticalAlignment="Center" />
+                                            <Border Background="{DynamicResource BrushSurface}"
+                                                    BorderBrush="{DynamicResource BrushBorderSubtle}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="{StaticResource RadiusFull}"
+                                                    Padding="8,2"
+                                                    Margin="10,0,0,0"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding ZoneSummary}"
+                                                           Style="{StaticResource TextCaption}"
+                                                           Typography.NumeralAlignment="Tabular" />
+                                            </Border>
+                                        </StackPanel>
+
+                                        <!-- Responsive Grid of TableCards (3 at 1366, 4 at 1920) -->
+                                        <ItemsControl ItemsSource="{Binding Tables}" Margin="0,0,-12,0">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <UniformGrid Columns="{Binding Columns}" VerticalAlignment="Top" />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <controls:TableCard Margin="0,0,12,12"
+                                                                        CardClicked="OnTableCardControlClicked"
+                                                                        PreChekClicked="OnTablePreChekClicked"
+                                                                        PayClicked="OnTablePayClicked" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- Loading Skeleton Grid -->
+                    <UniformGrid x:Name="TablesLoadingGrid"
+                                 Columns="4"
+                                 VerticalAlignment="Top"
+                                 Margin="0,8,-12,0"
+                                 Visibility="Collapsed">
+                        <controls:SkeletonBox Height="160" Margin="0,0,12,12" />
+                        <controls:SkeletonBox Height="160" Margin="0,0,12,12" />
+                        <controls:SkeletonBox Height="160" Margin="0,0,12,12" />
+                        <controls:SkeletonBox Height="160" Margin="0,0,12,12" />
+                        <controls:SkeletonBox Height="160" Margin="0,0,12,12" />
+                        <controls:SkeletonBox Height="160" Margin="0,0,12,12" />
+                        <controls:SkeletonBox Height="160" Margin="0,0,12,12" />
+                        <controls:SkeletonBox Height="160" Margin="0,0,12,12" />
+                    </UniformGrid>
+
+                    <!-- EmptyState -->
+                    <controls:EmptyState x:Name="TablesEmptyState"
+                                         IconData="{StaticResource IconTables}"
+                                         Title="Bu filtr boʻyicha stollar topilmadi"
+                                         Subtitle="Boshqa zona yoki holat filtrini tanlab koʻring."
+                                         ActionLabel="Filtrni tozalash"
+                                         ActionClicked="OnResetTableFilters"
+                                         VerticalAlignment="Center"
+                                         HorizontalAlignment="Center"
+                                         Visibility="Collapsed" />
+                </Grid>
             </Grid>
 
             <!-- ===================================================== -->

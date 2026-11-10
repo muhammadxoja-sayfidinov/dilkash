@@ -1,0 +1,427 @@
+<UserControl x:Class="DilkashPos.Controls.TableCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:DilkashPos.Controls"
+             xmlns:vm="clr-namespace:DilkashPos.ViewModels"
+             MinWidth="260"
+             Height="160">
+    <Grid>
+        <!-- Card Surface + Visual States -->
+        <Border x:Name="CardBorder"
+                CornerRadius="{StaticResource RadiusMd}"
+                BorderThickness="1"
+                ClipToBounds="True">
+            <Border.Style>
+                <Style TargetType="{x:Type Border}">
+                    <Setter Property="Background" Value="{DynamicResource BrushSurface}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource BrushBorderSubtle}" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding VisualState}" Value="{x:Static vm:TableVisualState.Occupied}">
+                            <Setter Property="Background" Value="{DynamicResource BrushSurfaceElevated}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding VisualState}" Value="{x:Static vm:TableVisualState.BillPrinted}">
+                            <Setter Property="Background" Value="{DynamicResource BrushAmberTintSoft}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource BrushAmber}" />
+                            <Setter Property="BorderThickness" Value="1.5" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding VisualState}" Value="{x:Static vm:TableVisualState.Reserved}">
+                            <Setter Property="Background" Value="{DynamicResource BrushReservedTint}" />
+                            <Setter Property="BorderBrush" Value="Transparent" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+
+            <Grid>
+                <!-- Dashed Border Overlay for Reserved state -->
+                <Rectangle RadiusX="14" RadiusY="14"
+                           Stroke="{DynamicResource BrushReserved}"
+                           StrokeThickness="1.5"
+                           StrokeDashArray="5 3"
+                           IsHitTestVisible="False">
+                    <Rectangle.Style>
+                        <Style TargetType="{x:Type Rectangle}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding VisualState}" Value="{x:Static vm:TableVisualState.Reserved}">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Rectangle.Style>
+                </Rectangle>
+
+                <!-- Left Accent Bar (Emerald for Occupied, Amber for BillPrinted) -->
+                <Border Width="4" HorizontalAlignment="Left" IsHitTestVisible="False">
+                    <Border.Style>
+                        <Style TargetType="{x:Type Border}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding VisualState}" Value="{x:Static vm:TableVisualState.Occupied}">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <Setter Property="Background" Value="{DynamicResource BrushPrimaryBright}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding VisualState}" Value="{x:Static vm:TableVisualState.BillPrinted}">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                    <Setter Property="Background" Value="{DynamicResource BrushAmberBright}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                </Border>
+
+                <!-- Full-Card Interactive Button (Focus, Touch, Press Scale, Opens Table/Order) -->
+                <Button x:Name="CardBodyButton"
+                        Click="OnCardBodyClick"
+                        Padding="14,12"
+                        MinHeight="152"
+                        HorizontalContentAlignment="Stretch"
+                        VerticalContentAlignment="Stretch"
+                        FocusVisualStyle="{x:Null}"
+                        Stylus.IsPressAndHoldEnabled="False"
+                        Stylus.IsFlicksEnabled="False"
+                        Stylus.IsTapFeedbackEnabled="False"
+                        Stylus.IsTouchFeedbackEnabled="False">
+                    <Button.Template>
+                        <ControlTemplate TargetType="{x:Type Button}">
+                            <Grid RenderTransformOrigin="0.5,0.5" Background="Transparent">
+                                <Grid.RenderTransform>
+                                    <ScaleTransform x:Name="pressScale" ScaleX="1" ScaleY="1" />
+                                </Grid.RenderTransform>
+                                <Border x:Name="hoverOverlay"
+                                        Background="{DynamicResource BrushTextPrimary}"
+                                        Opacity="0"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        IsHitTestVisible="False" />
+                                <Border Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter />
+                                </Border>
+                                <Border x:Name="focusRing"
+                                        BorderBrush="{DynamicResource BrushFocusRing}"
+                                        BorderThickness="2"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        Visibility="Collapsed"
+                                        IsHitTestVisible="False" />
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="hoverOverlay" Property="Opacity" Value="0.04" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Trigger.EnterActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleX" To="0.985" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
+                                                <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleY" To="0.985" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.EnterActions>
+                                    <Trigger.ExitActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleX" To="1.0" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
+                                                <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleY" To="1.0" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </Trigger.ExitActions>
+                                </Trigger>
+                                <Trigger Property="IsKeyboardFocused" Value="True">
+                                    <Setter TargetName="focusRing" Property="Visibility" Value="Visible" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Row 0: Table Name + Zone Tag + StatusPill -->
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <local:Icon Data="{StaticResource IconTables}"
+                                            Size="18"
+                                            Margin="0,0,8,0"
+                                            VerticalAlignment="Center">
+                                    <local:Icon.Style>
+                                        <Style TargetType="{x:Type local:Icon}">
+                                            <Setter Property="Foreground" Value="{DynamicResource BrushTextMuted}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsOccupiedOrBill}" Value="True">
+                                                    <Setter Property="Foreground" Value="{DynamicResource BrushPrimaryBright}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsReserved}" Value="True">
+                                                    <Setter Property="Foreground" Value="{DynamicResource BrushReservedText}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </local:Icon.Style>
+                                </local:Icon>
+
+                                <TextBlock Text="{Binding Name}"
+                                           Style="{StaticResource TextTitle}"
+                                           VerticalAlignment="Center" />
+
+                                <Border Background="{DynamicResource BrushBg}"
+                                        BorderBrush="{DynamicResource BrushBorderSubtle}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusXs}"
+                                        Padding="7,2"
+                                        Margin="8,0,0,0"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Zone}"
+                                               Style="{StaticResource TextCaption}"
+                                               Foreground="{DynamicResource BrushTextSecondary}" />
+                                </Border>
+                            </StackPanel>
+
+                            <!-- StatusPill per state (icon + text, never color-only) -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- Single pulse dot on BillPrinted -->
+                                <Ellipse x:Name="BillPulseDot"
+                                         Width="8" Height="8"
+                                         Fill="{DynamicResource BrushAmberBright}"
+                                         Margin="0,0,6,0"
+                                         VerticalAlignment="Center">
+                                    <Ellipse.Style>
+                                        <Style TargetType="{x:Type Ellipse}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsBillPrinted}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                    <DataTrigger.EnterActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.25" Duration="0:0:0.45" AutoReverse="True" RepeatBehavior="2x" />
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </DataTrigger.EnterActions>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+
+                                <local:StatusPill Text="{Binding StatusLabel}">
+                                    <local:StatusPill.Style>
+                                        <Style TargetType="{x:Type local:StatusPill}">
+                                            <Setter Property="Tone" Value="Neutral" />
+                                            <Setter Property="IconData" Value="{StaticResource IconTables}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding VisualState}" Value="{x:Static vm:TableVisualState.Occupied}">
+                                                    <Setter Property="Tone" Value="Primary" />
+                                                    <Setter Property="IconData" Value="{StaticResource IconUser}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding VisualState}" Value="{x:Static vm:TableVisualState.BillPrinted}">
+                                                    <Setter Property="Tone" Value="Warning" />
+                                                    <Setter Property="IconData" Value="{StaticResource IconReceipt}" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding VisualState}" Value="{x:Static vm:TableVisualState.Reserved}">
+                                                    <Setter Property="Tone" Value="Reserved" />
+                                                    <Setter Property="IconData" Value="{StaticResource IconClock}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </local:StatusPill.Style>
+                                </local:StatusPill>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Row 1: Body Details -->
+                        <Grid Grid.Row="1" VerticalAlignment="Center" Margin="0,6">
+                            <!-- Free / Reserved Details -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <StackPanel.Style>
+                                    <Style TargetType="{x:Type StackPanel}">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsOccupiedOrBill}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+
+                                <local:Icon Data="{StaticResource IconUser}" Size="15" Foreground="{DynamicResource BrushTextMuted}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding CapacityText}" Style="{StaticResource TextBody}" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" />
+                                <TextBlock Text=" · Band qilingan" Foreground="{DynamicResource BrushReservedText}" VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource TextBody}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsReserved}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <!-- Occupied / BillPrinted Details (Guests · Waiter | Timer) -->
+                            <Grid>
+                                <Grid.Style>
+                                    <Style TargetType="{x:Type Grid}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsOccupiedOrBill}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Grid.Style>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <local:Icon Data="{StaticResource IconUser}" Size="15" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding GuestsText}" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                                    <TextBlock Text=" · " Style="{StaticResource TextCaption}" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding WaiterText}" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <local:Icon Data="{StaticResource IconClock}" Size="15" Margin="0,0,5,0" VerticalAlignment="Center">
+                                        <local:Icon.Style>
+                                            <Style TargetType="{x:Type local:Icon}">
+                                                <Setter Property="Foreground" Value="{DynamicResource BrushTextSecondary}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Urgency}" Value="{x:Static vm:TimerUrgency.Warning}">
+                                                        <Setter Property="Foreground" Value="{DynamicResource BrushAmberBright}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Urgency}" Value="{x:Static vm:TimerUrgency.Overdue}">
+                                                        <Setter Property="Foreground" Value="{DynamicResource BrushErrorBright}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </local:Icon.Style>
+                                    </local:Icon>
+                                    <TextBlock Text="{Binding ElapsedText}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource TextTimer}">
+                                                <Setter Property="Foreground" Value="{DynamicResource BrushTextSecondary}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Urgency}" Value="{x:Static vm:TimerUrgency.Warning}">
+                                                        <Setter Property="Foreground" Value="{DynamicResource BrushAmberBright}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Urgency}" Value="{x:Static vm:TimerUrgency.Overdue}">
+                                                        <Setter Property="Foreground" Value="{DynamicResource BrushErrorBright}" />
+                                                        <Setter Property="FontWeight" Value="Bold" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+
+                        <!-- Row 2: Footer (Free = quiet Ochish affordance; Occupied = Saffron Amount + spacer for buttons) -->
+                        <Grid Grid.Row="2" MinHeight="48">
+                            <!-- Free / Reserved Footer -->
+                            <Grid>
+                                <Grid.Style>
+                                    <Style TargetType="{x:Type Grid}">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsOccupiedOrBill}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Grid.Style>
+
+                                <TextBlock Text="Stol boʻsh"
+                                           VerticalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource TextCaptionMuted}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsReserved}" Value="True">
+                                                    <Setter Property="Text" Value="Bron faol" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <local:Icon Data="{StaticResource IconPlus}" Size="16" Foreground="{DynamicResource BrushPrimaryBright}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Ochish" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushPrimaryBright}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Occupied Amount (left) -->
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Left">
+                                <StackPanel.Style>
+                                    <Style TargetType="{x:Type StackPanel}">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsOccupiedOrBill}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </StackPanel.Style>
+                                <TextBlock Text="{Binding TotalFormatted}"
+                                           Style="{StaticResource TextAmount}"
+                                           FontWeight="Bold"
+                                           Foreground="{DynamicResource BrushAmberBright}" />
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Button>
+
+                <!-- Action Buttons Overlay (Bottom-Right, outside CardBodyButton so clicks never collide) -->
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            Margin="0,0,14,12">
+                    <StackPanel.Style>
+                        <Style TargetType="{x:Type StackPanel}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsOccupiedOrBill}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+
+                    <Button Style="{StaticResource GhostButton}"
+                            MinHeight="48"
+                            Height="48"
+                            Padding="12,8"
+                            Margin="0,0,8,0"
+                            Click="OnPreChekClick">
+                        <StackPanel Orientation="Horizontal">
+                            <local:Icon Data="{StaticResource IconReceipt}" Size="16" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Hisob" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <Button Style="{StaticResource PrimaryButton}"
+                            MinHeight="48"
+                            Height="48"
+                            Padding="14,8"
+                            Click="OnPayClick">
+                        <StackPanel Orientation="Horizontal">
+                            <local:Icon Data="{StaticResource IconCash}" Size="16" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Toʻlov" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

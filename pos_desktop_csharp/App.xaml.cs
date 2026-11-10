@@ -44,6 +44,7 @@ namespace DilkashPos
             var mainWindow = new MainWindow();
             if (isDemo)
             {
+                mainWindow.PrepareDemoMode();
                 mainWindow.LoadDemoData();
             }
             mainWindow.Show();

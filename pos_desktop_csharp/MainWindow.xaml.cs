@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
@@ -13,6 +15,7 @@ using DilkashPos.Data;
 using DilkashPos.Models;
 using DilkashPos.Services;
 using DilkashPos.Utils;
+using DilkashPos.ViewModels;
 using DilkashPos.Views;
 
 namespace DilkashPos
@@ -39,6 +42,11 @@ namespace DilkashPos
         private Category? _selectedCategory;
         private RestaurantTable? _activeTableContext;
         private string _currentTableFilter = "all";
+        private readonly HashSet<string> _selectedTableStatuses = new();
+        private readonly ObservableCollection<TableZoneSectionVM> _tableZoneSections = new();
+        private readonly Dictionary<int, TableCardVM> _tableCardVMs = new();
+        private int _tableColumns = 4;
+        private bool _isLoadingTables = false;
         private string _activeTabTag = "tables";
         private bool _isDemoMode = false;
 
@@ -50,6 +58,8 @@ namespace DilkashPos
             _api = new ApiService("http://127.0.0.1:8000");
             _printer = new EscPosPrinterService();
             _syncEngine = new SyncEngine(_api, _db, _printer);
+
+            TableZonesItemsControl.ItemsSource = _tableZoneSections;
 
             Dialogs.RegisterScrimHandler(visible => ModalScrim.Visibility = visible ? Visibility.Visible : Visibility.Collapsed);
             Toast.RegisterHost(MainToastHost);
@@ -85,6 +95,17 @@ namespace DilkashPos
         public void UpdateShellLayoutForWidth(double width)
         {
             RailColumn.Width = new GridLength(width < 1366 ? 80 : 88);
+
+            int newCols = width >= 2200 ? 5 : width >= 1550 ? 4 : 3;
+            if (newCols != _tableColumns)
+            {
+                _tableColumns = newCols;
+                TablesLoadingGrid.Columns = newCols;
+                foreach (var sec in _tableZoneSections)
+                {
+                    sec.Columns = newCols;
+                }
+            }
         }
 
         private async void OnWindowLoaded(object sender, RoutedEventArgs e)
@@ -131,6 +152,9 @@ namespace DilkashPos
 
         private async Task LoadDataAsync()
         {
+            _isLoadingTables = true;
+            UpdateTablesLoadingAndEmptyStates();
+
             // 1. Lokal SQLite keshidan o'qish (Darhol yuklanadi)
             _products = await _db.GetCachedProductsAsync();
             _categories = await _db.GetCachedCategoriesAsync();
@@ -140,13 +164,14 @@ namespace DilkashPos
             {
                 // Standart 12 ta stol (Zal, Terrasa, VIP)
                 for (int i = 1; i <= 6; i++)
-                    _tables.Add(new RestaurantTable { Number = i, Name = $"Stol #{i}", Zone = "Zal", Capacity = 4 });
+                    _tables.Add(new RestaurantTable { Id = i, Number = i, Name = $"Stol #{i}", Zone = "Zal", Capacity = 4 });
                 for (int i = 7; i <= 9; i++)
-                    _tables.Add(new RestaurantTable { Number = i, Name = $"Terrasa #{i - 6}", Zone = "Terrasa", Capacity = 6 });
+                    _tables.Add(new RestaurantTable { Id = i, Number = i, Name = $"Terrasa #{i - 6}", Zone = "Terrasa", Capacity = 6 });
                 for (int i = 10; i <= 12; i++)
-                    _tables.Add(new RestaurantTable { Number = i, Name = $"VIP Xona #{i - 9}", Zone = "VIP", Capacity = 10 });
+                    _tables.Add(new RestaurantTable { Id = i, Number = i, Name = $"VIP Xona #{i - 9}", Zone = "VIP", Capacity = 10 });
             }
 
+            _isLoadingTables = false;
             RenderTables();
             RenderCategories();
             RenderProducts();
@@ -300,205 +325,163 @@ namespace DilkashPos
         }
         #endregion
 
-        #region 1. Stollar Xaritasi (1920x1080 Full HD Tables Map)
+        #region 1. Stollar Xaritasi (Responsive Zone-Sectioned Tables Map)
+        private static string GetTableStatusKey(RestaurantTable tbl)
+        {
+            if (tbl.Status == "bill_printed") return "bill_printed";
+            if (tbl.Status == "reserved") return "reserved";
+            if (tbl.IsOccupied || tbl.Status == "occupied") return "occupied";
+            return "empty";
+        }
+
+        private void UpdateTableCounts()
+        {
+            int allCount = _tables.Count;
+            int zalCount = _tables.Count(t => t.Zone == "Zal");
+            int terrasaCount = _tables.Count(t => t.Zone == "Terrasa");
+            int vipCount = _tables.Count(t => t.Zone == "VIP");
+
+            FilterAllBtn.Content = $"Barchasi ({allCount})";
+            FilterZalBtn.Content = $"Asosiy zal ({zalCount})";
+            FilterTerrasaBtn.Content = $"Terrasa ({terrasaCount})";
+            FilterVipBtn.Content = $"VIP ({vipCount})";
+
+            int emptyCount = _tables.Count(t => GetTableStatusKey(t) == "empty");
+            int occCount = _tables.Count(t => GetTableStatusKey(t) == "occupied");
+            int billCount = _tables.Count(t => GetTableStatusKey(t) == "bill_printed");
+            int reservedCount = _tables.Count(t => GetTableStatusKey(t) == "reserved");
+
+            EmptyChipLabel.Text = $"Boʻsh ({emptyCount})";
+            OccupiedChipLabel.Text = $"Band ({occCount})";
+            BillChipLabel.Text = $"Hisob berildi ({billCount})";
+            ReservedChipLabel.Text = $"Bron ({reservedCount})";
+
+            int activeTablesCount = occCount + billCount;
+            NavTablesCountBadge.Text = activeTablesCount.ToString();
+            NavTablesCountBorder.Visibility = activeTablesCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
         private void RenderTables()
         {
-            TablesWrapPanel.Children.Clear();
-            var list = _tables;
+            UpdateTableCounts();
+            _tableZoneSections.Clear();
+            _tableCardVMs.Clear();
 
-            if (_currentTableFilter == "zal") list = list.Where(t => t.Zone == "Zal").ToList();
-            else if (_currentTableFilter == "terrasa") list = list.Where(t => t.Zone == "Terrasa").ToList();
-            else if (_currentTableFilter == "vip") list = list.Where(t => t.Zone == "VIP").ToList();
+            var filtered = _tables.AsEnumerable();
+            if (_currentTableFilter == "zal") filtered = filtered.Where(t => t.Zone == "Zal");
+            else if (_currentTableFilter == "terrasa") filtered = filtered.Where(t => t.Zone == "Terrasa");
+            else if (_currentTableFilter == "vip") filtered = filtered.Where(t => t.Zone == "VIP");
 
-            int emptyCount = _tables.Count(t => !t.IsOccupied && t.Status != "bill_printed");
-            int occCount = _tables.Count(t => t.IsOccupied && t.Status != "bill_printed");
-            int billCount = _tables.Count(t => t.Status == "bill_printed");
-
-            EmptyTablesCountText.Text = emptyCount.ToString();
-            OccupiedTablesCountText.Text = occCount.ToString();
-            BillPrintedCountText.Text = billCount.ToString();
-            NavTablesCountBadge.Text = occCount.ToString();
-            NavTablesCountBorder.Visibility = occCount > 0 ? Visibility.Visible : Visibility.Collapsed;
-
-            foreach (var tbl in list)
+            if (_selectedTableStatuses.Count > 0)
             {
-                // Keng 380x215px stol kartasi (1920x1080 da 4 ta ustun hosil qiladi)
-                var card = new Border
-                {
-                    Width = 380,
-                    Height = 215,
-                    Margin = new Thickness(10),
-                    CornerRadius = new CornerRadius(14),
-                    Background = tbl.IsOccupied 
-                        ? new SolidColorBrush(Color.FromRgb(30, 41, 59)) // #1E293B
-                        : new SolidColorBrush(Color.FromRgb(15, 27, 30)),
-                    BorderThickness = new Thickness(2),
-                    BorderBrush = tbl.Status == "bill_printed" ? (Brush)FindResource("AccentGoldBrush") :
-                                 tbl.IsOccupied ? (Brush)FindResource("DangerRedBrush") : (Brush)FindResource("BrandPrimaryBrush"),
-                    Padding = new Thickness(16),
-                    Cursor = Cursors.Hand,
-                    Tag = tbl
-                };
-
-                var grid = new Grid();
-                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-                // 1. Qator: Stol nomi, Zonasi va Holat Pill
-                var headerGrid = new Grid();
-                var leftStack = new StackPanel { Orientation = Orientation.Horizontal };
-                leftStack.Children.Add(new TextBlock { Text = tbl.Zone == "VIP" ? "👑 " : "🍽 ", FontSize = 20, VerticalAlignment = VerticalAlignment.Center });
-                leftStack.Children.Add(new TextBlock { Text = tbl.Name, FontSize = 20, FontWeight = FontWeights.ExtraBold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
-
-                var zoneBorder = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromRgb(51, 65, 85)),
-                    CornerRadius = new CornerRadius(6),
-                    Padding = new Thickness(8, 2, 8, 2),
-                    Margin = new Thickness(10, 0, 0, 0),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                zoneBorder.Child = new TextBlock { Text = tbl.Zone, FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Brushes.White };
-                leftStack.Children.Add(zoneBorder);
-
-                var badgeBorder = new Border
-                {
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    CornerRadius = new CornerRadius(8),
-                    Background = tbl.Status == "bill_printed" ? (Brush)FindResource("AccentGoldBrush") :
-                                 tbl.IsOccupied ? (Brush)FindResource("DangerRedBrush") : (Brush)FindResource("SuccessGreenBrush"),
-                    Padding = new Thickness(10, 4, 10, 4),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                badgeBorder.Child = new TextBlock { Text = tbl.StatusBadge, FontSize = 12, FontWeight = FontWeights.Black, Foreground = Brushes.White };
-
-                headerGrid.Children.Add(leftStack);
-                headerGrid.Children.Add(badgeBorder);
-                Grid.SetRow(headerGrid, 0);
-
-                // 2. Qator: Stol tanasi (Ma'lumotlar)
-                var bodyStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 10, 0, 10) };
-                if (!tbl.IsOccupied)
-                {
-                    bodyStack.Children.Add(new TextBlock
-                    {
-                        Text = $"👥 Sig'imi: {tbl.Capacity} kishilik qulay stol",
-                        FontSize = 14,
-                        Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184))
-                    });
-                    bodyStack.Children.Add(new TextBlock
-                    {
-                        Text = "✨ Mehmonlarni kutib olishga to'liq tayyor",
-                        FontSize = 13,
-                        Foreground = new SolidColorBrush(Color.FromRgb(16, 185, 129)),
-                        Margin = new Thickness(0, 4, 0, 0)
-                    });
-                }
-                else
-                {
-                    string waiter = tbl.ActiveOrder?.WaiterName ?? tbl.AssignedWaiter ?? "Jasur";
-                    int mins = tbl.ActiveOrder?.ElapsedMinutes ?? 0;
-                    int itemsCount = tbl.ActiveOrder?.Items.Sum(i => i.Quantity) ?? 0;
-
-                    var infoGrid = new Grid();
-                    infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                    var col1 = new StackPanel();
-                    col1.Children.Add(new TextBlock { Text = $"👤 {tbl.GuestsCount} kishi (sig'im: {tbl.Capacity})", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White });
-                    col1.Children.Add(new TextBlock { Text = $"🤵 Ofitsiant: {waiter}", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), Margin = new Thickness(0, 2, 0, 0) });
-
-                    var col2 = new StackPanel();
-                    col2.Children.Add(new TextBlock { Text = $"⏱ {mins} daqiqadan beri", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = (Brush)FindResource("AccentGoldBrush") });
-                    col2.Children.Add(new TextBlock { Text = $"🍲 {itemsCount} ta taom buyurtmada", FontSize = 13, Foreground = Brushes.White, Margin = new Thickness(0, 2, 0, 0) });
-
-                    infoGrid.Children.Add(col1);
-                    Grid.SetColumn(col2, 1);
-                    infoGrid.Children.Add(col2);
-                    bodyStack.Children.Add(infoGrid);
-                }
-                Grid.SetRow(bodyStack, 1);
-
-                // 3. Qator: Jami summa va Katta sensorli amallar
-                var footerGrid = new Grid();
-                if (!tbl.IsOccupied)
-                {
-                    var openBtn = new Button
-                    {
-                        Content = "➕ STOLNI OCHISH",
-                        Height = 44,
-                        FontSize = 14,
-                        FontWeight = FontWeights.Black,
-                        Style = (Style)FindResource("TouchButtonStyle"),
-                        Background = (Brush)FindResource("BrandPrimaryBrush"),
-                        Tag = tbl
-                    };
-                    openBtn.Click += (s, e) => OnTableCardClicked((RestaurantTable)((Button)s).Tag);
-                    footerGrid.Children.Add(openBtn);
-                }
-                else
-                {
-                    footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                    footerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                    var sumStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                    sumStack.Children.Add(new TextBlock { Text = "HISOB SUMMASI:", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)) });
-                    sumStack.Children.Add(new TextBlock { Text = tbl.TotalSumFormatted, FontSize = 20, FontWeight = FontWeights.Black, Foreground = (Brush)FindResource("SuccessGreenBrush") });
-                    Grid.SetColumn(sumStack, 0);
-
-                    var actionsStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-
-                    var addFoodBtn = new Button { Content = "📝 Taom", Height = 40, Padding = new Thickness(10, 0, 10, 0), FontSize = 12, FontWeight = FontWeights.Bold, Style = (Style)FindResource("TouchSecondaryButton"), Margin = new Thickness(0, 0, 6, 0), Tag = tbl };
-                    var prechekBtn = new Button { Content = "📄 Pre-chek", Height = 40, Padding = new Thickness(10, 0, 10, 0), FontSize = 12, FontWeight = FontWeights.Bold, Style = (Style)FindResource("TouchGoldButton"), Margin = new Thickness(0, 0, 6, 0), Tag = tbl };
-                    var payBtn = new Button { Content = "💳 To'lov", Height = 40, Padding = new Thickness(12, 0, 12, 0), FontSize = 12, FontWeight = FontWeights.Black, Style = (Style)FindResource("TouchButtonStyle"), Background = (Brush)FindResource("SuccessGreenBrush"), Tag = tbl };
-
-                    addFoodBtn.Click += (s, e) => OpenTableOrderInQuickPos((RestaurantTable)((Button)s).Tag);
-                    prechekBtn.Click += async (s, e) =>
-                    {
-                        var t = (RestaurantTable)((Button)s).Tag;
-                        if (t.ActiveOrder != null && t.ActiveOrder.Items.Count > 0)
-                        {
-                            string kassaIp = IpKassaBox.Text.Trim();
-                            await _printer.PrintPreChekAsync(t.ActiveOrder, kassaIp);
-                            t.Status = "bill_printed";
-                            RenderTables();
-                            Toast.Show($"{t.Name} uchun hisob pre-cheki chop etildi", ToastTone.Success);
-                        }
-                    };
-                    payBtn.Click += (s, e) =>
-                    {
-                        var t = (RestaurantTable)((Button)s).Tag;
-                        OpenTableOrderInQuickPos(t);
-                        OnPayCartClick(s, e);
-                    };
-
-                    actionsStack.Children.Add(addFoodBtn);
-                    actionsStack.Children.Add(prechekBtn);
-                    actionsStack.Children.Add(payBtn);
-                    Grid.SetColumn(actionsStack, 1);
-
-                    footerGrid.Children.Add(sumStack);
-                    footerGrid.Children.Add(actionsStack);
-                }
-                Grid.SetRow(footerGrid, 2);
-
-                grid.Children.Add(headerGrid);
-                grid.Children.Add(bodyStack);
-                grid.Children.Add(footerGrid);
-                card.Child = grid;
-
-                card.MouseLeftButtonUp += (s, e) =>
-                {
-                    // Agar tugma bosilmagan bo'lsa, stol kartasining o'zi bosilganda
-                    if (e.OriginalSource is not Button)
-                    {
-                        OnTableCardClicked((RestaurantTable)((Border)s).Tag);
-                    }
-                };
-
-                TablesWrapPanel.Children.Add(card);
+                filtered = filtered.Where(t => _selectedTableStatuses.Contains(GetTableStatusKey(t)));
             }
+
+            var filteredList = filtered.ToList();
+            var zoneOrder = new[]
+            {
+                ("Zal", "ASOSIY ZAL"),
+                ("Terrasa", "TERRASA"),
+                ("VIP", "VIP XONALAR")
+            };
+
+            foreach (var (zoneKey, zoneHeader) in zoneOrder)
+            {
+                var zoneTables = filteredList.Where(t => t.Zone == zoneKey).ToList();
+                if (zoneTables.Count == 0) continue;
+
+                int busyInZone = zoneTables.Count(t => GetTableStatusKey(t) is "occupied" or "bill_printed");
+                var sec = new TableZoneSectionVM
+                {
+                    ZoneKey = zoneKey,
+                    ZoneTitle = zoneHeader,
+                    ZoneSummary = busyInZone > 0 ? $"{zoneTables.Count} ta stol · {busyInZone} band" : $"{zoneTables.Count} ta stol",
+                    Columns = _tableColumns
+                };
+
+                foreach (var tbl in zoneTables)
+                {
+                    var vm = new TableCardVM(tbl);
+                    _tableCardVMs[tbl.Number] = vm;
+                    sec.Tables.Add(vm);
+                }
+
+                _tableZoneSections.Add(sec);
+            }
+
+            UpdateTablesLoadingAndEmptyStates();
+        }
+
+        private void RefreshSingleTableCard(RestaurantTable tbl)
+        {
+            UpdateTableCounts();
+            if (_selectedTableStatuses.Count > 0)
+            {
+                RenderTables();
+                return;
+            }
+
+            if (_tableCardVMs.TryGetValue(tbl.Number, out var vm))
+            {
+                vm.Refresh();
+                var sec = _tableZoneSections.FirstOrDefault(s => s.ZoneKey == tbl.Zone);
+                if (sec != null)
+                {
+                    int busyInZone = sec.Tables.Count(t => t.IsOccupiedOrBill);
+                    sec.ZoneSummary = busyInZone > 0 ? $"{sec.Tables.Count} ta stol · {busyInZone} band" : $"{sec.Tables.Count} ta stol";
+                }
+            }
+            else
+            {
+                RenderTables();
+            }
+        }
+
+        private void UpdateTablesLoadingAndEmptyStates()
+        {
+            if (_isLoadingTables)
+            {
+                TablesLoadingGrid.Visibility = Visibility.Visible;
+                TablesScrollViewer.Visibility = Visibility.Collapsed;
+                TablesEmptyState.Visibility = Visibility.Collapsed;
+            }
+            else if (_tableZoneSections.Count == 0)
+            {
+                TablesLoadingGrid.Visibility = Visibility.Collapsed;
+                TablesScrollViewer.Visibility = Visibility.Collapsed;
+                TablesEmptyState.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                TablesLoadingGrid.Visibility = Visibility.Collapsed;
+                TablesScrollViewer.Visibility = Visibility.Visible;
+                TablesEmptyState.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void OnTableCardControlClicked(object? sender, TableCardVM vm)
+        {
+            OnTableCardClicked(vm.Model);
+        }
+
+        private async void OnTablePreChekClicked(object? sender, TableCardVM vm)
+        {
+            var t = vm.Model;
+            if (t.ActiveOrder != null && t.ActiveOrder.Items.Count > 0)
+            {
+                string kassaIp = IpKassaBox.Text.Trim();
+                await _printer.PrintPreChekAsync(t.ActiveOrder, kassaIp);
+                t.Status = "bill_printed";
+                RefreshSingleTableCard(t);
+                Toast.Show($"{t.Name} uchun hisob pre-cheki chop etildi", ToastTone.Success);
+            }
+        }
+
+        private void OnTablePayClicked(object? sender, TableCardVM vm)
+        {
+            var t = vm.Model;
+            OpenTableOrderInQuickPos(t);
+            OnPayCartClick(this, new RoutedEventArgs());
         }
 
         private async void OnTableCardClicked(RestaurantTable table)
@@ -529,7 +512,7 @@ namespace DilkashPos
                         };
                     }
 
-                    RenderTables();
+                    RefreshSingleTableCard(table);
                     OpenTableOrderInQuickPos(table);
                 }
             }
@@ -550,25 +533,40 @@ namespace DilkashPos
                 WaiterName = table.AssignedWaiter ?? _settings.CashierName
             };
 
-            CartTitleText.Text = $"🍽 {table.Name.ToUpper()} ({table.Zone})";
-            CartSubtitleText.Text = $"Ofitsiant: {_currentCart.WaiterName} • Mehmon: {_currentCart.GuestsCount} kishi";
+            CartTitleText.Text = $"{table.Name} · {table.Zone}";
+            CartSubtitleText.Text = $"Ofitsiant: {_currentCart.WaiterName} · {_currentCart.GuestsCount} mehmon";
             SwitchToTab("quick_pos");
             UpdateCartUI();
         }
 
-        private void OnTableFilterAll(object sender, RoutedEventArgs e) { _currentTableFilter = "all"; HighlightFilterBtn(FilterAllBtn); RenderTables(); }
-        private void OnTableFilterZal(object sender, RoutedEventArgs e) { _currentTableFilter = "zal"; HighlightFilterBtn(FilterZalBtn); RenderTables(); }
-        private void OnTableFilterTerrasa(object sender, RoutedEventArgs e) { _currentTableFilter = "terrasa"; HighlightFilterBtn(FilterTerrasaBtn); RenderTables(); }
-        private void OnTableFilterVip(object sender, RoutedEventArgs e) { _currentTableFilter = "vip"; HighlightFilterBtn(FilterVipBtn); RenderTables(); }
+        private void OnTableFilterAll(object sender, RoutedEventArgs e) { _currentTableFilter = "all"; RenderTables(); }
+        private void OnTableFilterZal(object sender, RoutedEventArgs e) { _currentTableFilter = "zal"; RenderTables(); }
+        private void OnTableFilterTerrasa(object sender, RoutedEventArgs e) { _currentTableFilter = "terrasa"; RenderTables(); }
+        private void OnTableFilterVip(object sender, RoutedEventArgs e) { _currentTableFilter = "vip"; RenderTables(); }
 
-        private void HighlightFilterBtn(Button active)
+        private void OnStatusFilterChipClick(object sender, RoutedEventArgs e)
         {
-            var secondaryBrush = (Brush)FindResource("CardDarkBrush");
-            FilterAllBtn.Background = secondaryBrush;
-            FilterZalBtn.Background = secondaryBrush;
-            FilterTerrasaBtn.Background = secondaryBrush;
-            FilterVipBtn.Background = secondaryBrush;
-            active.Background = (Brush)FindResource("BrandPrimaryBrush");
+            if (sender is ToggleButton tb && tb.Tag is string statusKey)
+            {
+                if (tb.IsChecked == true)
+                    _selectedTableStatuses.Add(statusKey);
+                else
+                    _selectedTableStatuses.Remove(statusKey);
+
+                RenderTables();
+            }
+        }
+
+        private void OnResetTableFilters(object? sender, EventArgs e)
+        {
+            _currentTableFilter = "all";
+            FilterAllBtn.IsChecked = true;
+            _selectedTableStatuses.Clear();
+            StatusFilterEmptyChip.IsChecked = false;
+            StatusFilterOccupiedChip.IsChecked = false;
+            StatusFilterBillChip.IsChecked = false;
+            StatusFilterReservedChip.IsChecked = false;
+            RenderTables();
         }
         #endregion
 
@@ -915,7 +913,7 @@ namespace DilkashPos
                 if (_activeTableContext != null)
                 {
                     _activeTableContext.Status = "bill_printed";
-                    RenderTables();
+                    RefreshSingleTableCard(_activeTableContext);
                 }
                 Toast.Show("Mijoz uchun hisob pre-cheki chop etildi", ToastTone.Success);
             }
@@ -970,11 +968,12 @@ namespace DilkashPos
 
                 if (_activeTableContext != null)
                 {
-                    _activeTableContext.IsOccupied = false;
-                    _activeTableContext.Status = "empty";
-                    _activeTableContext.ActiveOrder = null;
+                    var closed = _activeTableContext;
+                    closed.IsOccupied = false;
+                    closed.Status = "empty";
+                    closed.ActiveOrder = null;
                     _activeTableContext = null;
-                    RenderTables();
+                    RefreshSingleTableCard(closed);
                 }
 
                 _currentCart = new Order { ServiceType = "pickup" };
@@ -1363,6 +1362,11 @@ namespace DilkashPos
         #endregion
 
         #region Demo va Test Yordamchilari
+        public void PrepareDemoMode()
+        {
+            _isDemoMode = true;
+        }
+
         public void LoadDemoData()
         {
             _isDemoMode = true;
@@ -1402,6 +1406,20 @@ namespace DilkashPos
         public void ShowDemoScrim(bool visible)
         {
             ModalScrim.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        public void SetDemoTablesState(bool isLoading, bool forceEmpty)
+        {
+            _isLoadingTables = isLoading;
+            if (forceEmpty)
+            {
+                _tableZoneSections.Clear();
+            }
+            else if (!isLoading && _tableZoneSections.Count == 0)
+            {
+                RenderTables();
+            }
+            UpdateTablesLoadingAndEmptyStates();
         }
 
         public void SwitchToTabPublic(string tag)
