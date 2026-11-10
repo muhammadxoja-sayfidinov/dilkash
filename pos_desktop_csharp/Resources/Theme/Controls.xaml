@@ -837,4 +837,191 @@
         </Setter>
     </Style>
 
+    <!-- ========================================================= -->
+    <!-- 5. NAVIGATION RAIL ITEM (Left Shell Rail)                 -->
+    <!-- ========================================================= -->
+    <Style x:Key="NavRailItem" TargetType="{x:Type RadioButton}">
+        <Setter Property="FontFamily" Value="{StaticResource FontFamilyBase}" />
+        <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource BrushTextSecondary}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="MinHeight" Value="68" />
+        <Setter Property="Padding" Value="2,8" />
+        <Setter Property="Margin" Value="4,2" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Stylus.IsPressAndHoldEnabled" Value="False" />
+        <Setter Property="Stylus.IsFlicksEnabled" Value="False" />
+        <Setter Property="Stylus.IsTapFeedbackEnabled" Value="False" />
+        <Setter Property="Stylus.IsTouchFeedbackEnabled" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type RadioButton}">
+                    <Grid RenderTransformOrigin="0.5,0.5">
+                        <Grid.RenderTransform>
+                            <ScaleTransform x:Name="pressScale" ScaleX="1" ScaleY="1" />
+                        </Grid.RenderTransform>
+                        <Border x:Name="pill"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{StaticResource RadiusMd}"
+                                Padding="{TemplateBinding Padding}">
+                            <Grid>
+                                <!-- Active Emerald Left Indicator Bar -->
+                                <Border x:Name="activeBar"
+                                        Width="3" Height="28"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        Margin="-4,0,0,0"
+                                        CornerRadius="2"
+                                        Background="{DynamicResource BrushPrimaryBright}"
+                                        Visibility="Collapsed" />
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                            </Grid>
+                        </Border>
+                        <Border x:Name="focusRing"
+                                Margin="-1"
+                                BorderBrush="{DynamicResource BrushFocusRing}"
+                                BorderThickness="2"
+                                CornerRadius="{StaticResource RadiusMd}"
+                                Visibility="Collapsed"
+                                IsHitTestVisible="False" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="pill" Property="Background" Value="{DynamicResource BrushPrimaryTint}" />
+                            <Setter TargetName="pill" Property="BorderBrush" Value="{DynamicResource BrushPrimary}" />
+                            <Setter TargetName="activeBar" Property="Visibility" Value="Visible" />
+                            <Setter Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsMouseOver" Value="True" />
+                                <Condition Property="IsChecked" Value="False" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="pill" Property="Background" Value="{DynamicResource BrushSurfaceElevated}" />
+                            <Setter Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
+                        </MultiTrigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleX" To="0.97" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
+                                        <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleY" To="0.97" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleX" To="1.0" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
+                                        <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleY" To="1.0" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="focusRing" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ========================================================= -->
+    <!-- 6. DIALOG CHROME (Unified Rounded Modal Chrome + Shadow)  -->
+    <!-- ========================================================= -->
+    <Style TargetType="{x:Type controls:DialogChrome}">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type controls:DialogChrome}">
+                    <Border x:Name="PART_ChromeRoot"
+                            Background="{DynamicResource BrushSurface}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusLg}"
+                            RenderTransformOrigin="0.5,0.5"
+                            Margin="16">
+                        <Border.RenderTransform>
+                            <ScaleTransform x:Name="PART_ChromeScale" ScaleX="1" ScaleY="1" />
+                        </Border.RenderTransform>
+                        <Border.Effect>
+                            <DropShadowEffect Color="#000000" BlurRadius="32" ShadowDepth="8" Opacity="0.55" />
+                        </Border.Effect>
+
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Header -->
+                            <Border Grid.Row="0"
+                                    BorderBrush="{DynamicResource BrushBorderSubtle}"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="24,18">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
+                                        <TextBlock Text="{TemplateBinding Title}"
+                                                   Style="{StaticResource TextTitle}" />
+                                        <TextBlock x:Name="PART_Subtitle"
+                                                   Text="{TemplateBinding Subtitle}"
+                                                   Style="{StaticResource TextCaption}"
+                                                   Margin="0,3,0,0" />
+                                    </StackPanel>
+
+                                    <Button x:Name="PART_CloseBtn"
+                                            Grid.Column="1"
+                                            Style="{StaticResource IconButton}"
+                                            Background="Transparent"
+                                            BorderBrush="Transparent">
+                                        <controls:Icon Data="{StaticResource IconClose}" Size="20" Foreground="{DynamicResource BrushTextSecondary}" />
+                                    </Button>
+                                </Grid>
+                            </Border>
+
+                            <!-- Body -->
+                            <ContentPresenter Grid.Row="1" />
+
+                            <!-- Optional Footer -->
+                            <Border x:Name="PART_Footer"
+                                    Grid.Row="2"
+                                    BorderBrush="{DynamicResource BrushBorderSubtle}"
+                                    BorderThickness="0,1,0,0"
+                                    Padding="24,16">
+                                <ContentPresenter Content="{TemplateBinding FooterContent}" />
+                            </Border>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Subtitle" Value="">
+                            <Setter TargetName="PART_Subtitle" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="FooterContent" Value="{x:Null}">
+                            <Setter TargetName="PART_Footer" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="ShowCloseButton" Value="False">
+                            <Setter TargetName="PART_CloseBtn" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

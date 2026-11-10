@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using DilkashPos.Models;
 using DilkashPos.Services;
+using DilkashPos.Utils;
 
 namespace DilkashPos.Views
 {
@@ -34,34 +35,39 @@ namespace DilkashPos.Views
         {
             if (string.IsNullOrEmpty(_kassaPrinterIp))
             {
-                MessageBox.Show("Kassa printeri IP manzili sozlanmagan!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show("Kassa printeri IP manzili sozlanmagan", ToastTone.Warning);
                 return;
             }
 
             var res = await _printer.PrintShiftReportAsync(_report, isZReport: false, _kassaPrinterIp);
             if (res.Success)
             {
-                MessageBox.Show("X-Hisobot kassa printeriga muvaffaqiyatli chop etildi!", "X-Hisobot", MessageBoxButton.OK, MessageBoxImage.Information);
+                Toast.Show("X-hisobot kassa printeriga chop etildi", ToastTone.Success);
             }
             else
             {
-                MessageBox.Show(res.Message, "Printer Xatosi", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show(res.Message, ToastTone.Warning);
             }
         }
 
         private async void OnPrintZReportClick(object sender, RoutedEventArgs e)
         {
-            var confirm = MessageBox.Show("Diqqat! Z-Hisobot chop etilgach smena yopiladi va yangi kun hisobi boshlanadi. Davom ettirasizmi?",
-                "Z-Hisobot Tasdig'i", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            bool confirmed = Dialogs.Confirm(
+                "Z-hisobot tasdigʻi",
+                "Z-hisobot chop etilgach smena yopiladi va yangi kun hisobi boshlanadi. Davom etasizmi?",
+                "Smenani yopish",
+                "Bekor qilish",
+                isDestructive: true,
+                owner: this);
 
-            if (confirm != MessageBoxResult.Yes) return;
+            if (!confirmed) return;
 
             if (!string.IsNullOrEmpty(_kassaPrinterIp))
             {
                 await _printer.PrintShiftReportAsync(_report, isZReport: true, _kassaPrinterIp);
             }
 
-            MessageBox.Show("Smena muvaffaqiyatli yopildi va Z-Hisobot chop etildi!", "Smena Yopildi", MessageBoxButton.OK, MessageBoxImage.Information);
+            Toast.Show("Smena yopildi va Z-hisobot chop etildi", ToastTone.Success);
             DialogResult = true;
             Close();
         }

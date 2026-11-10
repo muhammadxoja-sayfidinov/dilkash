@@ -22,6 +22,7 @@ namespace DilkashPos.Demo
         public static async Task CaptureAllAsync(string outputDir)
         {
             Application.Current.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            DilkashPos.Controls.DialogChrome.DisableAnimationsForTests = true;
             Directory.CreateDirectory(outputDir);
             Console.WriteLine($"[SnapshotRenderer] Capturing snapshots to {outputDir}...");
 
@@ -75,6 +76,7 @@ namespace DilkashPos.Demo
 
                         win.Show();
                         win.LoadDemoData();
+                        win.UpdateShellLayoutForWidth(width);
                         win.SwitchToTabPublic(tab);
 
                         win.Measure(new Size(width, height));
@@ -180,6 +182,65 @@ namespace DilkashPos.Demo
                     dlg.Close();
                 });
                 await Task.Delay(50);
+
+                // Confirm Dialog (Phase 2)
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    var dlg = new ConfirmDialog(
+                        "Smenani yopish",
+                        "Kassa smenasini yopib, Z-hisobot chiqarmoqchimisiz?",
+                        "Smenani yopish",
+                        "Bekor qilish",
+                        isDestructive: true)
+                    {
+                        WindowStartupLocation = WindowStartupLocation.Manual,
+                        Left = -20000,
+                        Top = -20000
+                    };
+                    dlg.Show();
+                    dlg.UpdateLayout();
+                    string path = Path.Combine(resDir, "dialog_confirm.png");
+                    RenderWindowToPng(dlg, (int)dlg.Width, (int)dlg.ActualHeight > 0 ? (int)dlg.ActualHeight : 280, path);
+                    Console.WriteLine($"[SnapshotRenderer] Wrote {path}");
+                    dlg.Close();
+                });
+                await Task.Delay(50);
+
+                // Shell States: Offline strip, Lock overlay, Toast (at 1366x768 and 1920x1080)
+                if (width == 1366 || width == 1920)
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        var win = new MainWindow
+                        {
+                            WindowStartupLocation = WindowStartupLocation.Manual,
+                            Left = -20000,
+                            Top = -20000,
+                            Width = width,
+                            Height = height,
+                            WindowState = WindowState.Normal
+                        };
+                        win.Show();
+                        win.LoadDemoData();
+                        win.UpdateShellLayoutForWidth(width);
+
+                        // Offline strip
+                        win.SetDemoSyncState(false, 3);
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "shell_offline.png"));
+
+                        // Toast
+                        win.SetDemoSyncState(true, 0);
+                        win.ShowDemoToast("Toʻlov qabul qilindi va kassa cheki chop etildi", Utils.ToastTone.Success, "Qaytarish");
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "shell_toast.png"));
+
+                        // Lock overlay
+                        win.SetLockedState(true);
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "shell_locked.png"));
+
+                        win.Close();
+                    });
+                    await Task.Delay(50);
+                }
             }
 
             Console.WriteLine("[SnapshotRenderer] Completed capturing all snapshots.");
@@ -196,7 +257,13 @@ namespace DilkashPos.Demo
 
             if (window.Content is FrameworkElement content)
             {
-                var bgBrush = window.Background ?? Brushes.Black;
+                window.UpdateLayout();
+
+                var bgBrush = window.Background;
+                if (bgBrush == null || (bgBrush is SolidColorBrush scb && scb.Color.A == 0))
+                {
+                    bgBrush = (Brush)(Application.Current.TryFindResource("BrushBg") ?? Brushes.Black);
+                }
                 var dc = window.DataContext;
                 var winRes = window.Resources;
 
@@ -221,6 +288,7 @@ namespace DilkashPos.Demo
                     Child = content
                 };
 
+                InvalidateTreeMeasure(host);
                 host.Measure(new Size(renderW, renderH));
                 host.Arrange(new Rect(0, 0, renderW, renderH));
                 host.UpdateLayout();
@@ -240,6 +308,19 @@ namespace DilkashPos.Demo
 
             using var fs = File.Create(filePath);
             encoder.Save(fs);
+        }
+
+        private static void InvalidateTreeMeasure(DependencyObject obj)
+        {
+            if (obj is UIElement ui)
+            {
+                ui.InvalidateMeasure();
+            }
+            int count = VisualTreeHelper.GetChildrenCount(obj);
+            for (int i = 0; i < count; i++)
+            {
+                InvalidateTreeMeasure(VisualTreeHelper.GetChild(obj, i));
+            }
         }
     }
 }

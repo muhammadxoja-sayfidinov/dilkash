@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using DilkashPos.Utils;
 
 namespace DilkashPos.Views
 {
@@ -100,6 +101,7 @@ namespace DilkashPos.Views
 
         private void UpdateCalculations()
         {
+            ErrorHintText.Visibility = Visibility.Collapsed;
             NumpadDisplayText.Text = $"{PaidCash:N0}";
             GivenCashText.Text = $"{PaidCash:N0} so'm";
 
@@ -125,7 +127,9 @@ namespace DilkashPos.Views
         {
             if (SelectedPaymentMethod == "naqd" && PaidCash < TotalAmount)
             {
-                MessageBox.Show("Berilgan naqd pul to'lov summasidan kam!", "To'lov xatosi", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ErrorHintText.Text = "Berilgan naqd pul toʻlov summasidan kam";
+                ErrorHintText.Visibility = Visibility.Visible;
+                Toast.Show("Berilgan naqd pul toʻlov summasidan kam", ToastTone.Warning);
                 return;
             }
 

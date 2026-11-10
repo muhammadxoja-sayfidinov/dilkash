@@ -1,239 +1,411 @@
 <Window x:Class="DilkashPos.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Dilkash Restaurant POS — Professional Enterprise Edition (1920x1080 Full HD)" 
+        xmlns:controls="clr-namespace:DilkashPos.Controls"
+        Title="Dilkash POS"
         Height="1080" Width="1920"
-        MinWidth="1366" MinHeight="768"
+        MinWidth="1280" MinHeight="720"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
-        Background="{StaticResource BgDarkBrush}"
+        Background="{DynamicResource BrushBg}"
         Loaded="OnWindowLoaded"
+        SizeChanged="OnWindowSizeChanged"
         KeyDown="OnWindowKeyDown">
     <Grid>
-        <Grid.ColumnDefinitions>
-            <!-- 1. Chap Navigatsiya Paneli (Enterprise Sidebar Rail) - 280px -->
-            <ColumnDefinition Width="280" />
-            <!-- 2. Asosiy Ish Maydoni (Workspace Canvas) - 1640px -->
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
+        <!-- Main Workspace Shell (lightly blurred ONLY when locked) -->
+        <Grid x:Name="WorkspaceShellGrid">
+            <Grid.ColumnDefinitions>
+                <!-- 1. Left Navigation Rail (88px >=1366, 80px <1366) -->
+                <ColumnDefinition x:Name="RailColumn" Width="88" />
+                <!-- 2. Main Workspace Canvas -->
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-        <!-- ========================================================= -->
-        <!-- CHAP DILKASH NAVIGATSIYA SIDEBARI (WIDTH: 280PX)          -->
-        <!-- ========================================================= -->
-        <Border Grid.Column="0" Background="#0F172A" BorderBrush="#1E293B" BorderThickness="0,0,1,0">
-            <Grid>
+            <!-- ========================================================= -->
+            <!-- LEFT NAVIGATION RAIL (88px / 80px)                        -->
+            <!-- ========================================================= -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource BrushSurface}"
+                    BorderBrush="{DynamicResource BrushBorderSubtle}"
+                    BorderThickness="0,0,1,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Brand Monogram Plate with faint Girih lattice -->
+                    <Border Grid.Row="0"
+                            Height="72"
+                            BorderBrush="{DynamicResource BrushBorderSubtle}"
+                            BorderThickness="0,0,0,1">
+                        <Grid>
+                            <Rectangle Fill="{DynamicResource BrushGirihLattice}" IsHitTestVisible="False" />
+                            <Image Width="42" Height="42" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image.Source>
+                                    <DrawingImage Drawing="{StaticResource DrawingBrandMonogram}" />
+                                </Image.Source>
+                            </Image>
+                        </Grid>
+                    </Border>
+
+                    <!-- Primary Navigation Items -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="0,8">
+                        <StackPanel>
+                            <!-- 1. Stollar (F1) -->
+                            <RadioButton x:Name="NavTablesBtn"
+                                         GroupName="MainNav"
+                                         Style="{StaticResource NavRailItem}"
+                                         IsChecked="True"
+                                         Click="OnNavClicked"
+                                         Tag="tables">
+                                <Grid>
+                                    <Border x:Name="NavTablesCountBorder"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Top"
+                                            Margin="0,-2,2,0"
+                                            Background="{DynamicResource BrushPrimary}"
+                                            CornerRadius="{StaticResource RadiusFull}"
+                                            Padding="6,1"
+                                            Visibility="Collapsed">
+                                        <TextBlock x:Name="NavTablesCountBadge"
+                                                   Text="0"
+                                                   FontSize="13"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource BrushTextPrimary}"
+                                                   Typography.NumeralAlignment="Tabular" />
+                                    </Border>
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4">
+                                        <controls:Icon Data="{StaticResource IconTables}"
+                                                       Size="22"
+                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                       HorizontalAlignment="Center" />
+                                        <TextBlock Text="Stollar"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                   TextAlignment="Center"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </RadioButton>
+
+                            <!-- 2. Tezkor savdo (F2) -->
+                            <RadioButton x:Name="NavQuickPosBtn"
+                                         GroupName="MainNav"
+                                         Style="{StaticResource NavRailItem}"
+                                         Click="OnNavClicked"
+                                         Tag="quick_pos">
+                                <Grid>
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4">
+                                        <controls:Icon Data="{StaticResource IconQuickSale}"
+                                                       Size="22"
+                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                       HorizontalAlignment="Center" />
+                                        <TextBlock Text="Tezkor savdo"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                   TextWrapping="Wrap"
+                                                   TextAlignment="Center"
+                                                   LineHeight="15"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </RadioButton>
+
+                            <!-- 3. Stop-list -->
+                            <RadioButton x:Name="NavStopListBtn"
+                                         GroupName="MainNav"
+                                         Style="{StaticResource NavRailItem}"
+                                         Click="OnNavClicked"
+                                         Tag="stop_list">
+                                <Grid>
+                                    <Border x:Name="NavStopListBadgeBorder"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Top"
+                                            Margin="0,-2,2,0"
+                                            Background="{DynamicResource BrushError}"
+                                            CornerRadius="{StaticResource RadiusFull}"
+                                            Padding="6,1"
+                                            Visibility="Collapsed">
+                                        <TextBlock x:Name="NavStopListCountBadge"
+                                                   Text="0"
+                                                   FontSize="13"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource BrushTextOnError}"
+                                                   Typography.NumeralAlignment="Tabular" />
+                                    </Border>
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4">
+                                        <controls:Icon Data="{StaticResource IconStop}"
+                                                       Size="22"
+                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                       HorizontalAlignment="Center" />
+                                        <TextBlock Text="Stop-list"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                   TextAlignment="Center"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </RadioButton>
+
+                            <!-- 4. Onlayn -->
+                            <RadioButton x:Name="NavOnlineBtn"
+                                         GroupName="MainNav"
+                                         Style="{StaticResource NavRailItem}"
+                                         Click="OnNavClicked"
+                                         Tag="online">
+                                <Grid>
+                                    <Border x:Name="NavOnlineBadgeBorder"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Top"
+                                            Margin="0,-2,2,0"
+                                            Background="{DynamicResource BrushAmber}"
+                                            CornerRadius="{StaticResource RadiusFull}"
+                                            Padding="6,1"
+                                            Visibility="Collapsed">
+                                        <TextBlock x:Name="NavOnlineBadgeText"
+                                                   Text="0"
+                                                   FontSize="13"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource BrushBg}"
+                                                   Typography.NumeralAlignment="Tabular" />
+                                    </Border>
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4">
+                                        <controls:Icon Data="{StaticResource IconOnline}"
+                                                       Size="22"
+                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                       HorizontalAlignment="Center" />
+                                        <TextBlock Text="Onlayn"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                   TextAlignment="Center"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </RadioButton>
+
+                            <!-- 5. Smena -->
+                            <RadioButton x:Name="NavShiftBtn"
+                                         GroupName="MainNav"
+                                         Style="{StaticResource NavRailItem}"
+                                         Click="OnNavClicked"
+                                         Tag="shift">
+                                <Grid>
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4">
+                                        <controls:Icon Data="{StaticResource IconReport}"
+                                                       Size="22"
+                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                       HorizontalAlignment="Center" />
+                                        <TextBlock Text="Smena"
+                                                   FontSize="13"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                   TextAlignment="Center"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </RadioButton>
+
+                            <!-- 6. Sozlamalar -->
+                            <RadioButton x:Name="NavSettingsBtn"
+                                         GroupName="MainNav"
+                                         Style="{StaticResource NavRailItem}"
+                                         Click="OnNavClicked"
+                                         Tag="settings">
+                                <Grid>
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4">
+                                        <controls:Icon Data="{StaticResource IconSettings}"
+                                                       Size="22"
+                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                       HorizontalAlignment="Center" />
+                                        <TextBlock Text="Sozlamalar"
+                                                   FontSize="13"
+                                                   FontWeight="Medium"
+                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                   TextAlignment="Center"
+                                                   TextTrimming="None"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </RadioButton>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Bottom System Actions: Lock & Kiosk (F11) -->
+                    <Border Grid.Row="2"
+                            BorderBrush="{DynamicResource BrushBorderSubtle}"
+                            BorderThickness="0,1,0,0"
+                            Padding="6,10">
+                        <StackPanel>
+                            <Button Style="{StaticResource GhostButton}"
+                                    MinHeight="48"
+                                    Padding="4,8"
+                                    Margin="0,0,0,8"
+                                    Click="OnLockAppClick"
+                                    ToolTip="Ekranni qulflash">
+                                <StackPanel>
+                                    <controls:Icon Data="{StaticResource IconLock}" Size="20" Foreground="{DynamicResource BrushTextSecondary}" HorizontalAlignment="Center" />
+                                    <TextBlock Text="Qulf" Style="{StaticResource TextCaption}" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource GhostButton}"
+                                    MinHeight="48"
+                                    Padding="4,8"
+                                    Click="OnToggleKioskClick"
+                                    ToolTip="Kiosk rejimi (F11)">
+                                <StackPanel>
+                                    <controls:Icon Data="{StaticResource IconFullscreen}" Size="20" Foreground="{DynamicResource BrushTextSecondary}" HorizontalAlignment="Center" />
+                                    <TextBlock Text="F11" Style="{StaticResource TextCaption}" HorizontalAlignment="Center" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- ========================================================= -->
+            <!-- RIGHT COLUMN: TOP BAR + OFFLINE STRIP + WORKSPACE CANVAS  -->
+            <!-- ========================================================= -->
+            <Grid Grid.Column="1" Background="{DynamicResource BrushBg}">
                 <Grid.RowDefinitions>
-                    <!-- Logo va Brend (100px) -->
-                    <RowDefinition Height="100" />
-                    <!-- Kassir Smena Kartochkasi (95px) -->
-                    <RowDefinition Height="95" />
-                    <!-- Navigatsiya Tugmalari (*) -->
-                    <RowDefinition Height="*" />
-                    <!-- Tizim Holati va Soat Deck (Auto) -->
+                    <!-- Top Bar (64px) -->
+                    <RowDefinition Height="64" />
+                    <!-- Persistent Offline Amber Strip (Auto, collapsed when online) -->
                     <RowDefinition Height="Auto" />
+                    <!-- Active Tab Workspace (*) -->
+                    <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <!-- 1. Brend & Logo -->
-                <Border Grid.Row="0" Background="#091E18" BorderBrush="#134E39" BorderThickness="0,0,0,1" Padding="16,14">
-                    <Grid VerticalAlignment="Center">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border Grid.Column="0" Background="#10B981" CornerRadius="12" Width="52" Height="52" Margin="0,0,12,0">
-                            <TextBlock Text="🍵" FontSize="28" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock Text="DILKASH POS" FontSize="22" FontWeight="Black" Foreground="White" />
-                            <TextBlock Text="RESTAURANT &amp; LOUNGE" FontSize="10" FontWeight="Bold" Foreground="#10B981" Margin="0,1,0,0" />
-                            <TextBlock Text="1920x1080 Enterprise Kassa" FontSize="10" Foreground="#64748B" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- 2. Kassir va Smena Kartochkasi -->
-                <Border Grid.Row="1" Background="#1E293B" CornerRadius="12" Margin="14,12" Padding="12,10" BorderBrush="#334155" BorderThickness="1">
+                <!-- TOP BAR (64px) -->
+                <Border Grid.Row="0"
+                        Background="{DynamicResource BrushSurface}"
+                        BorderBrush="{DynamicResource BrushBorderSubtle}"
+                        BorderThickness="0,0,0,1"
+                        Padding="20,0">
                     <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <Border Grid.Column="0" Background="#0D6B4E" CornerRadius="20" Width="40" Height="40" Margin="0,0,10,0" VerticalAlignment="Center">
-                            <TextBlock Text="👤" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock x:Name="SidebarCashierNameText" Text="Jasur Rahimov" FontSize="14" FontWeight="Bold" Foreground="White" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="Bosh Kassir • Kassa #01" FontSize="11" Foreground="#94A3B8" Margin="0,1,0,0" />
-                            <TextBlock x:Name="SidebarShiftDurationText" Text="⏱ Smena: 08:30 dan beri" FontSize="11" FontWeight="SemiBold" Foreground="#F59E0B" Margin="0,2,0,0" />
+
+                        <!-- Left: Screen Title + Shift Chip -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock x:Name="ScreenTitleText"
+                                       Text="Stollar"
+                                       Style="{StaticResource TextSection}"
+                                       VerticalAlignment="Center" />
+
+                            <Border Background="{DynamicResource BrushSurfaceElevated}"
+                                    BorderBrush="{DynamicResource BrushBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="{StaticResource RadiusFull}"
+                                    Padding="12,6"
+                                    Margin="16,0,0,0"
+                                    VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <controls:Icon Data="{StaticResource IconClock}"
+                                                   Size="14"
+                                                   Foreground="{DynamicResource BrushAmberBright}"
+                                                   Margin="0,0,6,0"
+                                                   VerticalAlignment="Center" />
+                                    <TextBlock x:Name="ShiftChipText"
+                                               Text="Smena: 08:30 dan · 09:50"
+                                               Style="{StaticResource TextTimer}"
+                                               Foreground="{DynamicResource BrushTextPrimary}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Right: ConnectionPill + Clock + Cashier Avatar -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <controls:ConnectionPill x:Name="TopConnectionPill" />
+
+                            <Border Width="1" Height="28" Background="{DynamicResource BrushBorder}" Margin="16,0" VerticalAlignment="Center" />
+
+                            <!-- Clock & Uzbek Date -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock x:Name="ClockText"
+                                           Text="18:20"
+                                           Style="{StaticResource TextTitle}"
+                                           Typography.NumeralAlignment="Tabular"
+                                           VerticalAlignment="Center" />
+                                <TextBlock x:Name="DateText"
+                                           Text="10-noyabr, seshanba"
+                                           Style="{StaticResource TextCaption}"
+                                           Margin="10,0,0,0"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <Border Width="1" Height="28" Background="{DynamicResource BrushBorder}" Margin="16,0" VerticalAlignment="Center" />
+
+                            <!-- Cashier Avatar + Name -->
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Width="34" Height="34"
+                                        CornerRadius="17"
+                                        Background="{DynamicResource BrushPrimaryTint}"
+                                        BorderBrush="{DynamicResource BrushPrimary}"
+                                        BorderThickness="1"
+                                        Margin="0,0,10,0">
+                                    <controls:Icon Data="{StaticResource IconUser}"
+                                                   Size="16"
+                                                   Foreground="{DynamicResource BrushPrimaryBright}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                </Border>
+                                <TextBlock x:Name="SidebarCashierNameText"
+                                           Text="Jasur Rahimov"
+                                           Style="{StaticResource TextLabel}"
+                                           Foreground="{DynamicResource BrushTextPrimary}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
                 </Border>
 
-                <!-- 3. Asosiy Sensorli Navigatsiya Tugmalari -->
-                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="10,4,10,10">
-                    <StackPanel>
-                        <!-- 1. Stollar Xaritasi -->
-                        <Button x:Name="NavTablesBtn" Height="62" Margin="0,0,0,8" Padding="14,8"
-                                Style="{StaticResource TouchButtonStyle}" Background="{StaticResource BrandPrimaryBrush}" 
-                                Click="OnNavClicked" Tag="tables" HorizontalContentAlignment="Stretch">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="🍽" FontSize="22" VerticalAlignment="Center" Margin="0,0,12,0" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Stollar Zali" FontSize="15" FontWeight="Bold" Foreground="White" />
-                                    <TextBlock Text="Zallar va ochiq hisoblar" FontSize="11" Foreground="#A7F3D0" />
-                                </StackPanel>
-                                <Border x:Name="NavTablesCountBorder" Grid.Column="2" Background="#064E3B" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
-                                    <TextBlock x:Name="NavTablesCountBadge" Text="12" FontSize="11" FontWeight="Bold" Foreground="#10B981" />
-                                </Border>
-                            </Grid>
-                        </Button>
+                <!-- PERSISTENT OFFLINE STRIP -->
+                <Border x:Name="OfflineStrip"
+                        Grid.Row="1"
+                        Background="{DynamicResource BrushAmberTintSoft}"
+                        BorderBrush="{DynamicResource BrushAmber}"
+                        BorderThickness="0,0,0,1"
+                        Padding="20,10"
+                        Visibility="Collapsed">
+                    <Grid>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <controls:Icon Data="{StaticResource IconWifiOff}"
+                                           Size="18"
+                                           Foreground="{DynamicResource BrushAmberBright}"
+                                           Margin="0,0,10,0"
+                                           VerticalAlignment="Center" />
+                            <TextBlock Text="Oflayn rejim — buyurtmalar lokal keshda saqlanmoqda"
+                                       Style="{StaticResource TextLabel}"
+                                       Foreground="{DynamicResource BrushTextPrimary}"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
 
-                        <!-- 2. Tezkor Kassa (Saboy) -->
-                        <Button x:Name="NavQuickPosBtn" Height="62" Margin="0,0,0,8" Padding="14,8"
-                                Style="{StaticResource TouchButtonStyle}" Background="{StaticResource CardDarkBrush}" 
-                                Click="OnNavClicked" Tag="quick_pos" HorizontalContentAlignment="Stretch">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="⚡" FontSize="22" VerticalAlignment="Center" Margin="0,0,12,0" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Tezkor Kassa" FontSize="15" FontWeight="Bold" Foreground="White" />
-                                    <TextBlock Text="Saboy va tezkor to'lov" FontSize="11" Foreground="#94A3B8" />
-                                </StackPanel>
-                                <Border Grid.Column="2" Background="#334155" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
-                                    <TextBlock Text="F2" FontSize="11" FontWeight="Bold" Foreground="#CBD5E1" />
-                                </Border>
-                            </Grid>
-                        </Button>
-
-                        <!-- 3. Stop-List Boshqaruvi -->
-                        <Button x:Name="NavStopListBtn" Height="62" Margin="0,0,0,8" Padding="14,8"
-                                Style="{StaticResource TouchButtonStyle}" Background="{StaticResource CardDarkBrush}" 
-                                Click="OnNavClicked" Tag="stop_list" HorizontalContentAlignment="Stretch">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="🛑" FontSize="22" VerticalAlignment="Center" Margin="0,0,12,0" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Stop-List" FontSize="15" FontWeight="Bold" Foreground="White" />
-                                    <TextBlock Text="Oshxona taomlar holati" FontSize="11" Foreground="#94A3B8" />
-                                </StackPanel>
-                                <Border x:Name="NavStopListBadgeBorder" Grid.Column="2" Background="#EF4444" CornerRadius="10" Padding="8,3" VerticalAlignment="Center" Visibility="Collapsed">
-                                    <TextBlock x:Name="NavStopListCountBadge" Text="0" FontSize="11" FontWeight="Bold" Foreground="White" />
-                                </Border>
-                            </Grid>
-                        </Button>
-
-                        <!-- 4. Online Buyurtmalar (Bot & Mobil) -->
-                        <Button x:Name="NavOnlineBtn" Height="62" Margin="0,0,0,8" Padding="14,8"
-                                Style="{StaticResource TouchButtonStyle}" Background="{StaticResource CardDarkBrush}" 
-                                Click="OnNavClicked" Tag="online" HorizontalContentAlignment="Stretch">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="📲" FontSize="22" VerticalAlignment="Center" Margin="0,0,12,0" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Online Buyurtma" FontSize="15" FontWeight="Bold" Foreground="White" />
-                                    <TextBlock Text="Telegram &amp; Mobil ilova" FontSize="11" Foreground="#94A3B8" />
-                                </StackPanel>
-                                <Border x:Name="NavOnlineBadgeBorder" Grid.Column="2" Background="#F59E0B" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
-                                    <TextBlock x:Name="NavOnlineBadgeText" Text="0" FontSize="11" FontWeight="Bold" Foreground="White" />
-                                </Border>
-                            </Grid>
-                        </Button>
-
-                        <!-- 5. Smena & Z-Hisobot -->
-                        <Button x:Name="NavShiftBtn" Height="62" Margin="0,0,0,8" Padding="14,8"
-                                Style="{StaticResource TouchButtonStyle}" Background="{StaticResource CardDarkBrush}" 
-                                Click="OnNavClicked" Tag="shift" HorizontalContentAlignment="Stretch">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="📊" FontSize="22" VerticalAlignment="Center" Margin="0,0,12,0" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Smena &amp; Hisobot" FontSize="15" FontWeight="Bold" Foreground="White" />
-                                    <TextBlock Text="X / Z Hisobot va kassa" FontSize="11" Foreground="#94A3B8" />
-                                </StackPanel>
-                            </Grid>
-                        </Button>
-
-                        <!-- 6. Printerlar va Sozlamalar -->
-                        <Button x:Name="NavSettingsBtn" Height="62" Margin="0,0,0,8" Padding="14,8"
-                                Style="{StaticResource TouchButtonStyle}" Background="{StaticResource CardDarkBrush}" 
-                                Click="OnNavClicked" Tag="settings" HorizontalContentAlignment="Stretch">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="⚙" FontSize="22" VerticalAlignment="Center" Margin="0,0,12,0" />
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="Printer &amp; Tarmoq" FontSize="15" FontWeight="Bold" Foreground="White" />
-                                    <TextBlock Text="6 ta LAN IP va sozlama" FontSize="11" Foreground="#94A3B8" />
-                                </StackPanel>
-                            </Grid>
-                        </Button>
-                    </StackPanel>
-                </ScrollViewer>
-
-                <!-- 4. Pastki Tizim Holati, Soat va Kiosk Boshqaruvi -->
-                <Border Grid.Row="3" Background="#091120" BorderBrush="#1E293B" BorderThickness="0,1,0,0" Padding="14,12">
-                    <StackPanel>
-                        <!-- Server Status Badge -->
-                        <Border x:Name="StatusBadgeBorder" Background="{StaticResource SuccessGreenBrush}" CornerRadius="8" Padding="10,6" Margin="0,0,0,8">
-                            <TextBlock x:Name="StatusBadgeText" Text="● ONLINE (REST API)" FontSize="12" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" />
+                        <Border HorizontalAlignment="Right"
+                                VerticalAlignment="Center"
+                                Background="{DynamicResource BrushAmber}"
+                                CornerRadius="{StaticResource RadiusFull}"
+                                Padding="12,4">
+                            <TextBlock x:Name="OfflineStripQueueText"
+                                       Text="Navbat: 0 ta"
+                                       Style="{StaticResource TextCaption}"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource BrushBg}"
+                                       Typography.NumeralAlignment="Tabular" />
                         </Border>
-
-                        <!-- Offline Navbat Indikatori -->
-                        <Border x:Name="QueueBadgeBorder" Background="{StaticResource AccentGoldBrush}" CornerRadius="8" Padding="10,5" Margin="0,0,0,8" Visibility="Collapsed">
-                            <TextBlock x:Name="QueueBadgeText" Text="⏳ Navbat: 0 ta" FontSize="12" FontWeight="Bold" Foreground="White" HorizontalAlignment="Center" />
-                        </Border>
-
-                        <!-- Katta Raqamli Soat va Sana -->
-                        <Grid Margin="0,4,0,10">
-                            <StackPanel HorizontalAlignment="Center">
-                                <TextBlock x:Name="ClockText" Text="12:00:00" FontSize="24" FontWeight="Black" Foreground="White" HorizontalAlignment="Center" />
-                                <TextBlock x:Name="DateText" Text="Bugun" FontSize="11" Foreground="#94A3B8" HorizontalAlignment="Center" Margin="0,2,0,0" />
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Kiosk va Qulflash Tugmalari -->
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Button Grid.Column="0" Content="⛶ Kiosk (F11)" Height="42" FontSize="12" FontWeight="Bold" Style="{StaticResource TouchSecondaryButton}" Click="OnToggleKioskClick" />
-                            <Button Grid.Column="2" Content="🔒 Qulflash" Height="42" FontSize="12" FontWeight="Bold" Style="{StaticResource TouchSecondaryButton}" Click="OnLockAppClick" />
-                        </Grid>
-                    </StackPanel>
+                    </Grid>
                 </Border>
-            </Grid>
-        </Border>
 
-        <!-- ========================================================= -->
-        <!-- O'NG ASOSIY ISH MAYDONI (WIDTH: 1640PX X 1080PX)          -->
-        <!-- ========================================================= -->
-        <Grid Grid.Column="1" Background="{StaticResource BgDarkBrush}" Margin="16,14,16,14">
+                <!-- WORKSPACE CANVAS -->
+                <Grid Grid.Row="2" Background="{DynamicResource BrushBg}" Margin="16,14,16,14">
 
             <!-- ===================================================== -->
             <!-- 1. TAB: STOLLAR XARITASI (TABLES MAP VIEW)            -->
@@ -798,6 +970,74 @@
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
+                </Grid>
+            </Grid>
         </Grid>
+
+        <!-- MODAL BACKDROP SCRIM -->
+        <Border x:Name="ModalScrim"
+                Background="{DynamicResource BrushScrim}"
+                Visibility="Collapsed"
+                IsHitTestVisible="True" />
+
+        <!-- LOCK SCREEN OVERLAY -->
+        <Grid x:Name="LockOverlay"
+              Background="{DynamicResource BrushScrim}"
+              Visibility="Collapsed"
+              IsHitTestVisible="True">
+            <Rectangle Fill="{DynamicResource BrushGirihLattice}" IsHitTestVisible="False" />
+            <Border Background="{DynamicResource BrushSurface}"
+                    BorderBrush="{DynamicResource BrushBorder}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource RadiusXl}"
+                    Padding="48,40"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    MinWidth="380">
+                <Border.Effect>
+                    <DropShadowEffect Color="#000000" BlurRadius="32" ShadowDepth="8" Opacity="0.6" />
+                </Border.Effect>
+                <StackPanel HorizontalAlignment="Center">
+                    <Image Width="72" Height="72" HorizontalAlignment="Center" Margin="0,0,0,20">
+                        <Image.Source>
+                            <DrawingImage Drawing="{StaticResource DrawingBrandMonogram}" />
+                        </Image.Source>
+                    </Image>
+
+                    <Border Background="{DynamicResource BrushSurfaceElevated}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusFull}"
+                            Padding="14,6"
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,16">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:Icon Data="{StaticResource IconUser}" Size="15" Foreground="{DynamicResource BrushPrimaryBright}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="LockCashierNameText" Text="Jasur Rahimov" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="Ekran qulflangan"
+                               Style="{StaticResource TextSection}"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,6" />
+                    <TextBlock Text="Ishni davom ettirish uchun Ochish tugmasini bosing"
+                               Style="{StaticResource TextBody}"
+                               Foreground="{DynamicResource BrushTextSecondary}"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,28" />
+
+                    <Button Content="Ochish"
+                            Style="{StaticResource PrimaryButton}"
+                            MinHeight="56"
+                            Width="220"
+                            HorizontalAlignment="Center"
+                            Click="OnUnlockAppClick" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- TOAST HOST (Bottom-Center) -->
+        <controls:ToastHost x:Name="MainToastHost" />
     </Grid>
 </Window>

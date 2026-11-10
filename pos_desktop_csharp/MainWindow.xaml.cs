@@ -7,10 +7,12 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using DilkashPos.Data;
 using DilkashPos.Models;
 using DilkashPos.Services;
+using DilkashPos.Utils;
 using DilkashPos.Views;
 
 namespace DilkashPos
@@ -49,17 +51,40 @@ namespace DilkashPos
             _printer = new EscPosPrinterService();
             _syncEngine = new SyncEngine(_api, _db, _printer);
 
+            Dialogs.RegisterScrimHandler(visible => ModalScrim.Visibility = visible ? Visibility.Visible : Visibility.Collapsed);
+            Toast.RegisterHost(MainToastHost);
+
+            UpdateClockDisplay();
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _clockTimer.Tick += (s, e) =>
-            {
-                var now = DateTime.Now;
-                ClockText.Text = now.ToString("HH:mm:ss");
-                DateText.Text = now.ToString("dddd, d MMMM yyyy", new CultureInfo("uz-Latn-UZ"));
-            };
+            _clockTimer.Tick += (s, e) => UpdateClockDisplay();
             _clockTimer.Start();
+
+            TopConnectionPill.Update(true, 0, DateTime.Now);
 
             _syncEngine.SyncStatusUpdated += OnSyncStatusUpdated;
             _syncEngine.OnlineOrdersReceived += OnOnlineOrdersReceived;
+        }
+
+        private void UpdateClockDisplay()
+        {
+            var now = DateTime.Now;
+            ClockText.Text = UzbekDateFormatter.FormatTime24(now);
+            DateText.Text = UzbekDateFormatter.FormatDate(now);
+
+            var openedAt = _currentShift.OpenedAt == default ? DateTime.Today.AddHours(8).AddMinutes(30) : _currentShift.OpenedAt;
+            var elapsed = now - openedAt;
+            if (elapsed < TimeSpan.Zero) elapsed = TimeSpan.Zero;
+            ShiftChipText.Text = $"Smena: {openedAt:HH:mm} · {UzbekDateFormatter.FormatDuration(elapsed)}";
+        }
+
+        private void OnWindowSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateShellLayoutForWidth(e.NewSize.Width);
+        }
+
+        public void UpdateShellLayoutForWidth(double width)
+        {
+            RailColumn.Width = new GridLength(width < 1366 ? 80 : 88);
         }
 
         private async void OnWindowLoaded(object sender, RoutedEventArgs e)
@@ -165,30 +190,20 @@ namespace DilkashPos
         {
             Dispatcher.Invoke(() =>
             {
-                if (e.IsOnline)
-                {
-                    StatusBadgeBorder.Background = (Brush)FindResource("SuccessGreenBrush");
-                    StatusBadgeText.Text = "● REST API ONLINE";
-                }
-                else
-                {
-                    StatusBadgeBorder.Background = (Brush)FindResource("DangerRedBrush");
-                    StatusBadgeText.Text = "● OFFLINE (SQLITE KESH)";
-                }
-
-                if (e.PendingOfflineOrdersCount > 0)
-                {
-                    QueueBadgeBorder.Visibility = Visibility.Visible;
-                    QueueBadgeText.Text = $"⏳ Navbat: {e.PendingOfflineOrdersCount} ta";
-                }
-                else
-                {
-                    QueueBadgeBorder.Visibility = Visibility.Collapsed;
-                }
-
-                NavOnlineBadgeText.Text = e.OnlineOrdersCount.ToString();
-                NavOnlineBadgeBorder.Visibility = e.OnlineOrdersCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+                ApplySyncStatusUI(e.IsOnline, e.PendingOfflineOrdersCount, e.OnlineOrdersCount, e.LastSyncTime);
             });
+        }
+
+        private void ApplySyncStatusUI(bool isOnline, int pendingCount, int onlineOrdersCount, DateTime lastSync)
+        {
+            TopConnectionPill.Update(isOnline, pendingCount, lastSync);
+
+            OfflineStrip.Visibility = isOnline ? Visibility.Collapsed : Visibility.Visible;
+            OfflineStripQueueText.Text = pendingCount > 0 ? $"Navbat: {pendingCount} ta" : "Kesh faol";
+            OfflineStripQueueText.Visibility = Visibility.Visible;
+
+            NavOnlineBadgeText.Text = onlineOrdersCount.ToString();
+            NavOnlineBadgeBorder.Visibility = onlineOrdersCount > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void OnOnlineOrdersReceived(object? sender, List<Order> orders)
@@ -205,7 +220,7 @@ namespace DilkashPos
         #region Navigatsiya va Kiosk
         private void OnNavClicked(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is string tag)
+            if (sender is System.Windows.Controls.Primitives.ToggleButton btn && btn.Tag is string tag)
             {
                 SwitchToTab(tag);
             }
@@ -222,20 +237,28 @@ namespace DilkashPos
             ShiftReportTab.Visibility = tag == "shift" ? Visibility.Visible : Visibility.Collapsed;
             SettingsTab.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
 
-            var activeBrush = (Brush)FindResource("BrandPrimaryBrush");
-            var inactiveBrush = (Brush)FindResource("CardDarkBrush");
+            NavTablesBtn.IsChecked = tag == "tables";
+            NavQuickPosBtn.IsChecked = tag == "quick_pos";
+            NavStopListBtn.IsChecked = tag == "stop_list";
+            NavOnlineBtn.IsChecked = tag == "online";
+            NavShiftBtn.IsChecked = tag == "shift";
+            NavSettingsBtn.IsChecked = tag == "settings";
 
-            NavTablesBtn.Background = tag == "tables" ? activeBrush : inactiveBrush;
-            NavQuickPosBtn.Background = tag == "quick_pos" ? activeBrush : inactiveBrush;
-            NavStopListBtn.Background = tag == "stop_list" ? activeBrush : inactiveBrush;
-            NavOnlineBtn.Background = tag == "online" ? activeBrush : inactiveBrush;
-            NavShiftBtn.Background = tag == "shift" ? activeBrush : inactiveBrush;
-            NavSettingsBtn.Background = tag == "settings" ? activeBrush : inactiveBrush;
+            ScreenTitleText.Text = tag switch
+            {
+                "tables" => "Stollar",
+                "quick_pos" => "Tezkor savdo",
+                "stop_list" => "Stop-list",
+                "online" => "Onlayn buyurtmalar",
+                "shift" => "Smena",
+                "settings" => "Sozlamalar",
+                _ => "Dilkash POS"
+            };
 
             if (tag == "quick_pos" && _activeTableContext == null)
             {
                 _currentCart = new Order { ServiceType = "pickup" };
-                CartTitleText.Text = "⚡ TEZKOR SABOY (OLIB KETISH)";
+                CartTitleText.Text = "Tezkor savdo (Saboy)";
                 CartSubtitleText.Text = "Kassir: " + _settings.CashierName;
                 UpdateCartUI();
             }
@@ -261,11 +284,19 @@ namespace DilkashPos
 
         private void OnLockAppClick(object sender, RoutedEventArgs e)
         {
-            var res = MessageBox.Show("Kassa ekranini qulflaysizmi?", "Kassani Qulflash", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (res == MessageBoxResult.Yes)
-            {
-                MessageBox.Show("Kassa qulflandi. Kassir parolini kiritib davom eting.", "Qulflangan", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
+            SetLockedState(true);
+        }
+
+        private void OnUnlockAppClick(object sender, RoutedEventArgs e)
+        {
+            SetLockedState(false);
+        }
+
+        public void SetLockedState(bool locked)
+        {
+            LockCashierNameText.Text = _settings.CashierName;
+            LockOverlay.Visibility = locked ? Visibility.Visible : Visibility.Collapsed;
+            WorkspaceShellGrid.Effect = locked ? new BlurEffect { Radius = 10 } : null;
         }
         #endregion
 
@@ -286,7 +317,8 @@ namespace DilkashPos
             EmptyTablesCountText.Text = emptyCount.ToString();
             OccupiedTablesCountText.Text = occCount.ToString();
             BillPrintedCountText.Text = billCount.ToString();
-            NavTablesCountBadge.Text = $"{occCount} band";
+            NavTablesCountBadge.Text = occCount.ToString();
+            NavTablesCountBorder.Visibility = occCount > 0 ? Visibility.Visible : Visibility.Collapsed;
 
             foreach (var tbl in list)
             {
@@ -431,7 +463,7 @@ namespace DilkashPos
                             await _printer.PrintPreChekAsync(t.ActiveOrder, kassaIp);
                             t.Status = "bill_printed";
                             RenderTables();
-                            MessageBox.Show($"{t.Name} uchun hisob pre-cheki chiqarildi!", "Pre-Chek", MessageBoxButton.OK, MessageBoxImage.Information);
+                            Toast.Show($"{t.Name} uchun hisob pre-cheki chop etildi", ToastTone.Success);
                         }
                     };
                     payBtn.Click += (s, e) =>
@@ -474,7 +506,7 @@ namespace DilkashPos
             if (!table.IsOccupied)
             {
                 var dialog = new OpenTableDialog(table.Number, table.Name, _settings.CashierName);
-                if (dialog.ShowDialog() == true)
+                if (Dialogs.ShowModal(dialog, this) == true)
                 {
                     table.IsOccupied = true;
                     table.GuestsCount = dialog.SelectedGuestsCount;
@@ -778,7 +810,7 @@ namespace DilkashPos
                 {
                     var it = (OrderItem)((Button)s).Tag;
                     var dlg = new ItemModifierDialog(it.ProductName, it.Notes);
-                    if (dlg.ShowDialog() == true)
+                    if (Dialogs.ShowModal(dlg, this) == true)
                     {
                         it.Notes = dlg.Notes;
                         UpdateCartUI();
@@ -841,7 +873,7 @@ namespace DilkashPos
         private void OnDiscountPillClick(object sender, RoutedEventArgs e)
         {
             var dlg = new DiscountDialog(_currentCart.DiscountPercent);
-            if (dlg.ShowDialog() == true)
+            if (Dialogs.ShowModal(dlg, this) == true)
             {
                 _currentCart.DiscountPercent = dlg.DiscountPercent;
                 UpdateCartUI();
@@ -852,28 +884,28 @@ namespace DilkashPos
         {
             if (_currentCart.Items.Count == 0)
             {
-                MessageBox.Show("Oshxonaga yuborish uchun savatchaga taom qo'shing!", "Ogohlantirish", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show("Oshxonaga yuborish uchun savatchaga taom qoʻshing", ToastTone.Warning);
                 return;
             }
 
             await _api.CreateOrUpdateOrderAsync(_currentCart);
             await PrintOrderKitchenSlipsAsync(_currentCart);
 
-            MessageBox.Show("Buyurtma barcha bo'lim printerlariga (Shashlik, Somsa, Oshxona, Fast-food, Bar) yuborildi!", "Oshxonaga Yuborildi", MessageBoxButton.OK, MessageBoxImage.Information);
+            Toast.Show("Buyurtma barcha boʻlim printerlariga yuborildi", ToastTone.Success);
         }
 
         private async void OnPrintPreChekClick(object sender, RoutedEventArgs e)
         {
             if (_currentCart.Items.Count == 0)
             {
-                MessageBox.Show("Hisob cheki chiqarish uchun savatchaga taom qo'shing!", "Ogohlantirish", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show("Hisob cheki chiqarish uchun savatchaga taom qoʻshing", ToastTone.Warning);
                 return;
             }
 
             string kassaIp = IpKassaBox.Text.Trim();
             if (string.IsNullOrEmpty(kassaIp))
             {
-                MessageBox.Show("Kassa printeri IP manzili kiritilmagan!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show("Kassa printeri IP manzili kiritilmagan", ToastTone.Warning);
                 return;
             }
 
@@ -885,11 +917,11 @@ namespace DilkashPos
                     _activeTableContext.Status = "bill_printed";
                     RenderTables();
                 }
-                MessageBox.Show("Mijoz uchun hisob pre-cheki chop etildi!", "Pre-Chek", MessageBoxButton.OK, MessageBoxImage.Information);
+                Toast.Show("Mijoz uchun hisob pre-cheki chop etildi", ToastTone.Success);
             }
             else
             {
-                MessageBox.Show(res.Message, "Printer Xatosi", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show(res.Message, ToastTone.Warning);
             }
         }
 
@@ -897,12 +929,12 @@ namespace DilkashPos
         {
             if (_currentCart.Items.Count == 0)
             {
-                MessageBox.Show("Savatcha bo'sh! To'lov uchun taom tanlang.", "Ogohlantirish", MessageBoxButton.OK, MessageBoxImage.Information);
+                Toast.Show("Savatcha boʻsh. Toʻlov uchun taom tanlang", ToastTone.Info);
                 return;
             }
 
             var dialog = new PaymentDialog(_currentCart.TotalAmount, _currentCart.OrderNumber ?? "YANGI", _currentCart.TableNumber, _currentCart.GuestsCount);
-            if (dialog.ShowDialog() == true)
+            if (Dialogs.ShowModal(dialog, this) == true)
             {
                 _currentCart.IsPaid = true;
                 _currentCart.PaymentMethod = dialog.SelectedPaymentMethod;
@@ -946,12 +978,12 @@ namespace DilkashPos
                 }
 
                 _currentCart = new Order { ServiceType = "pickup" };
-                CartTitleText.Text = "⚡ TEZKOR SABOY (OLIB KETISH)";
+                CartTitleText.Text = "Tezkor savdo (Saboy)";
                 CartSubtitleText.Text = "Kassir: " + _settings.CashierName;
                 UpdateCartUI();
                 RenderProducts();
 
-                MessageBox.Show("To'lov muvaffaqiyatli qabul qilindi va kassa cheki chop etildi!", "To'lov Yakunlandi", MessageBoxButton.OK, MessageBoxImage.Information);
+                Toast.Show("Toʻlov qabul qilindi va kassa cheki chop etildi", ToastTone.Success);
             }
         }
 
@@ -1170,7 +1202,7 @@ namespace DilkashPos
                     NavOnlineBadgeText.Text = _onlineOrders.Count.ToString();
                     NavOnlineBadgeBorder.Visibility = _onlineOrders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
                     RenderOnlineOrders();
-                    MessageBox.Show($"Buyurtma #{ord.OrderNumber} qabul qilindi va barcha oshxona bo'limlariga tarqatildi!", "Qabul Qilindi", MessageBoxButton.OK, MessageBoxImage.Information);
+                    Toast.Show($"Buyurtma #{ord.OrderNumber} qabul qilindi va boʻlimlarga yuborildi", ToastTone.Success);
                 };
 
                 rightStack.Children.Add(acceptBtn);
@@ -1213,25 +1245,32 @@ namespace DilkashPos
             string kassaIp = IpKassaBox.Text.Trim();
             if (string.IsNullOrEmpty(kassaIp))
             {
-                MessageBox.Show("Kassa printeri IP manzili kiritilmagan!", "Xatolik", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show("Kassa printeri IP manzili kiritilmagan", ToastTone.Warning);
                 return;
             }
 
             var res = await _printer.PrintShiftReportAsync(_currentShift, false, kassaIp);
             if (res.Success)
             {
-                MessageBox.Show("Oraliq X-Hisobot kassa printerida chop etildi!", "X-Hisobot", MessageBoxButton.OK, MessageBoxImage.Information);
+                Toast.Show("Oraliq X-hisobot kassa printerida chop etildi", ToastTone.Success);
             }
             else
             {
-                MessageBox.Show(res.Message, "Printer Xatosi", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show(res.Message, ToastTone.Warning);
             }
         }
 
         private async void OnCloseShiftDirect(object sender, RoutedEventArgs e)
         {
-            var conf = MessageBox.Show("Haqiqatan ham kassa smenasini yopib, Z-Hisobot chiqarmoqchimisiz?", "Smenani Yopish", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (conf == MessageBoxResult.Yes)
+            bool confirmed = Dialogs.Confirm(
+                "Smenani yopish",
+                "Kassa smenasini yopib, Z-hisobot chiqarmoqchimisiz?",
+                "Smenani yopish",
+                "Bekor qilish",
+                isDestructive: true,
+                owner: this);
+
+            if (confirmed)
             {
                 string kassaIp = IpKassaBox.Text.Trim();
                 if (!string.IsNullOrEmpty(kassaIp))
@@ -1248,7 +1287,7 @@ namespace DilkashPos
                 _currentShift.DiscountsGiven = 0;
 
                 UpdateShiftReportUI();
-                MessageBox.Show("Kassa smenasi muvaffaqiyatli yopildi va Z-Hisobot chop etildi!", "Smena Yopildi", MessageBoxButton.OK, MessageBoxImage.Information);
+                Toast.Show("Kassa smenasi yopildi va Z-hisobot chop etildi", ToastTone.Success);
             }
         }
         #endregion
@@ -1285,11 +1324,11 @@ namespace DilkashPos
             var res = await _printer.PrintTestSlipAsync(title, ip);
             if (res.Success)
             {
-                MessageBox.Show(res.Message, "Printer Tekshiruvi", MessageBoxButton.OK, MessageBoxImage.Information);
+                Toast.Show(res.Message, ToastTone.Success);
             }
             else
             {
-                MessageBox.Show(res.Message, "Printer Tekshiruvi Xatosi", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Toast.Show(res.Message, ToastTone.Warning);
             }
         }
 
@@ -1318,7 +1357,8 @@ namespace DilkashPos
             }
 
             SidebarCashierNameText.Text = _settings.CashierName;
-            MessageBox.Show("Barcha sozlamalar muvaffaqiyatli saqlandi!", "Sozlamalar", MessageBoxButton.OK, MessageBoxImage.Information);
+            LockCashierNameText.Text = _settings.CashierName;
+            Toast.Show("Barcha sozlamalar saqlandi", ToastTone.Success);
         }
         #endregion
 
@@ -1344,6 +1384,24 @@ namespace DilkashPos
             UpdateCartUI();
             UpdateShiftReportUI();
             ApplySettingsToUI();
+
+            ApplySyncStatusUI(true, 0, _onlineOrders.Count, DateTime.Now);
+            UpdateClockDisplay();
+        }
+
+        public void SetDemoSyncState(bool isOnline, int pendingCount)
+        {
+            ApplySyncStatusUI(isOnline, pendingCount, _onlineOrders.Count, DateTime.Now.AddMinutes(-2));
+        }
+
+        public void ShowDemoToast(string message, ToastTone tone, string? actionLabel = null)
+        {
+            MainToastHost.ShowToast(message, tone, actionLabel, actionLabel != null ? () => { } : null, autoHide: false);
+        }
+
+        public void ShowDemoScrim(bool visible)
+        {
+            ModalScrim.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         }
 
         public void SwitchToTabPublic(string tag)
