@@ -242,7 +242,6 @@ namespace DilkashPos.Demo
                             WindowState = WindowState.Normal
                         };
                         win.PrepareDemoMode();
-                        win.PrepareDemoMode();
                         win.Show();
                         win.LoadDemoData();
                         win.UpdateShellLayoutForWidth(width);
@@ -265,6 +264,39 @@ namespace DilkashPos.Demo
                         win.SetDemoQuickPosEmpty(true);
                         RenderWindowToPng(win, width, height, Path.Combine(resDir, "quick_pos_empty.png"));
                         win.SetDemoQuickPosEmpty(false);
+
+                        // Stop-list loading & empty states
+                        win.SwitchToTabPublic("stop_list");
+                        win.SetDemoStopListState(isLoading: true, forceEmpty: false);
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "stop_list_loading.png"));
+                        win.SetDemoStopListState(isLoading: false, forceEmpty: true);
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "stop_list_empty.png"));
+                        win.SetDemoStopListState(isLoading: false, forceEmpty: false);
+
+                        // Online loading & empty states
+                        win.SwitchToTabPublic("online");
+                        win.SetDemoOnlineState(isLoading: true, forceEmpty: false);
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "online_loading.png"));
+                        win.SetDemoOnlineState(isLoading: false, forceEmpty: true);
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "online_empty.png"));
+                        win.SetDemoOnlineState(isLoading: false, forceEmpty: false);
+
+                        // Shift loading & empty states
+                        win.SwitchToTabPublic("shift");
+                        win.SetDemoShiftState(isLoading: true, forceEmpty: false);
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "shift_loading.png"));
+                        win.SetDemoShiftState(isLoading: false, forceEmpty: true);
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "shift_empty.png"));
+                        win.SetDemoShiftState(isLoading: false, forceEmpty: false);
+
+                        // Settings loading & dirty states
+                        win.SwitchToTabPublic("settings");
+                        win.SetDemoSettingsState(isLoading: true, forceDirty: false);
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "settings_loading.png"));
+                        win.SetDemoSettingsState(isLoading: false, forceDirty: true);
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "settings_dirty.png"));
+                        win.SetDemoSettingsState(isLoading: false, forceDirty: false);
+
                         win.SwitchToTabPublic("tables");
 
                         // Toast
@@ -286,7 +318,7 @@ namespace DilkashPos.Demo
             {
                 string dpiDir = Path.Combine(outputDir, dTag);
                 Directory.CreateDirectory(dpiDir);
-                foreach (var tab in new[] { "tables", "quick_pos" })
+                foreach (var tab in new[] { "tables", "quick_pos", "settings" })
                 {
                     Application.Current.Dispatcher.Invoke(() =>
                     {

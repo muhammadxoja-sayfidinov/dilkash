@@ -224,7 +224,7 @@
                                                        Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
                                                        HorizontalAlignment="Center" />
                                         <TextBlock Text="Sozlamalar"
-                                                   FontSize="13"
+                                                   FontSize="12"
                                                    FontWeight="Medium"
                                                    Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
                                                    TextAlignment="Center"
@@ -1004,50 +1004,131 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="{StaticResource CardDarkBrush}" CornerRadius="12" Padding="20,16" Margin="0,0,0,16" BorderBrush="#334155" BorderThickness="1">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="14" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                <!-- Header Bar: Search + 3 Filter Chips (Hammasi / Mavjud / Stop-listda) -->
+                <Grid Grid.Row="0" Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MaxWidth="380" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
 
-                        <!-- Sarlavha va Tavsif -->
-                        <StackPanel Grid.Row="0">
-                            <TextBlock Text="🛑 OSHXONA STOP-LIST BOSHQARUVI" FontSize="22" FontWeight="Black" Foreground="White" />
-                            <TextBlock Text="Tugagan taomni bitta bosish bilan to'xtating. Bot, ofitsiantlar va dasturda darhol sotuvdan olinadi." FontSize="14" Foreground="#94A3B8" Margin="0,4,0,0" />
+                    <controls:SearchBox x:Name="StopListSearchBox"
+                                        Grid.Column="0"
+                                        Placeholder="Taom nomi boʻyicha qidirish..."
+                                        TextChanged="OnStopListSearchChanged" />
+
+                    <Border Grid.Column="2"
+                            Background="{DynamicResource BrushSurface}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusSm}"
+                            Padding="4"
+                            VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="StopFilterAllBtn"
+                                         GroupName="StopListFilter"
+                                         Content="Hammasi (0)"
+                                         Style="{StaticResource SegmentedItem}"
+                                         IsChecked="True"
+                                         Click="OnStopListFilterClick"
+                                         Tag="all" />
+                            <RadioButton x:Name="StopFilterAvailableBtn"
+                                         GroupName="StopListFilter"
+                                         Content="Mavjud (0)"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Click="OnStopListFilterClick"
+                                         Tag="available" />
+                            <RadioButton x:Name="StopFilterStoppedBtn"
+                                         GroupName="StopListFilter"
+                                         Content="Stop-listda (0)"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Click="OnStopListFilterClick"
+                                         Tag="stopped" />
                         </StackPanel>
+                    </Border>
+                </Grid>
 
-                        <!-- Qidiruv va Metrika Qatori -->
-                        <Grid Grid.Row="2">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="420" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Border Grid.Column="0" Background="#0F172A" CornerRadius="10" Padding="10,4" BorderBrush="#334155" BorderThickness="1">
-                                <Grid>
-                                    <TextBlock Text="🔍" FontSize="18" VerticalAlignment="Center" Margin="6,0,8,0" />
-                                    <TextBox x:Name="StopListSearchBox" Height="42" Padding="32,8,10,8" FontSize="16" 
-                                             Background="Transparent" Foreground="White" BorderThickness="0"
-                                             TextChanged="OnStopListSearchChanged" VerticalContentAlignment="Center" />
-                                </Grid>
-                            </Border>
+                <!-- Content: Grid / Loading Skeleton / EmptyState -->
+                <Grid Grid.Row="1">
+                    <ScrollViewer x:Name="StopListScrollViewer" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="StopListItemsControl" Margin="0,0,-12,16">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <UniformGrid Columns="{Binding StopListColumns, RelativeSource={RelativeSource AncestorType=Window}}" VerticalAlignment="Top" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BrushSurface}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMd}"
+                                            Padding="16,14"
+                                            Margin="0,0,12,12">
+                                        <Border.Style>
+                                            <Style TargetType="{x:Type Border}">
+                                                <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsStopListed}" Value="True">
+                                                        <Setter Property="BorderBrush" Value="{DynamicResource BrushError}" />
+                                                        <Setter Property="Background" Value="{DynamicResource BrushErrorTintSoft}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
 
-                            <TextBlock x:Name="StopListSummaryText" Grid.Column="1" Text="Jami: 40 ta | Mavjud: 40 ta | Stop-listda: 0 ta" FontSize="16" FontWeight="Bold" Foreground="#10B981" HorizontalAlignment="Right" VerticalAlignment="Center" />
-                        </Grid>
-                    </Grid>
-                </Border>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}"
+                                                           Style="{StaticResource TextBodyBold}"
+                                                           TextTrimming="CharacterEllipsis" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding CategoryName}" Style="{StaticResource TextCaption}" VerticalAlignment="Center" />
+                                                    <TextBlock Text=" · " Style="{StaticResource TextCaptionMuted}" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding PriceFormatted}" Style="{StaticResource TextCaption}" Typography.NumeralAlignment="Tabular" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </StackPanel>
 
-                <!-- Taomlar Stop-list Panjarasi (Keng 380x100px kartalar) -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <WrapPanel x:Name="StopListWrapPanel" Margin="0,0,0,20">
-                        <!-- Stop-list kartochkalari -->
-                    </WrapPanel>
-                </ScrollViewer>
+                                            <CheckBox Grid.Column="2"
+                                                      Style="{StaticResource ToggleSwitch}"
+                                                      IsChecked="{Binding IsAvailable, Mode=TwoWay}"
+                                                      Click="OnStopListToggleClicked"
+                                                      Tag="{Binding}"
+                                                      VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <UniformGrid x:Name="StopListLoadingGrid" Columns="3" VerticalAlignment="Top" Margin="0,0,-12,0" Visibility="Collapsed">
+                        <controls:SkeletonBox Height="84" Margin="0,0,12,12" />
+                        <controls:SkeletonBox Height="84" Margin="0,0,12,12" />
+                        <controls:SkeletonBox Height="84" Margin="0,0,12,12" />
+                        <controls:SkeletonBox Height="84" Margin="0,0,12,12" />
+                        <controls:SkeletonBox Height="84" Margin="0,0,12,12" />
+                        <controls:SkeletonBox Height="84" Margin="0,0,12,12" />
+                    </UniformGrid>
+
+                    <controls:EmptyState x:Name="StopListEmptyState"
+                                         IconData="{StaticResource IconStop}"
+                                         Title="Taom topilmadi"
+                                         Subtitle="Qidiruv yoki filtr shartini oʻzgartirib koʻring."
+                                         ActionLabel="Filtrni tozalash"
+                                         ActionClicked="OnResetStopListFilter"
+                                         VerticalAlignment="Center"
+                                         HorizontalAlignment="Center"
+                                         Visibility="Collapsed" />
+                </Grid>
             </Grid>
 
             <!-- ===================================================== -->
-            <!-- 4. TAB: ONLINE BUYURTMALAR (TELEGRAM & MOBIL ILOVA)   -->
+            <!-- 4. TAB: ONLAYN BUYURTMALAR (TELEGRAM & MOBIL ILOVA)   -->
             <!-- ===================================================== -->
             <Grid x:Name="OnlineTab" Visibility="Collapsed">
                 <Grid.RowDefinitions>
@@ -1055,293 +1136,378 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <Border Grid.Row="0" Background="{StaticResource CardDarkBrush}" CornerRadius="12" Padding="20,16" Margin="0,0,0,16" BorderBrush="#334155" BorderThickness="1">
-                    <Grid>
-                        <StackPanel>
-                            <TextBlock Text="📲 TELEGRAM BOT VA MOBIL ILOVA BUYURTMALARI" FontSize="22" FontWeight="Black" Foreground="White" />
-                            <TextBlock Text="Mijozlardan kelgan yangi buyurtmalarni ko'rib chiqing, qabul qiling va oshxonaga chek chiqaring" FontSize="14" Foreground="#94A3B8" Margin="0,4,0,0" />
-                        </StackPanel>
-                        <Button Content="🔄 Yangilash (F5)" HorizontalAlignment="Right" VerticalAlignment="Center" Padding="18,10" Height="48" Style="{StaticResource TouchSecondaryButton}" Click="OnRefreshOnlineOrdersClick" />
-                    </Grid>
-                </Border>
-
-                <!-- Online Buyurtmalar Ro'yxati -->
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <StackPanel x:Name="OnlineOrdersStackPanel" Margin="0,0,0,20">
-                        <!-- Online buyurtmalar kartochkalari -->
+                <!-- Header -->
+                <Grid Grid.Row="0" Margin="0,0,0,14">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Telegram bot va mobil ilovadan kelgan buyurtmalar"
+                                   Style="{StaticResource TextBody}"
+                                   Foreground="{DynamicResource BrushTextSecondary}" />
                     </StackPanel>
-                </ScrollViewer>
+
+                    <Button HorizontalAlignment="Right"
+                            Style="{StaticResource SecondaryButton}"
+                            MinHeight="48"
+                            Padding="16,10"
+                            Click="OnRefreshOnlineOrdersClick">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <controls:Icon Data="{StaticResource IconRefresh}" Size="16" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Yangilash" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                            <Border Style="{StaticResource KeycapBadge}" Margin="8,0,0,0">
+                                <TextBlock Text="F5" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource BrushTextSecondary}" />
+                            </Border>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- Content: Order Cards / Loading / EmptyState -->
+                <Grid Grid.Row="1">
+                    <ScrollViewer x:Name="OnlineScrollViewer" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="OnlineOrdersItemsControl" Margin="0,0,0,16">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <controls:OnlineOrderCard Margin="0,0,0,12" AcceptClicked="OnAcceptOnlineOrderClicked" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <StackPanel x:Name="OnlineLoadingStack" Visibility="Collapsed">
+                        <controls:SkeletonBox Height="156" Margin="0,0,0,12" />
+                        <controls:SkeletonBox Height="156" Margin="0,0,0,12" />
+                        <controls:SkeletonBox Height="156" />
+                    </StackPanel>
+
+                    <controls:EmptyState x:Name="OnlineEmptyState"
+                                         IconData="{StaticResource IconOnline}"
+                                         Title="Onlayn buyurtmalar yoʻq"
+                                         Subtitle="Telegram bot yoki ilovadan yangi buyurtma tushganda bu yerda koʻrinadi."
+                                         ActionLabel="Yangilash"
+                                         ActionClicked="OnRefreshOnlineOrdersEmptyAction"
+                                         VerticalAlignment="Center"
+                                         HorizontalAlignment="Center"
+                                         Visibility="Collapsed" />
+                </Grid>
             </Grid>
 
             <!-- ===================================================== -->
-            <!-- 5. TAB: SMENA VA Z-HISOBOT (ANALYTICS & FINANCIAL)     -->
+            <!-- 5. TAB: SMENA VA Z-HISOBOT                           -->
             <!-- ===================================================== -->
             <Grid x:Name="ShiftReportTab" Visibility="Collapsed">
+                <Grid x:Name="ShiftContentGrid">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- 1. Hero Card: Jami tushum + X-hisobot & Smenani yopish -->
+                    <Border Grid.Row="0"
+                            Background="{DynamicResource BrushSurface}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusLg}"
+                            Padding="24,22"
+                            Margin="0,0,0,16">
+                        <Grid>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="JAMI TUSHUM" Style="{StaticResource TextLabelCaps}" />
+                                <TextBlock x:Name="ShiftTotalRevenueText"
+                                           Text="0&#160;soʻm"
+                                           Style="{StaticResource TextGrandTotal}"
+                                           Margin="0,6,0,6" />
+                                <TextBlock x:Name="ShiftHeaderInfoText"
+                                           Text="Smena ochiq · 08:30 dan · Kassir: Jasur Rahimov"
+                                           Style="{StaticResource TextCaption}" />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <Button Style="{StaticResource SecondaryButton}"
+                                        MinHeight="52"
+                                        Padding="20,12"
+                                        Click="OnPrintXReportDirect">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <controls:Icon Data="{StaticResource IconPrinter}" Size="18" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="X-hisobot" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- >=16px gap around destructive action per §10 -->
+                                <Button Style="{StaticResource DangerButton}"
+                                        MinHeight="52"
+                                        Padding="20,12"
+                                        Margin="16,0,0,0"
+                                        Click="OnCloseShiftDirect">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <controls:Icon Data="{StaticResource IconLock}" Size="18" Foreground="{DynamicResource BrushTextOnError}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Smenani yopish" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextOnError}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- 2. 3-Up Payment Breakdown Row (Neutral surfaces, icon color only) -->
+                    <Grid Grid.Row="1" Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="14" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="14" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <controls:KpiCard x:Name="KpiCashCard"
+                                          Grid.Column="0"
+                                          Label="Naqd pul"
+                                          Value="0&#160;soʻm"
+                                          Subtitle="Kassa qutisida"
+                                          IconData="{StaticResource IconCash}"
+                                          IconForeground="{DynamicResource BrushPrimaryBright}" />
+
+                        <controls:KpiCard x:Name="KpiCardCard"
+                                          Grid.Column="2"
+                                          Label="Karta / Terminal"
+                                          Value="0&#160;soʻm"
+                                          Subtitle="Bank terminali orqali"
+                                          IconData="{StaticResource IconCard}"
+                                          IconForeground="{DynamicResource BrushInfo}" />
+
+                        <controls:KpiCard x:Name="KpiOnlineCard"
+                                          Grid.Column="4"
+                                          Label="Onlayn toʻlovlar"
+                                          Value="0&#160;soʻm"
+                                          Subtitle="Bot va mobil ilova"
+                                          IconData="{StaticResource IconOnline}"
+                                          IconForeground="{DynamicResource BrushAmberBright}" />
+                    </Grid>
+
+                    <!-- 3. Compact Secondary Stats Row -->
+                    <Border Grid.Row="2"
+                            Background="{DynamicResource BrushSurface}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="20,16"
+                            Margin="0,0,0,16">
+                        <UniformGrid Columns="4">
+                            <StackPanel>
+                                <TextBlock Text="Cheklar soni" Style="{StaticResource TextCaption}" />
+                                <TextBlock x:Name="ShiftOrdersCountText" Text="0 ta" Style="{StaticResource TextTitle}" Typography.NumeralAlignment="Tabular" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Xizmat haqi" Style="{StaticResource TextCaption}" />
+                                <TextBlock x:Name="ShiftServiceFeeText" Text="0&#160;soʻm" Style="{StaticResource TextTitle}" Typography.NumeralAlignment="Tabular" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Chegirmalar" Style="{StaticResource TextCaption}" />
+                                <TextBlock x:Name="ShiftDiscountsText" Text="0&#160;soʻm" Style="{StaticResource TextTitle}" Foreground="{DynamicResource BrushAmberBright}" Typography.NumeralAlignment="Tabular" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="Oʻrtacha chek" Style="{StaticResource TextCaption}" />
+                                <TextBlock x:Name="ShiftAvgCheckText" Text="0&#160;soʻm" Style="{StaticResource TextTitle}" Typography.NumeralAlignment="Tabular" Margin="0,4,0,0" />
+                            </StackPanel>
+                        </UniformGrid>
+                    </Border>
+
+                    <!-- 4. Proportional Payment Mix & Sales Channels -->
+                    <Border Grid.Row="3"
+                            VerticalAlignment="Top"
+                            Background="{DynamicResource BrushSurface}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="20,18">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,12">
+                                <TextBlock Text="Toʻlov usullari ulushi" Style="{StaticResource TextBodyBold}" VerticalAlignment="Center" />
+                                <TextBlock x:Name="ShiftPaymentMixLabel"
+                                           Text="Naqd 61% · Karta 29% · Onlayn 10%"
+                                           Style="{StaticResource TextCaption}"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Grid Height="12" Margin="0,0,0,18" ClipToBounds="True">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition x:Name="ShiftCashShareCol" Width="61*" />
+                                    <ColumnDefinition x:Name="ShiftCardShareCol" Width="29*" />
+                                    <ColumnDefinition x:Name="ShiftOnlineShareCol" Width="10*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Background="{DynamicResource BrushPrimaryBright}" CornerRadius="6,0,0,6" />
+                                <Border Grid.Column="1" Background="{DynamicResource BrushInfo}" Margin="2,0" />
+                                <Border Grid.Column="2" Background="{DynamicResource BrushAmberBright}" CornerRadius="0,6,6,0" />
+                            </Grid>
+
+                            <Border BorderBrush="{DynamicResource BrushBorderSubtle}" BorderThickness="0,1,0,0" Padding="0,14,0,0">
+                                <UniformGrid Columns="2">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Ellipse Width="10" Height="10" Fill="{DynamicResource BrushPrimaryBright}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Zal ichida (Stollar):" Style="{StaticResource TextBody}" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="ShiftDineInText" Text="0&#160;soʻm" Style="{StaticResource TextBodyBold}" Typography.NumeralAlignment="Tabular" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Ellipse Width="10" Height="10" Fill="{DynamicResource BrushAmberBright}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Saboy va onlayn:" Style="{StaticResource TextBody}" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="ShiftTakeawayText" Text="0&#160;soʻm" Style="{StaticResource TextBodyBold}" Typography.NumeralAlignment="Tabular" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </UniformGrid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Shift Loading Skeleton -->
+                <StackPanel x:Name="ShiftLoadingState" Visibility="Collapsed">
+                    <controls:SkeletonBox Height="140" Margin="0,0,0,16" />
+                    <UniformGrid Columns="3" Margin="0,0,-14,16">
+                        <controls:SkeletonBox Height="124" Margin="0,0,14,0" />
+                        <controls:SkeletonBox Height="124" Margin="0,0,14,0" />
+                        <controls:SkeletonBox Height="124" Margin="0,0,14,0" />
+                    </UniformGrid>
+                    <controls:SkeletonBox Height="88" />
+                </StackPanel>
+
+                <!-- Shift Empty State (when 0 orders in shift) -->
+                <controls:EmptyState x:Name="ShiftEmptyState"
+                                     IconData="{StaticResource IconReport}"
+                                     Title="Smenada hali savdo yoʻq"
+                                     Subtitle="Birinchi toʻlov qabul qilingandan soʻng smena koʻrsatkichlari bu yerda koʻrinadi."
+                                     ActionLabel="Tezkor savdoga oʻtish"
+                                     ActionClicked="OnShiftEmptyAction"
+                                     VerticalAlignment="Center"
+                                     HorizontalAlignment="Center"
+                                     Visibility="Collapsed" />
+            </Grid>
+
+            <!-- ===================================================== -->
+            <!-- 6. TAB: SOZLAMALAR (2-COLUMN + STICKY SAVE BAR)       -->
+            <!-- ===================================================== -->
+            <Grid x:Name="SettingsTab" Visibility="Collapsed">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <!-- Sarlavha -->
-                <Border Grid.Row="0" Background="{StaticResource CardDarkBrush}" CornerRadius="12" Padding="20,16" Margin="0,0,0,16" BorderBrush="#334155" BorderThickness="1">
-                    <Grid>
-                        <StackPanel>
-                            <TextBlock Text="📊 KASSA SMENASI VA MOLIYAVIY Z-HISOBOT" FontSize="22" FontWeight="Black" Foreground="White" />
-                            <TextBlock x:Name="ShiftHeaderInfoText" Text="Smena ochiq • Kassir: Jasur Rahimov • Boshlanish: Bugun 08:30" FontSize="14" Foreground="#94A3B8" Margin="0,4,0,0" />
+                <ScrollViewer x:Name="SettingsScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1.3*" />
+                            <ColumnDefinition Width="20" />
+                            <ColumnDefinition Width="0.95*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Left: 6 Department PrinterCards + AutoPrint Toggle -->
+                        <StackPanel Grid.Column="0">
+                            <controls:SectionHeader Title="Boʻlim printerlari (LAN 9100)"
+                                                    Subtitle="Jonli ulanish holati va sinov cheki" />
+
+                            <ItemsControl x:Name="PrintersItemsControl">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <controls:PrinterCard Margin="0,0,0,10"
+                                                              TestPrintClicked="OnPrinterCardTestClick"
+                                                              IpChanged="OnSettingsInputChanged" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Border Background="{DynamicResource BrushSurface}"
+                                    BorderBrush="{DynamicResource BrushBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="{StaticResource RadiusMd}"
+                                    Padding="16,12"
+                                    Margin="0,4,0,0">
+                                <CheckBox x:Name="AutoPrintCheck"
+                                          Style="{StaticResource ToggleSwitch}"
+                                          Content="Buyurtmada boʻlim printerlariga avtomatik chek chiqarish"
+                                          IsChecked="True"
+                                          Click="OnSettingsCheckChanged" />
+                            </Border>
                         </StackPanel>
-                        <Button Content="🖨 X-Hisobot Chop Etish" HorizontalAlignment="Right" VerticalAlignment="Center" Padding="18,10" Height="48" Style="{StaticResource TouchGoldButton}" Click="OnPrintXReportDirect" />
+
+                        <!-- Right: Server va xizmat haqi Fields -->
+                        <StackPanel Grid.Column="2">
+                            <controls:SectionHeader Title="Server va xizmat haqi"
+                                                    Subtitle="Tarmoq ulanishi, zal xizmati va kassir" />
+
+                            <Border Background="{DynamicResource BrushSurface}"
+                                    BorderBrush="{DynamicResource BrushBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="{StaticResource RadiusMd}"
+                                    Padding="20">
+                                <StackPanel>
+                                    <controls:Field Label="Server manzili" HelperText="Lokal tarmoq yoki asosiy server manzili" Margin="0,0,0,16">
+                                        <TextBox x:Name="ServerUrlBox" Text="http://127.0.0.1:8000" TextChanged="OnSettingsTextChanged" />
+                                    </controls:Field>
+
+                                    <controls:Field Label="Xizmat haqi turi" Margin="0,0,0,16">
+                                        <ComboBox x:Name="ServiceFeeTypeCombo" SelectionChanged="OnSettingsComboChanged">
+                                            <ComboBoxItem Content="Foizli (%)" IsSelected="True" Tag="percent" />
+                                            <ComboBoxItem Content="Odam boshiga (soʻm)" Tag="per_person" />
+                                            <ComboBoxItem Content="Xizmat haqi yoʻq (0%)" Tag="none" />
+                                        </ComboBox>
+                                    </controls:Field>
+
+                                    <controls:Field Label="Xizmat haqi miqdori" HelperText="Foiz (%) yoki har bir mehmon uchun soʻm" Margin="0,0,0,16">
+                                        <TextBox x:Name="ServiceFeeValueBox" Text="10" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
+                                    </controls:Field>
+
+                                    <controls:Field Label="Kassir ismi">
+                                        <TextBox x:Name="CashierNameBox" Text="Jasur Rahimov" TextChanged="OnSettingsTextChanged" />
+                                    </controls:Field>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+
+                <!-- Settings Loading Skeleton -->
+                <Grid x:Name="SettingsLoadingState" Grid.Row="0" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1.2*" />
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <controls:SkeletonBox Height="74" Margin="0,0,0,10" />
+                        <controls:SkeletonBox Height="74" Margin="0,0,0,10" />
+                        <controls:SkeletonBox Height="74" Margin="0,0,0,10" />
+                        <controls:SkeletonBox Height="74" Margin="0,0,0,10" />
+                    </StackPanel>
+                    <controls:SkeletonBox Grid.Column="2" Height="360" />
+                </Grid>
+
+                <!-- Sticky Bottom Save Bar (Visible ONLY when dirty) -->
+                <Border x:Name="SettingsDirtyBar"
+                        Grid.Row="1"
+                        Background="{DynamicResource BrushSurfaceElevated}"
+                        BorderBrush="{DynamicResource BrushBorder}"
+                        BorderThickness="1"
+                        CornerRadius="{StaticResource RadiusMd}"
+                        Padding="20,12"
+                        Margin="0,10,0,0"
+                        Visibility="Collapsed">
+                    <Grid>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <controls:Icon Data="{StaticResource IconAlert}" Size="18" Foreground="{DynamicResource BrushAmberBright}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Sozlamalarda saqlanmagan oʻzgarishlar bor" Style="{StaticResource TextBody}" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <Button Content="Bekor qilish"
+                                    Style="{StaticResource GhostButton}"
+                                    MinHeight="48"
+                                    Margin="0,0,8,0"
+                                    Click="OnDiscardSettingsClick" />
+                            <Button Content="Saqlash"
+                                    Style="{StaticResource PrimaryButton}"
+                                    MinHeight="48"
+                                    Padding="24,10"
+                                    Click="OnSaveSettingsClick" />
+                        </StackPanel>
                     </Grid>
                 </Border>
-
-                <!-- 4 Katta KPI Ko'rsatkich Kartochkalari -->
-                <Grid Grid.Row="1" Margin="0,0,0,16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="14" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="14" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="14" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <!-- 1. Jami Savdo -->
-                    <Border Grid.Column="0" Background="#1E293B" CornerRadius="12" Padding="18" BorderBrush="#10B981" BorderThickness="1.5">
-                        <StackPanel>
-                            <TextBlock Text="💰 JAMI SAVDO TUSHUMI" FontSize="12" FontWeight="Bold" Foreground="#10B981" />
-                            <TextBlock x:Name="ShiftTotalRevenueText" Text="0 so'm" FontSize="26" FontWeight="Black" Foreground="White" Margin="0,6,0,0" />
-                            <TextBlock Text="Barcha to'lovlar bilan" FontSize="11" Foreground="#94A3B8" Margin="0,2,0,0" />
-                        </StackPanel>
-                    </Border>
-
-                    <!-- 2. Naqd Pul -->
-                    <Border Grid.Column="2" Background="#1E293B" CornerRadius="12" Padding="18" BorderBrush="#38BDF8" BorderThickness="1.5">
-                        <StackPanel>
-                            <TextBlock Text="💵 NAQD PUL TUSHUMI" FontSize="12" FontWeight="Bold" Foreground="#38BDF8" />
-                            <TextBlock x:Name="ShiftCashRevenueText" Text="0 so'm" FontSize="26" FontWeight="Black" Foreground="White" Margin="0,6,0,0" />
-                            <TextBlock Text="Kassada mavjud naqd pul" FontSize="11" Foreground="#94A3B8" Margin="0,2,0,0" />
-                        </StackPanel>
-                    </Border>
-
-                    <!-- 3. Terminal / Karta -->
-                    <Border Grid.Column="4" Background="#1E293B" CornerRadius="12" Padding="18" BorderBrush="#A855F7" BorderThickness="1.5">
-                        <StackPanel>
-                            <TextBlock Text="💳 KARTA / TERMINAL" FontSize="12" FontWeight="Bold" Foreground="#A855F7" />
-                            <TextBlock x:Name="ShiftCardRevenueText" Text="0 so'm" FontSize="26" FontWeight="Black" Foreground="White" Margin="0,6,0,0" />
-                            <TextBlock Text="Bank terminali orqali" FontSize="11" Foreground="#94A3B8" Margin="0,2,0,0" />
-                        </StackPanel>
-                    </Border>
-
-                    <!-- 4. Cheklar Soni -->
-                    <Border Grid.Column="6" Background="#1E293B" CornerRadius="12" Padding="18" BorderBrush="#F59E0B" BorderThickness="1.5">
-                        <StackPanel>
-                            <TextBlock Text="🧾 JAMI CHEKLAR SONI" FontSize="12" FontWeight="Bold" Foreground="#F59E0B" />
-                            <TextBlock x:Name="ShiftOrdersCountText" Text="0 ta" FontSize="26" FontWeight="Black" Foreground="White" Margin="0,6,0,0" />
-                            <TextBlock Text="Muvaffaqiyatli buyurtmalar" FontSize="11" Foreground="#94A3B8" Margin="0,2,0,0" />
-                        </StackPanel>
-                    </Border>
-                </Grid>
-
-                <!-- Tafsilotlar: Xizmat haqi va chegirmalar -->
-                <Grid Grid.Row="2">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="14" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-
-                    <Border Grid.Column="0" Background="{StaticResource CardDarkBrush}" CornerRadius="12" Padding="20" BorderBrush="#334155" BorderThickness="1">
-                        <StackPanel>
-                            <TextBlock Text="Moliyaviy Qo'shimchalar" FontSize="17" FontWeight="Bold" Foreground="White" Margin="0,0,0,14" />
-                            
-                            <Grid Margin="0,0,0,10">
-                                <TextBlock Text="Xizmat haqi tushumi:" FontSize="15" Foreground="#94A3B8" />
-                                <TextBlock x:Name="ShiftServiceFeeText" Text="0 so'm" FontSize="16" FontWeight="Bold" Foreground="White" HorizontalAlignment="Right" />
-                            </Grid>
-                            
-                            <Grid Margin="0,0,0,10">
-                                <TextBlock Text="Mijozlarga berilgan chegirmalar:" FontSize="15" Foreground="#94A3B8" />
-                                <TextBlock x:Name="ShiftDiscountsText" Text="0 so'm" FontSize="16" FontWeight="Bold" Foreground="#F59E0B" HorizontalAlignment="Right" />
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-
-                    <Border Grid.Column="2" Background="{StaticResource CardDarkBrush}" CornerRadius="12" Padding="20" BorderBrush="#334155" BorderThickness="1">
-                        <StackPanel>
-                            <TextBlock Text="Smenani Yopish va Hisobotlarni Muhrlash" FontSize="17" FontWeight="Bold" Foreground="White" Margin="0,0,0,10" />
-                            <TextBlock Text="Z-Hisobot chiqarilganda kassa smenasi yopiladi, kassa hisoboti serverga uzatiladi va navbatdagi smena uchun nolga tushiriladi." FontSize="14" Foreground="#94A3B8" TextWrapping="Wrap" Margin="0,0,0,18" />
-                            
-                            <Button Content="🔒 SMENANI YOPISH VA Z-HISOBOT CHIQARISH" Height="58" FontSize="16" FontWeight="Black"
-                                    Style="{StaticResource TouchDangerButton}" Click="OnCloseShiftDirect" />
-                        </StackPanel>
-                    </Border>
-                </Grid>
-            </Grid>
-
-            <!-- ===================================================== -->
-            <!-- 6. TAB: PRINTERLAR VA TIZIM SOZLAMALARI               -->
-            <!-- ===================================================== -->
-            <Grid x:Name="SettingsTab" Visibility="Collapsed">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="0,0,0,30">
-                        <!-- Sarlavha -->
-                        <Border Background="{StaticResource CardDarkBrush}" CornerRadius="12" Padding="20,16" Margin="0,0,0,16" BorderBrush="#334155" BorderThickness="1">
-                            <StackPanel>
-                                <TextBlock Text="⚙ TARMOQ PRINTERLARI VA TIZIM SOZLAMALARI" FontSize="22" FontWeight="Black" Foreground="White" />
-                                <TextBlock Text="Har bir oshxona bo'limi uchun LAN ESC/POS printeri (Port 9100) va Django REST API parametrlarini sozlang" FontSize="14" Foreground="#94A3B8" Margin="0,4,0,0" />
-                            </StackPanel>
-                        </Border>
-
-                        <!-- 6 ta Bo'lim LAN Printerlari Paneli -->
-                        <Border Background="{StaticResource CardDarkBrush}" CornerRadius="12" Padding="20" Margin="0,0,0,16" BorderBrush="#334155" BorderThickness="1">
-                            <StackPanel>
-                                <TextBlock Text="6 ta Bo'lim LAN Printerlari (Port 9100)" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,0,0,16" />
-
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="20" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Chap Ustun (Kassa, Shashlik, Somsa) -->
-                                    <StackPanel Grid.Column="0">
-                                        <!-- Kassa -->
-                                        <Grid Margin="0,0,0,14">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="190" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="130" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="🧾 Kassa Printeri:" VerticalAlignment="Center" FontSize="15" FontWeight="SemiBold" Foreground="White" />
-                                            <TextBox x:Name="IpKassaBox" Grid.Column="1" Text="192.168.1.100:9100" Height="42" Padding="8,10" Background="#0F172A" Foreground="White" BorderBrush="#334155" Margin="0,0,10,0" />
-                                            <Button Grid.Column="2" Content="Sinov Cheki" Height="42" Style="{StaticResource TouchSecondaryButton}" Click="OnTestPrintKassa" />
-                                        </Grid>
-
-                                        <!-- Shashlik -->
-                                        <Grid Margin="0,0,0,14">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="190" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="130" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="🥩 Shashlikxona:" VerticalAlignment="Center" FontSize="15" FontWeight="SemiBold" Foreground="White" />
-                                            <TextBox x:Name="IpShashlikBox" Grid.Column="1" Text="192.168.1.101:9100" Height="42" Padding="8,10" Background="#0F172A" Foreground="White" BorderBrush="#334155" Margin="0,0,10,0" />
-                                            <Button Grid.Column="2" Content="Sinov Cheki" Height="42" Style="{StaticResource TouchSecondaryButton}" Click="OnTestPrintShashlik" />
-                                        </Grid>
-
-                                        <!-- Somsa -->
-                                        <Grid Margin="0,0,0,14">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="190" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="130" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="🥟 Somsaxona:" VerticalAlignment="Center" FontSize="15" FontWeight="SemiBold" Foreground="White" />
-                                            <TextBox x:Name="IpSomsaBox" Grid.Column="1" Text="192.168.1.102:9100" Height="42" Padding="8,10" Background="#0F172A" Foreground="White" BorderBrush="#334155" Margin="0,0,10,0" />
-                                            <Button Grid.Column="2" Content="Sinov Cheki" Height="42" Style="{StaticResource TouchSecondaryButton}" Click="OnTestPrintSomsa" />
-                                        </Grid>
-                                    </StackPanel>
-
-                                    <!-- O'ng Ustun (Issiq oshxona, Fast-food, Bar) -->
-                                    <StackPanel Grid.Column="2">
-                                        <!-- Oshxona -->
-                                        <Grid Margin="0,0,0,14">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="190" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="130" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="🍲 Issiq Oshxona:" VerticalAlignment="Center" FontSize="15" FontWeight="SemiBold" Foreground="White" />
-                                            <TextBox x:Name="IpKitchenBox" Grid.Column="1" Text="192.168.1.103:9100" Height="42" Padding="8,10" Background="#0F172A" Foreground="White" BorderBrush="#334155" Margin="0,0,10,0" />
-                                            <Button Grid.Column="2" Content="Sinov Cheki" Height="42" Style="{StaticResource TouchSecondaryButton}" Click="OnTestPrintKitchen" />
-                                        </Grid>
-
-                                        <!-- Fast-Food -->
-                                        <Grid Margin="0,0,0,14">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="190" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="130" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="🍔 Fast-Food:" VerticalAlignment="Center" FontSize="15" FontWeight="SemiBold" Foreground="White" />
-                                            <TextBox x:Name="IpFastfoodBox" Grid.Column="1" Text="192.168.1.104:9100" Height="42" Padding="8,10" Background="#0F172A" Foreground="White" BorderBrush="#334155" Margin="0,0,10,0" />
-                                            <Button Grid.Column="2" Content="Sinov Cheki" Height="42" Style="{StaticResource TouchSecondaryButton}" Click="OnTestPrintFastfood" />
-                                        </Grid>
-
-                                        <!-- Bar -->
-                                        <Grid Margin="0,0,0,14">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="190" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="130" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="☕ Bar &amp; Desert:" VerticalAlignment="Center" FontSize="15" FontWeight="SemiBold" Foreground="White" />
-                                            <TextBox x:Name="IpBarBox" Grid.Column="1" Text="192.168.1.105:9100" Height="42" Padding="8,10" Background="#0F172A" Foreground="White" BorderBrush="#334155" Margin="0,0,10,0" />
-                                            <Button Grid.Column="2" Content="Sinov Cheki" Height="42" Style="{StaticResource TouchSecondaryButton}" Click="OnTestPrintBar" />
-                                        </Grid>
-                                    </StackPanel>
-                                </Grid>
-
-                                <!-- Avtomatik tarmoqqa yuborish checkbox -->
-                                <CheckBox x:Name="AutoPrintCheck" Content="Buyurtma olinganda avtomatik barcha tegishli bo'lim printerlariga chek yuborish" 
-                                          FontSize="14" FontWeight="SemiBold" Foreground="#10B981" Margin="0,12,0,0" IsChecked="True" />
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Server Manzili va Xizmat Haqini Sozlash -->
-                        <Border Background="{StaticResource CardDarkBrush}" CornerRadius="12" Padding="20" Margin="0,0,0,20" BorderBrush="#334155" BorderThickness="1">
-                            <StackPanel>
-                                <TextBlock Text="Django Server Manzili va Xizmat Haqini Sozlash" FontSize="18" FontWeight="Bold" Foreground="White" Margin="0,0,0,16" />
-
-                                <Grid Margin="0,0,0,12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="240" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Django REST API URL:" VerticalAlignment="Center" FontSize="15" Foreground="White" />
-                                    <TextBox x:Name="ServerUrlBox" Grid.Column="1" Text="http://127.0.0.1:8000" Height="42" Padding="8,10" Background="#0F172A" Foreground="White" BorderBrush="#334155" />
-                                </Grid>
-
-                                <Grid Margin="0,0,0,12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="240" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Xizmat haqi turi:" VerticalAlignment="Center" FontSize="15" Foreground="White" />
-                                    <ComboBox x:Name="ServiceFeeTypeCombo" Grid.Column="1" Height="42" Background="#0F172A" Foreground="White" BorderBrush="#334155" FontSize="14" Padding="8,4">
-                                        <ComboBoxItem Content="Foizli (%)" IsSelected="True" Tag="percent" />
-                                        <ComboBoxItem Content="Odam boshiga hisoblash (soʻm)" Tag="per_person" />
-                                        <ComboBoxItem Content="Xizmat haqi yoʻq (0%)" Tag="none" />
-                                    </ComboBox>
-                                </Grid>
-
-                                <Grid Margin="0,0,0,12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="240" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Xizmat haqi miqdori (% yoki soʻm):" VerticalAlignment="Center" FontSize="15" Foreground="White" />
-                                    <TextBox x:Name="ServiceFeeValueBox" Grid.Column="1" Text="10" Height="42" Padding="8,10" Background="#0F172A" Foreground="White" BorderBrush="#334155" />
-                                </Grid>
-
-                                <Grid Margin="0,0,0,12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="240" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Kassir ismi:" VerticalAlignment="Center" FontSize="15" Foreground="White" />
-                                    <TextBox x:Name="CashierNameBox" Grid.Column="1" Text="Jasur Rahimov" Height="42" Padding="8,10" Background="#0F172A" Foreground="White" BorderBrush="#334155" />
-                                </Grid>
-                            </StackPanel>
-                        </Border>
-
-                        <Button Content="💾 BARCHA SOZLAMALARNI SAQLASH" Height="62" FontSize="18" FontWeight="Black"
-                                Style="{StaticResource TouchButtonStyle}" Background="{StaticResource BrandPrimaryBrush}" Click="OnSaveSettingsClick" />
-                    </StackPanel>
-                </ScrollViewer>
             </Grid>
                 </Grid>
             </Grid>

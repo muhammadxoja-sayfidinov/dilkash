@@ -91,7 +91,7 @@
     <CornerRadius x:Key="RadiusMd">14</CornerRadius>
     <CornerRadius x:Key="RadiusLg">18</CornerRadius>
     <CornerRadius x:Key="RadiusXl">24</CornerRadius>
-    <CornerRadius x:Key="RadiusFull">999</CornerRadius>
+    <CornerRadius x:Key="RadiusFull">16</CornerRadius>
 
     <!-- 4. Spacing Numbers (4/8 grid) -->
     <sys:Double x:Key="Space2">2</sys:Double>

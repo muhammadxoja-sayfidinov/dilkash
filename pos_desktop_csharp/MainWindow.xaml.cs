@@ -49,6 +49,12 @@ namespace DilkashPos
         private readonly ObservableCollection<ProductTileVM> _visibleProductTiles = new();
         private readonly Dictionary<int, ProductTileVM> _productTileMap = new();
         private readonly ObservableCollection<CartLineVM> _cartLines = new();
+        private readonly ObservableCollection<StopListItemVM> _stopListVMs = new();
+        private readonly ObservableCollection<OnlineOrderCardVM> _onlineOrderVMs = new();
+        private readonly ObservableCollection<PrinterCardVM> _printerCardVMs = new();
+        private string _stopListFilter = "all";
+        private bool _isApplyingSettings = false;
+        private bool _settingsDirty = false;
         private int _tableColumns = 4;
         private bool _isLoadingTables = false;
         private string _activeTabTag = "tables";
@@ -61,6 +67,15 @@ namespace DilkashPos
         {
             get => (int)GetValue(ProductColumnsProperty);
             set => SetValue(ProductColumnsProperty, value);
+        }
+
+        public static readonly DependencyProperty StopListColumnsProperty =
+            DependencyProperty.Register(nameof(StopListColumns), typeof(int), typeof(MainWindow), new PropertyMetadata(3));
+
+        public int StopListColumns
+        {
+            get => (int)GetValue(StopListColumnsProperty);
+            set => SetValue(StopListColumnsProperty, value);
         }
 
         public MainWindow()
@@ -76,6 +91,9 @@ namespace DilkashPos
             CategoryChipsItemsControl.ItemsSource = _categoryChips;
             ProductsItemsControl.ItemsSource = _visibleProductTiles;
             CartLinesItemsControl.ItemsSource = _cartLines;
+            StopListItemsControl.ItemsSource = _stopListVMs;
+            OnlineOrdersItemsControl.ItemsSource = _onlineOrderVMs;
+            PrintersItemsControl.ItemsSource = _printerCardVMs;
 
             Dialogs.RegisterScrimHandler(visible => ModalScrim.Visibility = visible ? Visibility.Visible : Visibility.Collapsed);
             Toast.RegisterHost(MainToastHost);
@@ -110,13 +128,20 @@ namespace DilkashPos
 
         public void UpdateShellLayoutForWidth(double width)
         {
-            RailColumn.Width = new GridLength(width < 1366 ? 80 : 88);
+            RailColumn.Width = new GridLength(width < 1366 ? 84 : 88);
             CartColumn.Width = new GridLength(width >= 1600 ? 440 : 380);
 
             int newProductCols = width >= 2200 ? 6 : width >= 1800 ? 5 : width >= 1550 ? 4 : 3;
             if (newProductCols != ProductColumns)
             {
                 ProductColumns = newProductCols;
+            }
+
+            int newStopCols = width >= 2200 ? 4 : width >= 1550 ? 3 : 2;
+            if (newStopCols != StopListColumns)
+            {
+                StopListColumns = newStopCols;
+                StopListLoadingGrid.Columns = newStopCols;
             }
 
             int newCols = width >= 2200 ? 5 : width >= 1550 ? 4 : 3;
@@ -201,6 +226,7 @@ namespace DilkashPos
             RenderStopList();
             UpdateCartUI();
             UpdateShiftReportUI();
+            ApplySettingsToUI();
 
             // 2. Server bilan sinxronlash
             var bootstrap = await _api.GetBootstrapAsync();
@@ -503,7 +529,7 @@ namespace DilkashPos
             var t = vm.Model;
             if (t.ActiveOrder != null && t.ActiveOrder.Items.Count > 0)
             {
-                string kassaIp = IpKassaBox.Text.Trim();
+                string kassaIp = GetPrinterIpForDept("kassa");
                 await _printer.PrintPreChekAsync(t.ActiveOrder, kassaIp);
                 t.Status = "bill_printed";
                 RefreshSingleTableCard(t);
@@ -830,7 +856,7 @@ namespace DilkashPos
                 return;
             }
 
-            string kassaIp = IpKassaBox.Text.Trim();
+            string kassaIp = GetPrinterIpForDept("kassa");
             if (string.IsNullOrEmpty(kassaIp))
             {
                 Toast.Show("Kassa printeri IP manzili kiritilmagan", ToastTone.Warning);
@@ -879,7 +905,7 @@ namespace DilkashPos
                 }
 
                 await PrintOrderKitchenSlipsAsync(_currentCart);
-                string kassaIp = IpKassaBox.Text.Trim();
+                string kassaIp = GetPrinterIpForDept("kassa");
                 if (!string.IsNullOrEmpty(kassaIp))
                 {
                     await _printer.PrintKassaReceiptAsync(_currentCart, kassaIp, dialog.PaidCash, dialog.PaidCard, dialog.ChangeAmount);
@@ -932,15 +958,24 @@ namespace DilkashPos
 
         private string GetPrinterIpForDept(string dept)
         {
-            return dept.ToLower() switch
+            string code = (dept ?? "").ToLowerInvariant() switch
             {
-                "shashlik" => IpShashlikBox.Text.Trim(),
-                "somsa" => IpSomsaBox.Text.Trim(),
-                "kitchen" => IpKitchenBox.Text.Trim(),
-                "fastfood" => IpFastfoodBox.Text.Trim(),
-                "bar" => IpBarBox.Text.Trim(),
-                _ => IpKitchenBox.Text.Trim()
+                "kassa" => "kassa",
+                "shashlik" => "shashlik",
+                "somsa" => "somsa",
+                "kitchen" => "kitchen",
+                "fastfood" => "fastfood",
+                "bar" => "bar",
+                _ => "kitchen"
             };
+
+            var card = _printerCardVMs.FirstOrDefault(p => string.Equals(p.Code, code, StringComparison.OrdinalIgnoreCase));
+            if (card != null)
+            {
+                return (card.PrinterIp ?? "").Trim();
+            }
+
+            return _settings.Printers.TryGetValue(code, out var ip) ? (ip ?? "").Trim() : "";
         }
 
         private string GetDepartmentName(string dept)
@@ -983,203 +1018,263 @@ namespace DilkashPos
         #endregion
 
         #region 3. Stop-List Boshqaruvi
-        private void RenderStopList(string? query = null)
+        private void UpdateStopListCountsAndBadge()
         {
-            StopListWrapPanel.Children.Clear();
-            var list = _products;
-            if (!string.IsNullOrWhiteSpace(query))
-                list = list.Where(p => p.Name.Contains(query, StringComparison.OrdinalIgnoreCase)).ToList();
-
             int total = _products.Count;
             int stopped = _products.Count(p => !p.IsAvailable);
-            StopListSummaryText.Text = $"Jami: {total} ta | Mavjud: {total - stopped} ta | Stop-listda: {stopped} ta";
+            int available = total - stopped;
+
+            StopFilterAllBtn.Content = $"Hammasi ({total})";
+            StopFilterAvailableBtn.Content = $"Mavjud ({available})";
+            StopFilterStoppedBtn.Content = $"Stop-listda ({stopped})";
 
             NavStopListCountBadge.Text = stopped.ToString();
             NavStopListBadgeBorder.Visibility = stopped > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
 
-            foreach (var prod in list)
+        private void UpdateStopListVisualStates(bool isLoading)
+        {
+            if (isLoading)
             {
-                // Keng 380x100px Stop-list kartasi
-                var card = new Border
-                {
-                    Width = 380,
-                    Height = 100,
-                    Margin = new Thickness(8),
-                    CornerRadius = new CornerRadius(12),
-                    Background = (Brush)FindResource("CardDarkBrush"),
-                    BorderThickness = new Thickness(2),
-                    BorderBrush = prod.IsAvailable ? (Brush)FindResource("SuccessGreenBrush") : (Brush)FindResource("DangerRedBrush"),
-                    Padding = new Thickness(16)
-                };
-
-                var grid = new Grid();
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var leftStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                leftStack.Children.Add(new TextBlock { Text = prod.Name, FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
-                leftStack.Children.Add(new TextBlock { Text = $"{prod.CategoryName} • {prod.FormattedPrice}", FontSize = 13, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), Margin = new Thickness(0, 3, 0, 0) });
-                Grid.SetColumn(leftStack, 0);
-
-                var toggleBtn = new Button
-                {
-                    Content = prod.IsAvailable ? "🟢 MAVJUD" : "🛑 STOP",
-                    Width = 110,
-                    Height = 50,
-                    FontSize = 13,
-                    FontWeight = FontWeights.Black,
-                    Style = (Style)FindResource("TouchButtonStyle"),
-                    Background = prod.IsAvailable ? (Brush)FindResource("SuccessGreenBrush") : (Brush)FindResource("DangerRedBrush"),
-                    Tag = prod
-                };
-                toggleBtn.Click += async (s, e) =>
-                {
-                    var p = (Product)((Button)s).Tag;
-                    p.IsAvailable = !p.IsAvailable;
-                    await _db.UpdateProductAvailabilityAsync(p.Id, p.IsAvailable);
-                    await _api.ToggleStopListAsync(p.Id, p.IsAvailable);
-                    RenderStopList(StopListSearchBox.Text);
-                    if (_productTileMap.TryGetValue(p.Id, out var tile))
-                    {
-                        tile.SyncAvailabilityFromModel();
-                    }
-                };
-                Grid.SetColumn(toggleBtn, 1);
-
-                grid.Children.Add(leftStack);
-                grid.Children.Add(toggleBtn);
-                card.Child = grid;
-
-                StopListWrapPanel.Children.Add(card);
+                StopListLoadingGrid.Visibility = Visibility.Visible;
+                StopListScrollViewer.Visibility = Visibility.Collapsed;
+                StopListEmptyState.Visibility = Visibility.Collapsed;
             }
+            else if (_stopListVMs.Count == 0)
+            {
+                StopListLoadingGrid.Visibility = Visibility.Collapsed;
+                StopListScrollViewer.Visibility = Visibility.Collapsed;
+                StopListEmptyState.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                StopListLoadingGrid.Visibility = Visibility.Collapsed;
+                StopListScrollViewer.Visibility = Visibility.Visible;
+                StopListEmptyState.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void RenderStopList(string? query = null)
+        {
+            query ??= StopListSearchBox?.Text;
+            UpdateStopListCountsAndBadge();
+
+            IEnumerable<Product> filtered = _products;
+            if (_stopListFilter == "available")
+            {
+                filtered = filtered.Where(p => p.IsAvailable);
+            }
+            else if (_stopListFilter == "stopped")
+            {
+                filtered = filtered.Where(p => !p.IsAvailable);
+            }
+
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                string q = query.Trim();
+                filtered = filtered.Where(p =>
+                    p.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                    p.CategoryName.Contains(q, StringComparison.OrdinalIgnoreCase));
+            }
+
+            _stopListVMs.Clear();
+            foreach (var prod in filtered)
+            {
+                _stopListVMs.Add(new StopListItemVM(prod));
+            }
+
+            UpdateStopListVisualStates(isLoading: false);
         }
 
         private void OnStopListSearchChanged(object sender, TextChangedEventArgs e)
         {
             RenderStopList(StopListSearchBox.Text);
         }
+
+        private void OnStopListFilterClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is RadioButton rb && rb.Tag is string filter)
+            {
+                _stopListFilter = filter;
+                RenderStopList(StopListSearchBox.Text);
+            }
+        }
+
+        private async void OnStopListToggleClicked(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox cb && cb.Tag is StopListItemVM vm)
+            {
+                bool newAvail = cb.IsChecked == true;
+                vm.IsAvailable = newAvail;
+                var p = vm.Model;
+
+                await _db.UpdateProductAvailabilityAsync(p.Id, newAvail);
+                await _api.ToggleStopListAsync(p.Id, newAvail);
+
+                if (_productTileMap.TryGetValue(p.Id, out var tile))
+                {
+                    tile.SyncAvailabilityFromModel();
+                }
+
+                if (_stopListFilter != "all")
+                {
+                    RenderStopList(StopListSearchBox.Text);
+                }
+                else
+                {
+                    UpdateStopListCountsAndBadge();
+                }
+            }
+        }
+
+        private void OnResetStopListFilter(object? sender, EventArgs e)
+        {
+            _stopListFilter = "all";
+            StopFilterAllBtn.IsChecked = true;
+            StopListSearchBox.Text = "";
+            RenderStopList();
+        }
         #endregion
 
         #region 4. Online Buyurtmalar (Live Kitchen Dispatcher)
+        private void UpdateOnlineVisualStates(bool isLoading)
+        {
+            if (isLoading)
+            {
+                OnlineLoadingStack.Visibility = Visibility.Visible;
+                OnlineScrollViewer.Visibility = Visibility.Collapsed;
+                OnlineEmptyState.Visibility = Visibility.Collapsed;
+            }
+            else if (_onlineOrderVMs.Count == 0)
+            {
+                OnlineLoadingStack.Visibility = Visibility.Collapsed;
+                OnlineScrollViewer.Visibility = Visibility.Collapsed;
+                OnlineEmptyState.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                OnlineLoadingStack.Visibility = Visibility.Collapsed;
+                OnlineScrollViewer.Visibility = Visibility.Visible;
+                OnlineEmptyState.Visibility = Visibility.Collapsed;
+            }
+        }
+
         private void RenderOnlineOrders()
         {
-            OnlineOrdersStackPanel.Children.Clear();
-            if (_onlineOrders.Count == 0)
-            {
-                var emptyCard = new Border
-                {
-                    Background = (Brush)FindResource("CardDarkBrush"),
-                    CornerRadius = new CornerRadius(14),
-                    Padding = new Thickness(30),
-                    Margin = new Thickness(0, 20, 0, 0)
-                };
-                var emptyStack = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-                emptyStack.Children.Add(new TextBlock { Text = "📲", FontSize = 48, HorizontalAlignment = HorizontalAlignment.Center });
-                emptyStack.Children.Add(new TextBlock { Text = "Hozircha yangi online buyurtmalar yo'q", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) });
-                emptyStack.Children.Add(new TextBlock { Text = "Telegram bot yoki mobil ilovadan yangi buyurtma tushganda shu yerda avtomatik ko'rinadi.", FontSize = 14, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) });
-                emptyCard.Child = emptyStack;
-                OnlineOrdersStackPanel.Children.Add(emptyCard);
-                return;
-            }
-
+            _onlineOrderVMs.Clear();
             foreach (var order in _onlineOrders)
             {
-                var card = new Border
-                {
-                    Background = (Brush)FindResource("CardDarkBrush"),
-                    CornerRadius = new CornerRadius(14),
-                    Padding = new Thickness(20),
-                    Margin = new Thickness(0, 0, 0, 16),
-                    BorderThickness = new Thickness(2),
-                    BorderBrush = (Brush)FindResource("AccentGoldBrush")
-                };
-
-                var grid = new Grid();
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var leftStack = new StackPanel();
-                var headerStack = new StackPanel { Orientation = Orientation.Horizontal };
-                headerStack.Children.Add(new TextBlock { Text = order.ServiceType == "delivery" ? "🚴 DOSTAVKA " : "🛍 SABOY ", FontSize = 20, FontWeight = FontWeights.Black, Foreground = (Brush)FindResource("AccentGoldBrush") });
-                headerStack.Children.Add(new TextBlock { Text = $"#{order.OrderNumber}", FontSize = 20, FontWeight = FontWeights.Black, Foreground = Brushes.White });
-                leftStack.Children.Add(headerStack);
-
-                leftStack.Children.Add(new TextBlock { Text = $"👤 Mijoz: {order.CustomerName} | 📞 Tel: {order.CustomerPhone}", FontSize = 15, Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)), Margin = new Thickness(0, 6, 0, 10) });
-
-                foreach (var it in order.Items)
-                {
-                    leftStack.Children.Add(new TextBlock { Text = $"• {it.Quantity}x {it.ProductName} — {it.Total:N0} so'm", FontSize = 15, Foreground = Brushes.White, Margin = new Thickness(0, 1, 0, 1) });
-                }
-
-                leftStack.Children.Add(new TextBlock { Text = $"JAMI SUMMA: {order.TotalAmount:N0} SO'M", FontSize = 19, FontWeight = FontWeights.Black, Foreground = (Brush)FindResource("SuccessGreenBrush"), Margin = new Thickness(0, 10, 0, 0) });
-                Grid.SetColumn(leftStack, 0);
-
-                var rightStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                var acceptBtn = new Button
-                {
-                    Content = "✅ QABUL QILISH VA CHOP ETISH",
-                    Height = 60,
-                    Padding = new Thickness(22, 10, 22, 10),
-                    FontSize = 15,
-                    FontWeight = FontWeights.Black,
-                    Style = (Style)FindResource("TouchButtonStyle"),
-                    Background = (Brush)FindResource("SuccessGreenBrush"),
-                    Tag = order
-                };
-                acceptBtn.Click += async (s, e) =>
-                {
-                    var ord = (Order)((Button)s).Tag;
-                    await PrintOrderKitchenSlipsAsync(ord);
-                    string kassaIp = IpKassaBox.Text.Trim();
-                    if (!string.IsNullOrEmpty(kassaIp))
-                    {
-                        await _printer.PrintKassaReceiptAsync(ord, kassaIp, ord.TotalAmount, 0, 0);
-                    }
-                    _onlineOrders.Remove(ord);
-                    NavOnlineBadgeText.Text = _onlineOrders.Count.ToString();
-                    NavOnlineBadgeBorder.Visibility = _onlineOrders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-                    RenderOnlineOrders();
-                    Toast.Show($"Buyurtma #{ord.OrderNumber} qabul qilindi va boʻlimlarga yuborildi", ToastTone.Success);
-                };
-
-                rightStack.Children.Add(acceptBtn);
-                Grid.SetColumn(rightStack, 1);
-
-                grid.Children.Add(leftStack);
-                grid.Children.Add(rightStack);
-                card.Child = grid;
-
-                OnlineOrdersStackPanel.Children.Add(card);
+                _onlineOrderVMs.Add(new OnlineOrderCardVM(order));
             }
+
+            NavOnlineBadgeText.Text = _onlineOrders.Count.ToString();
+            NavOnlineBadgeBorder.Visibility = _onlineOrders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            UpdateOnlineVisualStates(isLoading: false);
+        }
+
+        private async void OnAcceptOnlineOrderClicked(object? sender, OnlineOrderCardVM vm)
+        {
+            var ord = vm.Model;
+            await PrintOrderKitchenSlipsAsync(ord);
+            string kassaIp = GetPrinterIpForDept("kassa");
+            if (!string.IsNullOrEmpty(kassaIp))
+            {
+                await _printer.PrintKassaReceiptAsync(ord, kassaIp, ord.TotalAmount, 0, 0);
+            }
+
+            _onlineOrders.Remove(ord);
+            RenderOnlineOrders();
+            Toast.Show($"Buyurtma #{ord.OrderNumber} qabul qilindi va boʻlimlarga yuborildi", ToastTone.Success);
         }
 
         private async void OnRefreshOnlineOrdersClick(object sender, RoutedEventArgs e)
         {
+            UpdateOnlineVisualStates(isLoading: true);
             _onlineOrders = await _api.GetOnlineOrdersAsync();
-            NavOnlineBadgeText.Text = _onlineOrders.Count.ToString();
-            NavOnlineBadgeBorder.Visibility = _onlineOrders.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             RenderOnlineOrders();
+        }
+
+        private void OnRefreshOnlineOrdersEmptyAction(object? sender, EventArgs e)
+        {
+            OnRefreshOnlineOrdersClick(this, new RoutedEventArgs());
         }
         #endregion
 
         #region 5. Smena va Z-Hisobot (Analytics & Shift Management)
+        private void UpdateShiftVisualStates(bool isLoading)
+        {
+            if (isLoading)
+            {
+                ShiftLoadingState.Visibility = Visibility.Visible;
+                ShiftContentGrid.Visibility = Visibility.Collapsed;
+                ShiftEmptyState.Visibility = Visibility.Collapsed;
+            }
+            else if (_currentShift.TotalOrdersCount == 0 && _currentShift.TotalRevenue == 0)
+            {
+                ShiftLoadingState.Visibility = Visibility.Collapsed;
+                ShiftContentGrid.Visibility = Visibility.Collapsed;
+                ShiftEmptyState.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                ShiftLoadingState.Visibility = Visibility.Collapsed;
+                ShiftContentGrid.Visibility = Visibility.Visible;
+                ShiftEmptyState.Visibility = Visibility.Collapsed;
+            }
+        }
+
         private void UpdateShiftReportUI()
         {
-            SidebarCashierNameText.Text = _settings.CashierName;
-            ShiftHeaderInfoText.Text = $"Smena ochiq • Kassir: {_settings.CashierName} • Boshlanish: Bugun 08:30";
+            string cashier = string.IsNullOrWhiteSpace(_settings.CashierName) ? _currentShift.CashierName : _settings.CashierName;
+            var openedAt = _currentShift.OpenedAt == default ? DateTime.Today.AddHours(8).AddMinutes(30) : _currentShift.OpenedAt;
 
-            ShiftTotalRevenueText.Text = $"{_currentShift.TotalRevenue:N0} so'm";
-            ShiftCashRevenueText.Text = $"{_currentShift.CashRevenue:N0} so'm";
-            ShiftCardRevenueText.Text = $"{_currentShift.CardRevenue:N0} so'm";
+            SidebarCashierNameText.Text = cashier;
+            ShiftHeaderInfoText.Text = $"Smena ochiq · {openedAt:HH:mm} dan · Kassir: {cashier}";
+
+            ShiftTotalRevenueText.Text = MoneyFormatter.Format(_currentShift.TotalRevenue);
+            KpiCashCard.Value = MoneyFormatter.Format(_currentShift.CashRevenue);
+            KpiCardCard.Value = MoneyFormatter.Format(_currentShift.CardRevenue);
+            KpiOnlineCard.Value = MoneyFormatter.Format(_currentShift.OnlineRevenue);
+
             ShiftOrdersCountText.Text = $"{_currentShift.TotalOrdersCount} ta";
+            ShiftServiceFeeText.Text = MoneyFormatter.Format(_currentShift.ServiceFeesCollected);
+            ShiftDiscountsText.Text = MoneyFormatter.Format(_currentShift.DiscountsGiven);
 
-            ShiftServiceFeeText.Text = $"{_currentShift.ServiceFeesCollected:N0} so'm";
-            ShiftDiscountsText.Text = $"{_currentShift.DiscountsGiven:N0} so'm";
+            decimal avgCheck = _currentShift.TotalOrdersCount > 0
+                ? Math.Round(_currentShift.TotalRevenue / _currentShift.TotalOrdersCount, 0)
+                : 0m;
+            ShiftAvgCheckText.Text = MoneyFormatter.Format(avgCheck);
+
+            decimal payTotal = _currentShift.CashRevenue + _currentShift.CardRevenue + _currentShift.OnlineRevenue;
+            if (payTotal > 0)
+            {
+                int cashPct = (int)Math.Round(_currentShift.CashRevenue * 100m / payTotal);
+                int cardPct = (int)Math.Round(_currentShift.CardRevenue * 100m / payTotal);
+                int onlinePct = Math.Max(0, 100 - cashPct - cardPct);
+                ShiftPaymentMixLabel.Text = $"Naqd {cashPct}% · Karta {cardPct}% · Onlayn {onlinePct}%";
+                ShiftCashShareCol.Width = new GridLength(Math.Max(0.5, (double)_currentShift.CashRevenue), GridUnitType.Star);
+                ShiftCardShareCol.Width = new GridLength(Math.Max(0.5, (double)_currentShift.CardRevenue), GridUnitType.Star);
+                ShiftOnlineShareCol.Width = new GridLength(Math.Max(0.5, (double)_currentShift.OnlineRevenue), GridUnitType.Star);
+            }
+            else
+            {
+                ShiftPaymentMixLabel.Text = "Naqd 0% · Karta 0% · Onlayn 0%";
+                ShiftCashShareCol.Width = new GridLength(1, GridUnitType.Star);
+                ShiftCardShareCol.Width = new GridLength(1, GridUnitType.Star);
+                ShiftOnlineShareCol.Width = new GridLength(1, GridUnitType.Star);
+            }
+
+            ShiftDineInText.Text = MoneyFormatter.Format(_currentShift.DineInRevenue);
+            ShiftTakeawayText.Text = MoneyFormatter.Format(_currentShift.TakeawayRevenue);
+
+            UpdateShiftVisualStates(isLoading: false);
+            UpdateClockDisplay();
         }
 
         private async void OnPrintXReportDirect(object sender, RoutedEventArgs e)
         {
-            string kassaIp = IpKassaBox.Text.Trim();
+            string kassaIp = GetPrinterIpForDept("kassa");
             if (string.IsNullOrEmpty(kassaIp))
             {
                 Toast.Show("Kassa printeri IP manzili kiritilmagan", ToastTone.Warning);
@@ -1209,17 +1304,20 @@ namespace DilkashPos
 
             if (confirmed)
             {
-                string kassaIp = IpKassaBox.Text.Trim();
+                string kassaIp = GetPrinterIpForDept("kassa");
                 if (!string.IsNullOrEmpty(kassaIp))
                 {
                     await _printer.PrintShiftReportAsync(_currentShift, true, kassaIp);
                 }
 
-                // Smena ma'lumotlarini nolga tushirish
+                // Smena maʼlumotlarini nolga tushirish
                 _currentShift.TotalOrdersCount = 0;
                 _currentShift.TotalRevenue = 0;
                 _currentShift.CashRevenue = 0;
                 _currentShift.CardRevenue = 0;
+                _currentShift.OnlineRevenue = 0;
+                _currentShift.DineInRevenue = 0;
+                _currentShift.TakeawayRevenue = 0;
                 _currentShift.ServiceFeesCollected = 0;
                 _currentShift.DiscountsGiven = 0;
 
@@ -1227,34 +1325,138 @@ namespace DilkashPos
                 Toast.Show("Kassa smenasi yopildi va Z-hisobot chop etildi", ToastTone.Success);
             }
         }
+
+        private void OnShiftEmptyAction(object? sender, EventArgs e)
+        {
+            SwitchToTab("quick_pos");
+        }
         #endregion
 
         #region 6. Printerlar va Sozlamalar
-        private void ApplySettingsToUI()
+        private void UpdateSettingsVisualStates(bool isLoading)
         {
-            if (_settings.Printers.TryGetValue("kassa", out var kassa)) IpKassaBox.Text = kassa;
-            if (_settings.Printers.TryGetValue("shashlik", out var shashlik)) IpShashlikBox.Text = shashlik;
-            if (_settings.Printers.TryGetValue("somsa", out var somsa)) IpSomsaBox.Text = somsa;
-            if (_settings.Printers.TryGetValue("kitchen", out var kitchen)) IpKitchenBox.Text = kitchen;
-            if (_settings.Printers.TryGetValue("fastfood", out var fastfood)) IpFastfoodBox.Text = fastfood;
-            if (_settings.Printers.TryGetValue("bar", out var bar)) IpBarBox.Text = bar;
-
-            ServiceFeeValueBox.Text = _settings.ServiceFeeType == "percent"
-                ? _settings.ServiceFeePercent.ToString("0")
-                : _settings.ServiceFeePerPerson.ToString("0");
-
-            ServerUrlBox.Text = _settings.ServerUrl;
-            CashierNameBox.Text = _settings.CashierName;
-            SidebarCashierNameText.Text = _settings.CashierName;
-            AutoPrintCheck.IsChecked = _settings.AutoPrintNetwork;
+            SettingsLoadingState.Visibility = isLoading ? Visibility.Visible : Visibility.Collapsed;
+            SettingsScrollViewer.Visibility = isLoading ? Visibility.Collapsed : Visibility.Visible;
+            SettingsDirtyBar.Visibility = (!isLoading && _settingsDirty) ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        private async void OnTestPrintKassa(object sender, RoutedEventArgs e) => await TestPrintAsync("Kassa Hisob Printeri", IpKassaBox.Text);
-        private async void OnTestPrintShashlik(object sender, RoutedEventArgs e) => await TestPrintAsync("Shashlikxona Printeri", IpShashlikBox.Text);
-        private async void OnTestPrintSomsa(object sender, RoutedEventArgs e) => await TestPrintAsync("Somsaxona Printeri", IpSomsaBox.Text);
-        private async void OnTestPrintKitchen(object sender, RoutedEventArgs e) => await TestPrintAsync("Issiq Oshxona Printeri", IpKitchenBox.Text);
-        private async void OnTestPrintFastfood(object sender, RoutedEventArgs e) => await TestPrintAsync("Fast-Food Printeri", IpFastfoodBox.Text);
-        private async void OnTestPrintBar(object sender, RoutedEventArgs e) => await TestPrintAsync("Desert & Bar Printeri", IpBarBox.Text);
+        private void SetSettingsDirty(bool dirty)
+        {
+            _settingsDirty = dirty;
+            if (SettingsDirtyBar != null && SettingsLoadingState != null)
+            {
+                SettingsDirtyBar.Visibility = (dirty && SettingsLoadingState.Visibility != Visibility.Visible)
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+        }
+
+        private void MarkSettingsDirty()
+        {
+            if (_isApplyingSettings || !IsLoaded)
+            {
+                return;
+            }
+            SetSettingsDirty(true);
+        }
+
+        private void ApplySettingsToUI()
+        {
+            _isApplyingSettings = true;
+            try
+            {
+                _printerCardVMs.Clear();
+                var defaults = new (string Code, string Name, string Subtitle, string Icon)[]
+                {
+                    ("kassa", "Kassa hisob printeri", "Mijoz cheki, X/Z hisobot", "receipt"),
+                    ("shashlik", "Shashlikxona", "Mangal boʻlimi", "grill"),
+                    ("somsa", "Somsaxona", "Tandir boʻlimi", "chef"),
+                    ("kitchen", "Issiq oshxona", "Milliy issiq taomlar", "bowl"),
+                    ("fastfood", "Fast-food", "Burger va lavash", "burger"),
+                    ("bar", "Bar va ichimliklar", "Choy, qahva, desertlar", "coffee")
+                };
+
+                foreach (var def in defaults)
+                {
+                    var dept = _departments.FirstOrDefault(d => string.Equals(d.Code, def.Code, StringComparison.OrdinalIgnoreCase));
+                    string ip = _settings.Printers.TryGetValue(def.Code, out var savedIp) && !string.IsNullOrWhiteSpace(savedIp)
+                        ? savedIp
+                        : (dept?.PrinterIp ?? "");
+                    bool isOnline = dept?.IsOnline ?? !string.IsNullOrWhiteSpace(ip);
+                    string name = !string.IsNullOrWhiteSpace(dept?.Name) ? dept!.Name : def.Name;
+                    string subtitle = !string.IsNullOrWhiteSpace(dept?.Subtitle) ? dept!.Subtitle : def.Subtitle;
+                    string icon = !string.IsNullOrWhiteSpace(dept?.Icon) ? dept!.Icon : def.Icon;
+
+                    _printerCardVMs.Add(new PrinterCardVM(def.Code, name, subtitle, icon, ip, isOnline));
+                }
+
+                foreach (var obj in ServiceFeeTypeCombo.Items)
+                {
+                    if (obj is ComboBoxItem cbi && string.Equals(cbi.Tag as string, _settings.ServiceFeeType, StringComparison.OrdinalIgnoreCase))
+                    {
+                        ServiceFeeTypeCombo.SelectedItem = cbi;
+                        break;
+                    }
+                }
+
+                ServiceFeeValueBox.Text = _settings.ServiceFeeType == "per_person"
+                    ? _settings.ServiceFeePerPerson.ToString("0")
+                    : _settings.ServiceFeeType == "none"
+                        ? "0"
+                        : _settings.ServiceFeePercent.ToString("0");
+                ServiceFeeValueBox.IsEnabled = _settings.ServiceFeeType != "none";
+
+                ServerUrlBox.Text = _settings.ServerUrl;
+                CashierNameBox.Text = _settings.CashierName;
+                SidebarCashierNameText.Text = _settings.CashierName;
+                LockCashierNameText.Text = _settings.CashierName;
+                AutoPrintCheck.IsChecked = _settings.AutoPrintNetwork;
+
+                SetSettingsDirty(false);
+                UpdateSettingsVisualStates(isLoading: false);
+            }
+            finally
+            {
+                _isApplyingSettings = false;
+            }
+        }
+
+        private async void OnPrinterCardTestClick(object? sender, PrinterCardVM vm)
+        {
+            await TestPrintAsync(vm.Name, vm.PrinterIp);
+        }
+
+        private void OnSettingsInputChanged(object? sender, EventArgs e)
+        {
+            MarkSettingsDirty();
+        }
+
+        private void OnSettingsCheckChanged(object sender, RoutedEventArgs e)
+        {
+            MarkSettingsDirty();
+        }
+
+        private void OnSettingsTextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender is TextBox tb && !tb.IsKeyboardFocusWithin) return;
+            MarkSettingsDirty();
+        }
+
+        private void OnSettingsComboChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ServiceFeeValueBox != null && ServiceFeeTypeCombo.SelectedItem is ComboBoxItem item && item.Tag is string tag)
+            {
+                ServiceFeeValueBox.IsEnabled = tag != "none";
+            }
+            if (sender is ComboBox cb && !cb.IsDropDownOpen && !cb.IsKeyboardFocusWithin) return;
+            MarkSettingsDirty();
+        }
+
+        private void OnDiscardSettingsClick(object sender, RoutedEventArgs e)
+        {
+            ApplySettingsToUI();
+            Toast.Show("Oʻzgarishlar bekor qilindi", ToastTone.Info);
+        }
 
         private async Task TestPrintAsync(string title, string ip)
         {
@@ -1276,12 +1478,10 @@ namespace DilkashPos
             _settings.CashierName = CashierNameBox.Text.Trim();
             _settings.AutoPrintNetwork = AutoPrintCheck.IsChecked == true;
 
-            _settings.Printers["kassa"] = IpKassaBox.Text.Trim();
-            _settings.Printers["shashlik"] = IpShashlikBox.Text.Trim();
-            _settings.Printers["somsa"] = IpSomsaBox.Text.Trim();
-            _settings.Printers["kitchen"] = IpKitchenBox.Text.Trim();
-            _settings.Printers["fastfood"] = IpFastfoodBox.Text.Trim();
-            _settings.Printers["bar"] = IpBarBox.Text.Trim();
+            foreach (var card in _printerCardVMs)
+            {
+                _settings.Printers[card.Code] = (card.PrinterIp ?? "").Trim();
+            }
 
             if (ServiceFeeTypeCombo.SelectedItem is ComboBoxItem item && item.Tag is string feeType)
             {
@@ -1289,12 +1489,15 @@ namespace DilkashPos
                 if (decimal.TryParse(ServiceFeeValueBox.Text.Trim(), out decimal val))
                 {
                     if (feeType == "percent") _settings.ServiceFeePercent = val;
-                    else _settings.ServiceFeePerPerson = val;
+                    else if (feeType == "per_person") _settings.ServiceFeePerPerson = val;
                 }
             }
 
             SidebarCashierNameText.Text = _settings.CashierName;
             LockCashierNameText.Text = _settings.CashierName;
+            UpdateShiftReportUI();
+            UpdateCartUI();
+            SetSettingsDirty(false);
             Toast.Show("Barcha sozlamalar saqlandi", ToastTone.Success);
         }
         #endregion
@@ -1318,6 +1521,10 @@ namespace DilkashPos
             _settings = setts;
             _currentCart = Demo.DemoData.GetDemoCart();
             _activeTableContext = _tables.FirstOrDefault(t => t.Number.ToString() == _currentCart.TableNumber);
+
+            _stopListFilter = "all";
+            StopFilterAllBtn.IsChecked = true;
+            StopListSearchBox.Text = "";
 
             RenderTables();
             RenderCategories();
@@ -1372,6 +1579,77 @@ namespace DilkashPos
             {
                 ProductSearchBox.Text = "";
                 RenderProducts();
+            }
+        }
+
+        public void SetDemoStopListState(bool isLoading, bool forceEmpty)
+        {
+            if (isLoading)
+            {
+                UpdateStopListVisualStates(isLoading: true);
+            }
+            else if (forceEmpty)
+            {
+                _stopListVMs.Clear();
+                UpdateStopListVisualStates(isLoading: false);
+            }
+            else
+            {
+                RenderStopList(StopListSearchBox.Text);
+            }
+        }
+
+        public void SetDemoOnlineState(bool isLoading, bool forceEmpty)
+        {
+            if (isLoading)
+            {
+                UpdateOnlineVisualStates(isLoading: true);
+            }
+            else if (forceEmpty)
+            {
+                _onlineOrderVMs.Clear();
+                UpdateOnlineVisualStates(isLoading: false);
+            }
+            else
+            {
+                RenderOnlineOrders();
+            }
+        }
+
+        public void SetDemoShiftState(bool isLoading, bool forceEmpty)
+        {
+            if (isLoading)
+            {
+                UpdateShiftVisualStates(isLoading: true);
+            }
+            else if (forceEmpty)
+            {
+                ShiftLoadingState.Visibility = Visibility.Collapsed;
+                ShiftContentGrid.Visibility = Visibility.Collapsed;
+                ShiftEmptyState.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                UpdateShiftReportUI();
+            }
+        }
+
+        public void SetDemoSettingsState(bool isLoading, bool forceDirty)
+        {
+            UpdateSettingsVisualStates(isLoading);
+            if (!isLoading)
+            {
+                if (forceDirty)
+                {
+                    _isApplyingSettings = true;
+                    CashierNameBox.Text = "Jasur Rahimov (Tahrir)";
+                    _isApplyingSettings = false;
+                    SetSettingsDirty(true);
+                }
+                else
+                {
+                    ApplySettingsToUI();
+                }
             }
         }
 

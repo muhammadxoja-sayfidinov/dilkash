@@ -1,0 +1,111 @@
+<UserControl x:Class="DilkashPos.Controls.PrinterCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:DilkashPos.Controls">
+    <Border Background="{DynamicResource BrushSurface}"
+            BorderBrush="{DynamicResource BrushBorder}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource RadiusMd}"
+            Padding="14,11">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="226" />
+                <ColumnDefinition Width="10" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Department Icon Plate -->
+            <Border Grid.Column="0"
+                    Width="44" Height="44"
+                    CornerRadius="12"
+                    Background="{DynamicResource BrushSurfaceElevated}"
+                    BorderBrush="{DynamicResource BrushBorderSubtle}"
+                    BorderThickness="1"
+                    VerticalAlignment="Center">
+                <local:Icon Size="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <local:Icon.Style>
+                        <Style TargetType="{x:Type local:Icon}" BasedOn="{StaticResource {x:Type local:Icon}}">
+                            <Setter Property="Data" Value="{StaticResource IconBowl}" />
+                            <Setter Property="Foreground" Value="{DynamicResource BrushPrimaryBright}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Code}" Value="kassa">
+                                    <Setter Property="Data" Value="{StaticResource IconReceipt}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Code}" Value="shashlik">
+                                    <Setter Property="Data" Value="{StaticResource IconGrill}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource BrushAmberBright}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Code}" Value="somsa">
+                                    <Setter Property="Data" Value="{StaticResource IconChef}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource BrushAmberBright}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Code}" Value="fastfood">
+                                    <Setter Property="Data" Value="{StaticResource IconBurger}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Code}" Value="bar">
+                                    <Setter Property="Data" Value="{StaticResource IconCoffee}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource BrushReservedText}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </local:Icon.Style>
+                </local:Icon>
+            </Border>
+
+            <!-- Name + Live Status Dot -->
+            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                <TextBlock Text="{Binding Name}" Style="{StaticResource TextBodyBold}" />
+                <StackPanel Orientation="Horizontal" Margin="0,3,0,0" VerticalAlignment="Center">
+                    <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center">
+                        <Ellipse.Style>
+                            <Style TargetType="{x:Type Ellipse}">
+                                <Setter Property="Fill" Value="{DynamicResource BrushErrorBright}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                        <Setter Property="Fill" Value="{DynamicResource BrushPrimaryBright}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <TextBlock Text="{Binding StatusLabel}">
+                        <TextBlock.Style>
+                            <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource TextCaption}">
+                                <Setter Property="Foreground" Value="{DynamicResource BrushErrorBright}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                        <Setter Property="Foreground" Value="{DynamicResource BrushPrimaryBright}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <TextBlock Text="{Binding Subtitle, StringFormat=' · {0}'}"
+                               Style="{StaticResource TextCaptionMuted}"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </StackPanel>
+
+            <!-- IP:Port Field -->
+            <TextBox Grid.Column="4"
+                     Text="{Binding PrinterIp, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     Padding="12,10"
+                     HorizontalContentAlignment="Center"
+                     Typography.NumeralAlignment="Tabular"
+                     VerticalAlignment="Center"
+                     TextChanged="OnIpTextChanged" />
+
+            <!-- Test Print Button -->
+            <Button Grid.Column="6"
+                    Content="Sinov cheki"
+                    Style="{StaticResource SecondaryButton}"
+                    MinHeight="48"
+                    Padding="14,8"
+                    Click="OnTestPrintClick" />
+        </Grid>
+    </Border>
+</UserControl>

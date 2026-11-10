@@ -1,0 +1,33 @@
+<UserControl x:Class="DilkashPos.Controls.KpiCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:DilkashPos.Controls">
+    <!-- Equal neutral border & surface; only icon accent color differentiates -->
+    <Border Background="{DynamicResource BrushSurface}"
+            BorderBrush="{DynamicResource BrushBorder}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource RadiusMd}"
+            Padding="20,18">
+        <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10" VerticalAlignment="Center">
+                <Border Width="34" Height="34"
+                        CornerRadius="10"
+                        Background="{DynamicResource BrushSurfaceElevated}"
+                        BorderBrush="{DynamicResource BrushBorderSubtle}"
+                        BorderThickness="1"
+                        Margin="0,0,10,0">
+                    <local:Icon x:Name="CardIcon" Size="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <TextBlock x:Name="LabelBlock" Style="{StaticResource TextLabel}" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <TextBlock x:Name="ValueBlock"
+                       Style="{StaticResource TextKpi}"
+                       FontSize="28"
+                       Margin="0,0,0,4" />
+
+            <TextBlock x:Name="SubtitleBlock"
+                       Style="{StaticResource TextCaptionMuted}" />
+        </StackPanel>
+    </Border>
+</UserControl>
