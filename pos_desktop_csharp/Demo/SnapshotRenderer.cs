@@ -93,7 +93,13 @@ namespace DilkashPos.Demo
                 }
 
                 // 2. Dialogs
-                // Payment Dialog (Cash)
+                static int GetDlgHeight(Window d, int fallback = 540)
+                {
+                    if (d.ActualHeight > 0) return (int)Math.Ceiling(d.ActualHeight);
+                    return !double.IsNaN(d.Height) && d.Height > 0 ? (int)Math.Ceiling(d.Height) : fallback;
+                }
+
+                // Payment Dialog (Cash, Card, Split, Success)
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     var dlg = new PaymentDialog(285000, "D-2026", "4", 4)
@@ -104,9 +110,23 @@ namespace DilkashPos.Demo
                     };
                     dlg.Show();
                     dlg.UpdateLayout();
-                    string path = Path.Combine(resDir, "dialog_payment_cash.png");
-                    RenderWindowToPng(dlg, (int)dlg.Width, (int)dlg.Height, path);
-                    Console.WriteLine($"[SnapshotRenderer] Wrote {path}");
+
+                    RenderWindowToPng(dlg, (int)dlg.Width, GetDlgHeight(dlg, 672), Path.Combine(resDir, "dialog_payment_cash.png"));
+
+                    if (width == 1366 || width == 1920)
+                    {
+                        dlg.SetDemoMethod("karta");
+                        RenderWindowToPng(dlg, (int)dlg.Width, GetDlgHeight(dlg, 672), Path.Combine(resDir, "dialog_payment_card.png"));
+
+                        dlg.SetDemoMethod("aralash");
+                        RenderWindowToPng(dlg, (int)dlg.Width, GetDlgHeight(dlg, 672), Path.Combine(resDir, "dialog_payment_split.png"));
+
+                        dlg.SetDemoMethod("naqd");
+                        dlg.SetDemoSuccessState();
+                        RenderWindowToPng(dlg, (int)dlg.Width, GetDlgHeight(dlg, 672), Path.Combine(resDir, "dialog_payment_success.png"));
+                    }
+
+                    Console.WriteLine($"[SnapshotRenderer] Wrote payment dialog snapshots in {resDir}");
                     dlg.Close();
                 });
                 await Task.Delay(50);
@@ -123,7 +143,7 @@ namespace DilkashPos.Demo
                     dlg.Show();
                     dlg.UpdateLayout();
                     string path = Path.Combine(resDir, "dialog_open_table.png");
-                    RenderWindowToPng(dlg, (int)dlg.Width, (int)dlg.Height, path);
+                    RenderWindowToPng(dlg, (int)dlg.Width, GetDlgHeight(dlg, 460), path);
                     Console.WriteLine($"[SnapshotRenderer] Wrote {path}");
                     dlg.Close();
                 });
@@ -141,7 +161,7 @@ namespace DilkashPos.Demo
                     dlg.Show();
                     dlg.UpdateLayout();
                     string path = Path.Combine(resDir, "dialog_item_modifier.png");
-                    RenderWindowToPng(dlg, (int)dlg.Width, (int)dlg.Height, path);
+                    RenderWindowToPng(dlg, (int)dlg.Width, GetDlgHeight(dlg, 480), path);
                     Console.WriteLine($"[SnapshotRenderer] Wrote {path}");
                     dlg.Close();
                 });
@@ -150,7 +170,7 @@ namespace DilkashPos.Demo
                 // Discount Dialog
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    var dlg = new DiscountDialog(10)
+                    var dlg = new DiscountDialog(10, 418000)
                     {
                         WindowStartupLocation = WindowStartupLocation.Manual,
                         Left = -20000,
@@ -159,7 +179,7 @@ namespace DilkashPos.Demo
                     dlg.Show();
                     dlg.UpdateLayout();
                     string path = Path.Combine(resDir, "dialog_discount.png");
-                    RenderWindowToPng(dlg, (int)dlg.Width, (int)dlg.Height, path);
+                    RenderWindowToPng(dlg, (int)dlg.Width, GetDlgHeight(dlg, 600), path);
                     Console.WriteLine($"[SnapshotRenderer] Wrote {path}");
                     dlg.Close();
                 });
@@ -178,7 +198,7 @@ namespace DilkashPos.Demo
                     dlg.Show();
                     dlg.UpdateLayout();
                     string path = Path.Combine(resDir, "dialog_shift_report.png");
-                    RenderWindowToPng(dlg, (int)dlg.Width, (int)dlg.Height, path);
+                    RenderWindowToPng(dlg, (int)dlg.Width, GetDlgHeight(dlg, 620), path);
                     Console.WriteLine($"[SnapshotRenderer] Wrote {path}");
                     dlg.Close();
                 });

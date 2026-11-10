@@ -800,7 +800,7 @@ namespace DilkashPos
 
         private void OnDiscountPillClick(object sender, RoutedEventArgs e)
         {
-            var dlg = new DiscountDialog(_currentCart.DiscountPercent);
+            var dlg = new DiscountDialog(_currentCart.DiscountPercent, _currentCart.ProductsTotal);
             if (Dialogs.ShowModal(dlg, this) == true)
             {
                 _currentCart.DiscountPercent = dlg.DiscountPercent;

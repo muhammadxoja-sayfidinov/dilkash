@@ -1029,4 +1029,43 @@
         </Setter>
     </Style>
 
+    <!-- ========================================================= -->
+    <!-- 7. FIELD WRAPPER (Label + Input Slot + Helper/Error)      -->
+    <!-- ========================================================= -->
+    <Style TargetType="{x:Type controls:Field}">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type controls:Field}">
+                    <StackPanel>
+                        <TextBlock x:Name="PART_Label"
+                                   Text="{TemplateBinding Label}"
+                                   Style="{StaticResource TextLabel}"
+                                   Margin="0,0,0,8" />
+
+                        <ContentPresenter />
+
+                        <TextBlock x:Name="PART_Message"
+                                   Text="{TemplateBinding DisplayMessage}"
+                                   Style="{StaticResource TextCaption}"
+                                   Foreground="{DynamicResource BrushTextMuted}"
+                                   Margin="0,6,0,0" />
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Label" Value="">
+                            <Setter TargetName="PART_Label" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="DisplayMessage" Value="">
+                            <Setter TargetName="PART_Message" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
+                        <Trigger Property="HasError" Value="True">
+                            <Setter TargetName="PART_Message" Property="Foreground" Value="{DynamicResource BrushErrorBright}" />
+                            <Setter TargetName="PART_Message" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>
