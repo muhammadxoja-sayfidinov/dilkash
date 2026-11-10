@@ -1,0 +1,20 @@
+<UserControl x:Class="DilkashPos.Controls.Field"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <StackPanel>
+        <!-- Label -->
+        <TextBlock x:Name="FieldLabel"
+                   Text="{Binding Label, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                   Style="{StaticResource TextLabel}"
+                   Margin="0,0,0,8" />
+
+        <!-- Input Slot -->
+        <ContentPresenter Content="{Binding FieldContent, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+
+        <!-- Helper / Error Text -->
+        <TextBlock x:Name="HelperTextBlock"
+                   Style="{StaticResource TextCaption}"
+                   Margin="0,6,0,0"
+                   Visibility="Collapsed" />
+    </StackPanel>
+</UserControl>

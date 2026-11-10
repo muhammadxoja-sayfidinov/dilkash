@@ -25,6 +25,32 @@ namespace DilkashPos.Demo
             Directory.CreateDirectory(outputDir);
             Console.WriteLine($"[SnapshotRenderer] Capturing snapshots to {outputDir}...");
 
+            // 0. Capture Component Gallery
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                var gal = new GalleryWindow
+                {
+                    WindowStartupLocation = WindowStartupLocation.Manual,
+                    Left = -20000,
+                    Top = -20000,
+                    Width = 1600,
+                    Height = 960
+                };
+                gal.Show();
+                gal.UpdateLayout();
+
+                gal.MainScroll.VerticalScrollBarVisibility = System.Windows.Controls.ScrollBarVisibility.Disabled;
+                gal.GalleryContent.Measure(new Size(1552, double.PositiveInfinity));
+                int galHeight = (int)Math.Ceiling(gal.GalleryContent.DesiredSize.Height) + 56;
+                if (galHeight < 960) galHeight = 960;
+
+                string gPath = Path.Combine(outputDir, "gallery.png");
+                RenderWindowToPng(gal, 1600, galHeight, gPath);
+                Console.WriteLine($"[SnapshotRenderer] Wrote {gPath} (1600x{galHeight})");
+                gal.Close();
+            });
+            await Task.Delay(50);
+
             foreach (var (width, height) in Resolutions)
             {
                 string resTag = $"{width}x{height}";
@@ -167,7 +193,47 @@ namespace DilkashPos.Demo
             if (renderH <= 0) renderH = 768;
 
             var rtb = new RenderTargetBitmap(renderW, renderH, 96, 96, PixelFormats.Pbgra32);
-            rtb.Render(window);
+
+            if (window.Content is FrameworkElement content)
+            {
+                var bgBrush = window.Background ?? Brushes.Black;
+                var dc = window.DataContext;
+                var winRes = window.Resources;
+
+                // Detach from Win32 Window so Measure/Arrange renders exact virtual target dimensions
+                // without being clamped to the host monitor's working area.
+                window.Content = null;
+
+                if (content.DataContext == null && dc != null)
+                {
+                    content.DataContext = dc;
+                }
+                if (winRes != null && winRes.Count > 0 && !content.Resources.MergedDictionaries.Contains(winRes))
+                {
+                    content.Resources.MergedDictionaries.Insert(0, winRes);
+                }
+
+                var host = new System.Windows.Controls.Border
+                {
+                    Width = renderW,
+                    Height = renderH,
+                    Background = bgBrush,
+                    Child = content
+                };
+
+                host.Measure(new Size(renderW, renderH));
+                host.Arrange(new Rect(0, 0, renderW, renderH));
+                host.UpdateLayout();
+
+                rtb.Render(host);
+
+                host.Child = null;
+                window.Content = content;
+            }
+            else
+            {
+                rtb.Render(window);
+            }
 
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create(rtb));

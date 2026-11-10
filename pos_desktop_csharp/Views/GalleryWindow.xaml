@@ -1,0 +1,222 @@
+<Window x:Class="DilkashPos.Views.GalleryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:DilkashPos.Controls"
+        Title="Dilkash POS — Komponentlar Galereyasi"
+        Height="960" Width="1600"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BrushBg}">
+    <ScrollViewer x:Name="MainScroll" Padding="24">
+        <StackPanel x:Name="GalleryContent" MaxWidth="1540">
+
+            <!-- Header -->
+            <Grid Margin="0,0,0,20">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Width="48" Height="48" Margin="0,0,16,0">
+                        <Image.Source>
+                            <DrawingImage Drawing="{StaticResource DrawingBrandMonogram}" />
+                        </Image.Source>
+                    </Image>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Dilkash Design System — Komponentlar Galereyasi" Style="{StaticResource TextSection}" />
+                        <TextBlock x:Name="FontCheckText" Text="Shrift tekshirilmoqda..." Style="{StaticResource TextCaption}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+
+            <!-- Top Row: Palette + Typography (2 columns) -->
+            <Grid Margin="0,0,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="20" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- 1. Palette Swatches -->
+                <StackPanel Grid.Column="0">
+                    <controls:SectionHeader Title="1. Rang Tokenlari (Deep Pine)" Subtitle="Barcha ranglar DynamicResource orqali boshqariladi" />
+                    <WrapPanel>
+                        <Border Width="168" Height="64" Background="{DynamicResource BrushBg}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Bg (#09100C)" Style="{StaticResource TextCaption}" VerticalAlignment="Bottom" />
+                        </Border>
+                        <Border Width="168" Height="64" Background="{DynamicResource BrushSurface}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Surface (#111D17)" Style="{StaticResource TextCaption}" VerticalAlignment="Bottom" />
+                        </Border>
+                        <Border Width="168" Height="64" Background="{DynamicResource BrushSurfaceElevated}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Elevated (#182820)" Style="{StaticResource TextCaption}" VerticalAlignment="Bottom" />
+                        </Border>
+                        <Border Width="168" Height="64" Background="{DynamicResource BrushPrimary}" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Primary (#0D6B4E)" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Bottom" />
+                        </Border>
+                        <Border Width="168" Height="64" Background="{DynamicResource BrushPrimaryBright}" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Bright (#10B981)" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushBg}" FontWeight="Bold" VerticalAlignment="Bottom" />
+                        </Border>
+                        <Border Width="168" Height="64" Background="{DynamicResource BrushAmber}" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Amber (#D97706)" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushBg}" FontWeight="Bold" VerticalAlignment="Bottom" />
+                        </Border>
+                        <Border Width="168" Height="64" Background="{DynamicResource BrushError}" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Error (#E11D48)" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextOnError}" VerticalAlignment="Bottom" />
+                        </Border>
+                        <Border Width="168" Height="64" Background="{DynamicResource BrushReservedTint}" BorderBrush="{DynamicResource BrushReserved}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Reserved (#8B5CF6)" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushReservedText}" VerticalAlignment="Bottom" />
+                        </Border>
+                    </WrapPanel>
+                </StackPanel>
+
+                <!-- 2. Typography & Uzbek Orthography -->
+                <StackPanel Grid.Column="2">
+                    <controls:SectionHeader Title="2. Tipografika va Oʻzbekcha Imlo" Subtitle="Inter + Tabular Numerals + U+02BB (ʻ)" />
+                    <Border Background="{DynamicResource BrushSurface}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusMd}" Padding="16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                <TextBlock Text="14&#160;650&#160;000&#160;soʻm" Style="{StaticResource TextGrandTotal}" Margin="0,0,0,4" />
+                                <TextBlock Text="KPI: 8&#160;900&#160;000&#160;soʻm" Style="{StaticResource TextKpi}" Margin="0,0,0,4" />
+                                <TextBlock Text="Section: Stollar xaritasi" Style="{StaticResource TextSection}" Margin="0,0,0,4" />
+                                <TextBlock Text="Title: Qoʻy goʻshti shashlik" Style="{StaticResource TextTitle}" Margin="0,0,0,4" />
+                                <TextBlock Text="Body: Oʻtirish vaqti 1 soatdan oshdi." Style="{StaticResource TextBody}" Margin="0,0,0,4" />
+                                <TextBlock Text="Caption (13px): Barcha narxlar xizmat haqi bilan." Style="{StaticResource TextCaption}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="TABULAR NUMERALS" Style="{StaticResource TextLabelCaps}" Margin="0,0,0,8" />
+                                <TextBlock x:Name="MoneyDemo1" Style="{StaticResource TextAmount}" Margin="0,0,0,4" />
+                                <TextBlock x:Name="MoneyDemo2" Style="{StaticResource TextAmount}" Margin="0,0,0,4" />
+                                <TextBlock x:Name="MoneyDemo3" Style="{StaticResource TextAmountHero}" Margin="0,0,0,6" />
+                                <TextBlock Text="01:15:42" Style="{StaticResource TextTimer}" Foreground="{DynamicResource BrushPrimaryBright}" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Grid>
+
+            <!-- Middle Row: Buttons & Inputs -->
+            <Grid Margin="0,0,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.2*" />
+                    <ColumnDefinition Width="20" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- 3. Buttons & Controls -->
+                <StackPanel Grid.Column="0">
+                    <controls:SectionHeader Title="3. Tugmalar Ierarxiyasi va Holatlari (≥48px)" Subtitle="Primary, Secondary, Ghost, Danger, Gold, Loading, Disabled, Numpad, Stepper" />
+                    <Border Background="{DynamicResource BrushSurface}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusMd}" Padding="16">
+                        <StackPanel>
+                            <WrapPanel Margin="0,0,0,12">
+                                <Button Content="Toʻlovga oʻtish" Style="{StaticResource PrimaryButton}" Margin="0,0,8,8" />
+                                <Button Content="Boʻlimlarga yuborish" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" />
+                                <Button Content="Bekor qilish" Style="{StaticResource GhostButton}" Margin="0,0,8,8" />
+                                <Button Content="Smenani yopish" Style="{StaticResource DangerButton}" Margin="0,0,8,8" />
+                                <Button Content="Chegirma" Style="{StaticResource GoldButton}" Margin="0,0,8,8" />
+                                <Button Content="Yuklanmoqda..." Style="{StaticResource PrimaryButton}" controls:ControlAssist.IsLoading="True" Margin="0,0,8,8" />
+                                <Button Content="Faolsiz" Style="{StaticResource PrimaryButton}" IsEnabled="False" Margin="0,0,8,8" />
+                            </WrapPanel>
+
+                            <WrapPanel VerticalAlignment="Center" Margin="0,0,0,12">
+                                <Button Style="{StaticResource IconButton}" Margin="0,0,8,0">
+                                    <controls:Icon Data="{StaticResource IconLock}" />
+                                </Button>
+                                <Button Style="{StaticResource IconButton}" Margin="0,0,8,0">
+                                    <controls:Icon Data="{StaticResource IconFullscreen}" />
+                                </Button>
+                                <Button Style="{StaticResource ChipButton}" Content="Aniq summa" Margin="0,0,8,0" />
+                                <Button Style="{StaticResource NumpadKey}" Content="7" Width="72" Height="72" Margin="0,0,12,0" />
+                                <controls:Stepper Value="4" Margin="0,0,12,0" />
+                                <Border Style="{StaticResource KeycapBadge}">
+                                    <TextBlock Text="F12" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextPrimary}" FontWeight="Bold" />
+                                </Border>
+                            </WrapPanel>
+
+                            <WrapPanel VerticalAlignment="Center">
+                                <Border Background="{DynamicResource BrushInput}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Padding="4" Margin="0,0,12,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <RadioButton Content="Barchasi (12)" Style="{StaticResource SegmentedItem}" IsChecked="True" />
+                                        <RadioButton Content="Asosiy zal (6)" Style="{StaticResource SegmentedItem}" />
+                                        <RadioButton Content="VIP (3)" Style="{StaticResource SegmentedItem}" />
+                                    </StackPanel>
+                                </Border>
+
+                                <ToggleButton Content="Boʻsh (5)" Style="{StaticResource ChipToggle}" IsChecked="True" Margin="0,0,8,8" />
+                                <ToggleButton Content="Bron (1)" Style="{StaticResource ChipToggle}" IsChecked="False" Margin="0,0,12,8" />
+                                <CheckBox Style="{StaticResource ToggleSwitch}" Content="Avto chop" IsChecked="True" Margin="0,0,12,8" />
+                                <CheckBox Style="{StaticResource ToggleSwitch}" Content="Oʻchirilgan" IsChecked="False" Margin="0,0,0,8" />
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- 4. Status Pills & Inputs -->
+                <StackPanel Grid.Column="2">
+                    <controls:SectionHeader Title="4. Holat Belgilari va Kiritish Maydonlari" Subtitle="StatusPill (7 holat), SearchBox, Field + Validation, ComboBox" />
+                    <Border Background="{DynamicResource BrushSurface}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusMd}" Padding="16">
+                        <StackPanel>
+                            <WrapPanel Margin="0,0,0,12">
+                                <controls:StatusPill Tone="Neutral" IconData="{StaticResource IconTables}" Text="Boʻsh" Margin="0,0,8,8" />
+                                <controls:StatusPill Tone="Primary" IconData="{StaticResource IconUser}" Text="Band" Margin="0,0,8,8" />
+                                <controls:StatusPill Tone="Warning" IconData="{StaticResource IconReceipt}" Text="Hisob berildi" Margin="0,0,8,8" />
+                                <controls:StatusPill Tone="Reserved" IconData="{StaticResource IconClock}" Text="Bron" Margin="0,0,8,8" />
+                                <controls:StatusPill Tone="Error" IconData="{StaticResource IconStop}" Text="Stop-list" Margin="0,0,8,8" />
+                                <controls:StatusPill Tone="Success" IconData="{StaticResource IconWifi}" Text="Onlayn" Margin="0,0,8,8" />
+                                <controls:StatusPill Tone="Info" IconData="{StaticResource IconOnline}" Text="Telegram" Margin="0,0,8,8" />
+                            </WrapPanel>
+
+                            <controls:SearchBox Placeholder="Taom nomi boʻyicha qidirish..." Margin="0,0,0,12" />
+
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <controls:Field Grid.Column="0" Label="Kassir ismi" HelperText="Smenada koʻrinadi">
+                                    <TextBox Text="Jasur Rahimov" />
+                                </controls:Field>
+                                <controls:Field Grid.Column="2" Label="Server manzili" ErrorText="Notoʻgʻri manzil">
+                                    <TextBox Text="http://192.168.1.999" />
+                                </controls:Field>
+                            </Grid>
+
+                            <controls:Field Label="Xizmat haqi turi" HelperText="Buyurtma turiga qarab tanlanadi">
+                                <ComboBox SelectedIndex="0">
+                                    <ComboBoxItem Content="Foiz (%) — 10% zal xizmati" />
+                                    <ComboBoxItem Content="Kishi boshiga — 15 000 soʻm" />
+                                    <ComboBoxItem Content="Xizmat haqisiz (0%)" />
+                                </ComboBox>
+                            </controls:Field>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+
+            <!-- Bottom Row: Icons & EmptyState / Skeleton -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1.4*" />
+                    <ColumnDefinition Width="20" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <controls:SectionHeader Title="5. Monoline Vektor Ikonalar (36 ta 24×24 glif)" Subtitle="Barcha emoji olib tashlandi" />
+                    <Border Background="{DynamicResource BrushSurface}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusMd}" Padding="12">
+                        <WrapPanel x:Name="IconsWrapPanel" />
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <controls:SectionHeader Title="6. Boʻsh Holat va Yuklanish (EmptyState &amp; Skeleton)" />
+                    <controls:EmptyState IconData="{StaticResource IconOnline}"
+                                         Title="Onlayn buyurtmalar yoʻq"
+                                         Subtitle="Telegram bot yoki ilovadan yangi buyurtma tushganda bu yerda koʻrinadi."
+                                         ActionLabel="Yangilash"
+                                         Margin="0,0,0,12" />
+                    <controls:SkeletonBox Height="60" />
+                </StackPanel>
+            </Grid>
+
+        </StackPanel>
+    </ScrollViewer>
+</Window>

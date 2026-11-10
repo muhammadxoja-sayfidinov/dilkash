@@ -11,11 +11,11 @@ namespace DilkashPos.Demo
             var departments = new List<Department>
             {
                 new Department { Code = "kassa", Name = "Kassa", Title = "Bosh kassa", Subtitle = "Mijoz hisob-kitob cheki", Icon = "receipt", PrinterIp = "192.168.1.100:9100", IsOnline = true },
-                new Department { Code = "shashlik", Name = "Shashlikxona", Title = "Mangal bo'limi", Subtitle = "Shashlik va kaboblar", Icon = "grill", PrinterIp = "192.168.1.101:9100", IsOnline = true },
-                new Department { Code = "somsa", Name = "Somsaxona", Title = "Tandir bo'limi", Subtitle = "Issiq tandir somsalar", Icon = "chef", PrinterIp = "192.168.1.102:9100", IsOnline = true },
-                new Department { Code = "kitchen", Name = "Issiq oshxona", Title = "Oshxona bo'limi", Subtitle = "Milliy issiq taomlar", Icon = "bowl", PrinterIp = "192.168.1.103:9100", IsOnline = true },
+                new Department { Code = "shashlik", Name = "Shashlikxona", Title = "Mangal boʻlimi", Subtitle = "Shashlik va kaboblar", Icon = "grill", PrinterIp = "192.168.1.101:9100", IsOnline = true },
+                new Department { Code = "somsa", Name = "Somsaxona", Title = "Tandir boʻlimi", Subtitle = "Issiq tandir somsalar", Icon = "chef", PrinterIp = "192.168.1.102:9100", IsOnline = true },
+                new Department { Code = "kitchen", Name = "Issiq oshxona", Title = "Oshxona boʻlimi", Subtitle = "Milliy issiq taomlar", Icon = "bowl", PrinterIp = "192.168.1.103:9100", IsOnline = true },
                 new Department { Code = "fastfood", Name = "Fast-food", Title = "Burger va lavash", Subtitle = "Tezkor taomlar", Icon = "burger", PrinterIp = "192.168.1.104:9100", IsOnline = false }, // offline demo
-                new Department { Code = "bar", Name = "Bar va ichimliklar", Title = "Bar bo'limi", Subtitle = "Choy, qahva, salqin ichimliklar", Icon = "coffee", PrinterIp = "192.168.1.105:9100", IsOnline = false } // offline demo
+                new Department { Code = "bar", Name = "Bar va ichimliklar", Title = "Bar boʻlimi", Subtitle = "Choy, qahva, salqin ichimliklar", Icon = "coffee", PrinterIp = "192.168.1.105:9100", IsOnline = false } // offline demo
             };
 
             var categories = new List<Category>
@@ -311,3 +311,4 @@ namespace DilkashPos.Demo
         }
     }
 }
+

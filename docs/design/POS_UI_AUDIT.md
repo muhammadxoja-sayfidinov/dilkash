@@ -53,3 +53,4 @@ The baseline automated capture generated 44 high-resolution images in `docs/desi
 - [x] Branch `design/pos-redesign` initialized.
 
 Phase 0 Recon is complete. Proceeding to Phase 1 Foundations.
+

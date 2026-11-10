@@ -1,0 +1,31 @@
+<UserControl x:Class="DilkashPos.Controls.Stepper"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:DilkashPos.Controls">
+    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <!-- Minus / Decrement Button (48x48 touch target) -->
+        <Button x:Name="DecrementBtn"
+                Width="48" Height="48" MinHeight="48" Padding="0"
+                Style="{StaticResource SecondaryButton}"
+                Click="OnDecrementClick">
+            <local:Icon Data="{StaticResource IconMinus}" Size="18" />
+        </Button>
+
+        <!-- Tabular Quantity -->
+        <TextBlock x:Name="QuantityText"
+                   Text="1"
+                   Width="38"
+                   TextAlignment="Center"
+                   VerticalAlignment="Center"
+                   Style="{StaticResource TextAmount}"
+                   FontWeight="Bold" />
+
+        <!-- Plus / Increment Button (48x48 touch target) -->
+        <Button x:Name="IncrementBtn"
+                Width="48" Height="48" MinHeight="48" Padding="0"
+                Style="{StaticResource SecondaryButton}"
+                Click="OnIncrementClick">
+            <local:Icon Data="{StaticResource IconPlus}" Size="18" />
+        </Button>
+    </StackPanel>
+</UserControl>

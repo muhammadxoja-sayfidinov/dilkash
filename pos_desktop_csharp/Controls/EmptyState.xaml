@@ -1,0 +1,55 @@
+<UserControl x:Class="DilkashPos.Controls.EmptyState"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:DilkashPos.Controls">
+    <Border Background="{DynamicResource BrushSurface}"
+            BorderBrush="{DynamicResource BrushBorderSubtle}"
+            BorderThickness="1"
+            CornerRadius="{StaticResource RadiusMd}"
+            Padding="32">
+        <Grid>
+            <!-- Faint Brand Girih Lattice Motif -->
+            <Rectangle Fill="{DynamicResource BrushGirihLattice}" IsHitTestVisible="False" />
+
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="420">
+                <!-- Circular Icon Plate -->
+                <Border Width="72" Height="72"
+                        CornerRadius="36"
+                        Background="{DynamicResource BrushPrimaryTint}"
+                        BorderBrush="{DynamicResource BrushBorder}"
+                        BorderThickness="1"
+                        HorizontalAlignment="Center"
+                        Margin="0,0,0,20">
+                    <local:Icon x:Name="StateIcon"
+                                Size="32"
+                                Foreground="{DynamicResource BrushPrimaryBright}"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                </Border>
+
+                <!-- Title -->
+                <TextBlock x:Name="TitleBlock"
+                           Style="{StaticResource TextTitle}"
+                           TextAlignment="Center"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,8" />
+
+                <!-- Subtitle -->
+                <TextBlock x:Name="SubtitleBlock"
+                           Style="{StaticResource TextBody}"
+                           Foreground="{DynamicResource BrushTextSecondary}"
+                           TextWrapping="Wrap"
+                           TextAlignment="Center"
+                           HorizontalAlignment="Center" />
+
+                <!-- Optional Action Button -->
+                <Button x:Name="ActionBtn"
+                        Style="{StaticResource SecondaryButton}"
+                        Margin="0,20,0,0"
+                        HorizontalAlignment="Center"
+                        Visibility="Collapsed"
+                        Click="OnActionClick" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>
