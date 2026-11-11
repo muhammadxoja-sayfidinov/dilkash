@@ -31,7 +31,19 @@ namespace DilkashPos.ViewModels
             : $"{Model.CustomerName} · {Model.CustomerPhone}";
 
         public int AgeMinutes { get; }
-        public string AgeText => string.IsNullOrWhiteSpace(Model.CreatedAt) ? $"{AgeMinutes} daq" : Model.CreatedAt!;
+        public string AgeText
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(Model.CreatedAt)) return $"{AgeMinutes} daq";
+                if (DateTimeOffset.TryParse(Model.CreatedAt, out var dt))
+                {
+                    var local = dt.ToLocalTime();
+                    return $"{AgeMinutes} daq · {local:HH:mm}";
+                }
+                return Model.CreatedAt!;
+            }
+        }
 
         public OrderAgeUrgency AgeUrgency => AgeMinutes >= 7
             ? OrderAgeUrgency.Urgent

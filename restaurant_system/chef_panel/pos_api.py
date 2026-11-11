@@ -1,11 +1,11 @@
 import json
 import logging
+import uuid
 from decimal import Decimal
-from datetime import datetime
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from django.db import transaction
+from django.db import transaction, connection
 from django.shortcuts import get_object_or_404
 from django.db.models import Sum, Count, Q
 
@@ -15,10 +15,85 @@ from .models import (
 )
 from .printer_service import (
     DEPARTMENT_CONFIG, categorize_order_items, 
-    auto_print_order_to_network, format_escpos_slip, send_escpos_socket
+    auto_print_order_to_network, async_print_kassa_slip,
+    format_escpos_slip, send_escpos_socket
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _infer_table_zone(number):
+    """Stol raqamidan zal zonasini aniqlash."""
+    if number <= 6:
+        return 'Zal'
+    if number <= 9:
+        return 'Terrasa'
+    return 'VIP'
+
+
+def _get_or_create_pos_customer(phone, full_name):
+    """Telefon raqam bo'yicha xavfsiz mijoz topish yoki yaratish."""
+    normalized_phone = (phone or '+998000000000').strip() or '+998000000000'
+    customer = Customer.objects.filter(phone_number=normalized_phone).first()
+    if customer:
+        return customer
+    for _ in range(5):
+        synthetic_tg_id = -(uuid.uuid4().int % 899999999 + 100000000)
+        if not Customer.objects.filter(telegram_id=synthetic_tg_id).exists():
+            return Customer.objects.create(
+                phone_number=normalized_phone,
+                full_name=(full_name or 'Kassadan Mijoz').strip() or 'Kassadan Mijoz',
+                telegram_id=synthetic_tg_id,
+            )
+    raise RuntimeError("Noyob Telegram ID yaratib bo'lmadi")
+
+
+def _serialize_tables():
+    """Faol restoran stollari va joriy band buyurtmalarni JSON ko'rinishda qaytarish."""
+    tables_qs = RestaurantTable.objects.filter(is_active=True).order_by('number')
+    active_orders = Order.objects.filter(
+        service_type='dine_in',
+        is_paid=False
+    ).exclude(status='bekor_qilingan').prefetch_related('items', 'items__product', 'items__product__category')
+    order_by_table = {str(o.table_number): o for o in active_orders if o.table_number}
+
+    tables = []
+    for tbl in tables_qs:
+        active_order = order_by_table.get(str(tbl.number))
+        is_occupied = active_order is not None
+        tables.append({
+            'id': tbl.id,
+            'number': tbl.number,
+            'name': tbl.name or f"Stol #{tbl.number}",
+            'zone': _infer_table_zone(tbl.number),
+            'capacity': tbl.capacity,
+            'guests_count': active_order.guests_count if active_order else tbl.guests_count,
+            'is_occupied': is_occupied,
+            'status': 'occupied' if is_occupied else 'empty',
+            'opened_at': (active_order.created_at.isoformat() if active_order else (tbl.opened_at.isoformat() if tbl.opened_at else None)),
+            'assigned_waiter': tbl.assigned_waiter.name if tbl.assigned_waiter else None,
+            'active_order': _serialize_order(active_order) if active_order else None,
+        })
+    return tables
+
+
+@csrf_exempt
+def health_check_api(request):
+    """Cloud / reverse-proxy healthcheck endpoint."""
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+        return JsonResponse({
+            'status': 'ok',
+            'service': 'dilkash-backend',
+            'products_count': Product.objects.count(),
+            'tables_count': RestaurantTable.objects.filter(is_active=True).count(),
+            'server_time': timezone.now().isoformat(),
+        })
+    except Exception as exc:
+        logger.exception("Healthcheck failed")
+        return JsonResponse({'status': 'error', 'detail': str(exc)}, status=500)
 
 
 def _serialize_product(product):
@@ -77,6 +152,8 @@ def _serialize_order(order):
         'products_total': float(order.products_total or 0),
         'delivery_cost': float(order.delivery_cost or 0),
         'service_fee_amount': float(order.service_fee_amount or 0),
+        'discount_percent': float(order.discount_percent or 0),
+        'discount_amount': float(order.discount_amount or 0),
         'total_amount': float(order.total_amount or 0),
         'created_at': order.created_at.isoformat() if order.created_at else None,
         'elapsed_minutes': elapsed_minutes,
@@ -136,32 +213,7 @@ def pos_bootstrap_api(request):
             stop_list_ids.append(prod.id)
 
     # 4. Stollar xaritasi va joriy holati
-    tables = []
-    tables_qs = RestaurantTable.objects.filter(is_active=True).order_by('number')
-    
-    # Joriy yopilmagan stol buyurtmalari
-    active_orders = Order.objects.filter(
-        service_type='dine_in',
-        is_paid=False
-    ).exclude(status='bekor_qilingan').prefetch_related('items', 'items__product', 'items__product__category')
-    order_by_table = {str(o.table_number): o for o in active_orders if o.table_number}
-
-    for tbl in tables_qs:
-        tbl_num_str = str(tbl.number)
-        active_order = order_by_table.get(tbl_num_str)
-        is_occupied = active_order is not None
-
-        tables.append({
-            'id': tbl.id,
-            'number': tbl.number,
-            'name': tbl.name or f"Stol #{tbl.number}",
-            'capacity': tbl.capacity,
-            'guests_count': active_order.guests_count if active_order else tbl.guests_count,
-            'is_occupied': is_occupied,
-            'opened_at': (active_order.created_at.isoformat() if active_order else (tbl.opened_at.isoformat() if tbl.opened_at else None)),
-            'assigned_waiter': tbl.assigned_waiter.name if tbl.assigned_waiter else None,
-            'active_order': _serialize_order(active_order) if active_order else None,
-        })
+    tables = _serialize_tables()
 
     # 5. Sozlamalar
     settings_data = {
@@ -202,28 +254,7 @@ def pos_tables_api(request):
       - action='transfer': Stolni boshqa stolga yoki ofitsiantga ko'chirish
     """
     if request.method == 'GET':
-        tables_qs = RestaurantTable.objects.filter(is_active=True).order_by('number')
-        active_orders = Order.objects.filter(
-            service_type='dine_in',
-            is_paid=False
-        ).exclude(status='bekor_qilingan').prefetch_related('items', 'items__product')
-        order_by_table = {str(o.table_number): o for o in active_orders if o.table_number}
-
-        data = []
-        for tbl in tables_qs:
-            tbl_num_str = str(tbl.number)
-            active_order = order_by_table.get(tbl_num_str)
-            data.append({
-                'id': tbl.id,
-                'number': tbl.number,
-                'name': tbl.name or f"Stol #{tbl.number}",
-                'capacity': tbl.capacity,
-                'guests_count': active_order.guests_count if active_order else tbl.guests_count,
-                'is_occupied': active_order is not None,
-                'opened_at': active_order.created_at.isoformat() if active_order else None,
-                'active_order': _serialize_order(active_order) if active_order else None,
-            })
-        return JsonResponse({'status': 'ok', 'tables': data})
+        return JsonResponse({'status': 'ok', 'tables': _serialize_tables()})
 
     if request.method == 'POST':
         try:
@@ -353,8 +384,11 @@ def pos_orders_api(request):
         service_type = data.get('service_type', 'dine_in')
         table_number = str(data.get('table_number', '')).strip()
         guests_count = int(data.get('guests_count', 1))
+        waiter_name = data.get('waiter_name')
         payment_method = data.get('payment_method', 'naqd')
         is_paid = bool(data.get('is_paid', False))
+        discount_percent = Decimal(str(data.get('discount_percent', 0) or 0))
+        discount_amount_input = Decimal(str(data.get('discount_amount', 0) or 0))
         items_data = data.get('items', [])
         notes = data.get('notes', '')
         customer_phone = data.get('customer_phone', '+998000000000')
@@ -377,10 +411,7 @@ def pos_orders_api(request):
                 ).exclude(status='bekor_qilingan').first()
 
             # Mijozni aniqlash
-            customer, _ = Customer.objects.get_or_create(
-                phone_number=customer_phone,
-                defaults={'full_name': customer_name, 'telegram_id': int(datetime.now().timestamp() * 1000) % 1000000000}
-            )
+            customer = _get_or_create_pos_customer(customer_phone, customer_name)
 
             if not order:
                 order = Order(
@@ -388,6 +419,7 @@ def pos_orders_api(request):
                     service_type=service_type,
                     table_number=table_number if service_type == 'dine_in' else None,
                     guests_count=guests_count,
+                    waiter_name=waiter_name or None,
                     status='tasdiqlangan' if is_paid else 'yangi',
                     payment_method=payment_method,
                     is_paid=is_paid,
@@ -396,12 +428,18 @@ def pos_orders_api(request):
                     products_total=0,
                     delivery_cost=0,
                     service_fee_amount=0,
+                    discount_percent=discount_percent,
+                    discount_amount=0,
                     total_amount=0,
                 )
                 order.save()
             else:
                 order.guests_count = guests_count
                 order.notes = notes
+                if waiter_name:
+                    order.waiter_name = waiter_name
+                if discount_percent or discount_amount_input:
+                    order.discount_percent = discount_percent
                 if is_paid:
                     order.is_paid = is_paid
                     order.payment_method = payment_method
@@ -435,18 +473,30 @@ def pos_orders_api(request):
 
                 order.products_total = products_total
 
+                # Chegirma hisoblash
+                if discount_percent > 0:
+                    discount_amt = (products_total * (discount_percent / Decimal('100'))).quantize(Decimal('1'))
+                else:
+                    discount_amt = max(Decimal('0'), discount_amount_input)
+                discount_amt = min(discount_amt, products_total)
+                order.discount_percent = discount_percent
+                order.discount_amount = discount_amt
+
                 # 3. Xizmat haqini hisoblash (Faqat dine_in stollar uchun yoki sozlamaga qarab)
                 service_fee = Decimal('0')
                 if service_type == 'dine_in':
                     if settings.service_fee_type == 'percent':
                         pct = Decimal(str(settings.service_fee_percent or 10)) / Decimal('100')
-                        service_fee = (products_total * pct).quantize(Decimal('100'))
+                        service_fee = (products_total * pct).quantize(Decimal('1'))
                     elif settings.service_fee_type == 'per_person':
                         per_person = Decimal(str(settings.service_fee_per_person or 5000))
                         service_fee = (Decimal(guests_count) * per_person)
 
                 order.service_fee_amount = service_fee
-                order.total_amount = products_total + service_fee + Decimal(str(order.delivery_cost or 0))
+                order.total_amount = max(
+                    Decimal('0'),
+                    (products_total - discount_amt) + service_fee + Decimal(str(order.delivery_cost or 0)),
+                )
                 order.save()
 
             # Agar bu to'langan Saboy bo'lsa, holati 'olib_ketildi'
@@ -509,12 +559,8 @@ def pos_order_pay_api(request, order_id):
     
     order.save()
 
-    # Kassa printeriga hisob chekini chiqarish
-    settings = BotSettings.get_settings()
-    if settings.printer_kassa_ip:
-        categorized = categorize_order_items(order)
-        slip_bytes = format_escpos_slip(order, 'kassa', categorized['departments']['kassa'])
-        send_escpos_socket(settings.printer_kassa_ip, slip_bytes, timeout=0.8)
+    # Kassa printeriga hisob chekini orqa fonda chiqarish (HTTP ni kutdirmasdan)
+    async_print_kassa_slip(order)
 
     return JsonResponse({
         'status': 'ok',
@@ -588,7 +634,7 @@ def pos_online_orders_api(request):
         return JsonResponse({'error': 'Faqat GET qabul qilinadi'}, status=405)
 
     online_qs = Order.objects.filter(
-        status__in=['yangi', 'tasdiqlangan'],
+        status='yangi',
         service_type__in=['delivery', 'pickup']
     ).select_related('customer').prefetch_related('items', 'items__product').order_by('-created_at')[:30]
 
@@ -680,10 +726,7 @@ def pos_sync_push_api(request):
         customer_phone = o_data.get('customer_phone', '+998000000000')
         customer_name = o_data.get('customer_name', 'Kassa (Offline)')
 
-        customer, _ = Customer.objects.get_or_create(
-            phone_number=customer_phone,
-            defaults={'full_name': customer_name, 'telegram_id': int(datetime.now().timestamp() * 1000) % 1000000000}
-        )
+        customer = _get_or_create_pos_customer(customer_phone, customer_name)
 
         with transaction.atomic():
             order = Order.objects.create(
@@ -692,12 +735,15 @@ def pos_sync_push_api(request):
                 service_type=service_type,
                 table_number=table_number,
                 guests_count=guests_count,
+                waiter_name=o_data.get('waiter_name'),
                 status=o_data.get('status', 'olib_ketildi'),
                 payment_method=o_data.get('payment_method', 'naqd'),
                 is_paid=o_data.get('is_paid', True),
                 notes=o_data.get('notes', 'Offline kassa orqali yopilgan'),
                 products_total=Decimal(str(o_data.get('products_total', 0))),
                 service_fee_amount=Decimal(str(o_data.get('service_fee_amount', 0))),
+                discount_percent=Decimal(str(o_data.get('discount_percent', 0) or 0)),
+                discount_amount=Decimal(str(o_data.get('discount_amount', 0) or 0)),
                 total_amount=Decimal(str(o_data.get('total_amount', 0))),
                 delivery_cost=0,
                 is_synced=True

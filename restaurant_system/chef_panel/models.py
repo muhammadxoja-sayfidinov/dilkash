@@ -156,6 +156,8 @@ class Order(models.Model):
     products_total = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Mahsulotlar summasi")
     delivery_cost = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Yetkazib berish narxi", default=0)
     service_fee_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Xizmat haqi summasi")
+    discount_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0, verbose_name="Chegirma (%)")
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Chegirma summasi")
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Umumiy summa")
     
     # Kassa va Mehmonlar ma'lumotlari

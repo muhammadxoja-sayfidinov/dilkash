@@ -22,6 +22,12 @@ namespace DilkashPos.Services
 
     public class ApiService
     {
+        private static readonly JsonSerializerOptions _jsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        };
+
         private readonly HttpClient _http;
         private string _baseUrl;
 
@@ -31,7 +37,7 @@ namespace DilkashPos.Services
         public ApiService(string baseUrl = "http://127.0.0.1:8000")
         {
             _baseUrl = baseUrl.TrimEnd('/');
-            _http = new HttpClient { Timeout = TimeSpan.FromSeconds(3.5) };
+            _http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
         }
 
         public void SetBaseUrl(string url)
@@ -53,10 +59,7 @@ namespace DilkashPos.Services
             try
             {
                 var url = $"{_baseUrl}/api/pos/bootstrap/";
-                var res = await _http.GetFromJsonAsync<BootstrapResponse>(url, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                var res = await _http.GetFromJsonAsync<BootstrapResponse>(url, _jsonOptions);
                 UpdateStatus(true);
                 return res;
             }
@@ -72,14 +75,11 @@ namespace DilkashPos.Services
             try
             {
                 var url = $"{_baseUrl}/api/pos/online-orders/";
-                var doc = await _http.GetFromJsonAsync<JsonElement>(url);
+                var doc = await _http.GetFromJsonAsync<JsonElement>(url, _jsonOptions);
                 UpdateStatus(true);
                 if (doc.TryGetProperty("orders", out var ordersElem))
                 {
-                    var orders = JsonSerializer.Deserialize<List<Order>>(ordersElem.GetRawText(), new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    });
+                    var orders = JsonSerializer.Deserialize<List<Order>>(ordersElem.GetRawText(), _jsonOptions);
                     return orders ?? new List<Order>();
                 }
             }
@@ -102,8 +102,11 @@ namespace DilkashPos.Services
                     service_type = order.ServiceType,
                     table_number = order.TableNumber,
                     guests_count = order.GuestsCount,
+                    waiter_name = order.WaiterName,
                     payment_method = order.PaymentMethod,
                     is_paid = order.IsPaid,
+                    discount_percent = order.DiscountPercent,
+                    discount_amount = order.DiscountAmount,
                     notes = order.Notes,
                     customer_name = order.CustomerName,
                     customer_phone = order.CustomerPhone,
@@ -115,17 +118,14 @@ namespace DilkashPos.Services
                     })
                 };
 
-                var res = await _http.PostAsJsonAsync(url, payload);
+                var res = await _http.PostAsJsonAsync(url, payload, _jsonOptions);
                 if (res.IsSuccessStatusCode)
                 {
                     UpdateStatus(true);
                     var doc = await res.Content.ReadFromJsonAsync<JsonElement>();
                     if (doc.TryGetProperty("order", out var oElem))
                     {
-                        return JsonSerializer.Deserialize<Order>(oElem.GetRawText(), new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        });
+                        return JsonSerializer.Deserialize<Order>(oElem.GetRawText(), _jsonOptions);
                     }
                 }
             }
@@ -148,17 +148,14 @@ namespace DilkashPos.Services
                     paid_card = paidCard
                 };
 
-                var res = await _http.PostAsJsonAsync(url, payload);
+                var res = await _http.PostAsJsonAsync(url, payload, _jsonOptions);
                 if (res.IsSuccessStatusCode)
                 {
                     UpdateStatus(true);
                     var doc = await res.Content.ReadFromJsonAsync<JsonElement>();
                     if (doc.TryGetProperty("order", out var oElem))
                     {
-                        return JsonSerializer.Deserialize<Order>(oElem.GetRawText(), new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        });
+                        return JsonSerializer.Deserialize<Order>(oElem.GetRawText(), _jsonOptions);
                     }
                 }
             }
@@ -175,7 +172,7 @@ namespace DilkashPos.Services
             {
                 var url = $"{_baseUrl}/api/pos/products/{productId}/toggle-stop/";
                 object payload = isAvailable.HasValue ? new { is_available = isAvailable.Value } : new { };
-                var res = await _http.PostAsJsonAsync(url, payload);
+                var res = await _http.PostAsJsonAsync(url, payload, _jsonOptions);
                 if (res.IsSuccessStatusCode)
                 {
                     UpdateStatus(true);
@@ -202,17 +199,14 @@ namespace DilkashPos.Services
                     waiter_name = waiterName
                 };
 
-                var res = await _http.PostAsJsonAsync(url, payload);
+                var res = await _http.PostAsJsonAsync(url, payload, _jsonOptions);
                 if (res.IsSuccessStatusCode)
                 {
                     UpdateStatus(true);
                     var doc = await res.Content.ReadFromJsonAsync<JsonElement>();
                     if (doc.TryGetProperty("order", out var oElem))
                     {
-                        return JsonSerializer.Deserialize<Order>(oElem.GetRawText(), new JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        });
+                        return JsonSerializer.Deserialize<Order>(oElem.GetRawText(), _jsonOptions);
                     }
                 }
             }
@@ -223,6 +217,26 @@ namespace DilkashPos.Services
             return null;
         }
 
+        public async Task<bool> AcceptOnlineOrderAsync(int orderId)
+        {
+            try
+            {
+                var url = $"{_baseUrl}/api/pos/online-orders/{orderId}/action/";
+                var payload = new { action = "accept" };
+                var res = await _http.PostAsJsonAsync(url, payload, _jsonOptions);
+                if (res.IsSuccessStatusCode)
+                {
+                    UpdateStatus(true);
+                    return true;
+                }
+            }
+            catch
+            {
+                UpdateStatus(false);
+            }
+            return false;
+        }
+
         public async Task<List<string>> PushOfflineOrdersAsync(List<Order> orders)
         {
             var syncedIds = new List<string>();
@@ -230,7 +244,7 @@ namespace DilkashPos.Services
             {
                 var url = $"{_baseUrl}/api/pos/sync/push/";
                 var payload = new { orders };
-                var res = await _http.PostAsJsonAsync(url, payload);
+                var res = await _http.PostAsJsonAsync(url, payload, _jsonOptions);
                 if (res.IsSuccessStatusCode)
                 {
                     UpdateStatus(true);

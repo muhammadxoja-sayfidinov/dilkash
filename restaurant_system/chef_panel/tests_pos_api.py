@@ -160,3 +160,53 @@ class PosApiTests(TestCase):
         self.assertIsNotNone(synced_order)
         self.assertEqual(synced_order.total_amount, Decimal('35000'))
 
+    def test_06_health_and_table_zone_and_discount(self):
+        """Healthcheck, stol zonalari va chegirma bilan buyurtma to'g'ri ishlashi kerak"""
+        health = self.client.get('/health/')
+        self.assertEqual(health.status_code, 200)
+        self.assertEqual(health.json()['status'], 'ok')
+
+        boot = self.client.get('/api/pos/bootstrap/').json()
+        self.assertEqual(boot['tables'][0]['zone'], 'Zal')
+
+        order_res = self.client.post('/api/pos/orders/', data=json.dumps({
+            'service_type': 'pickup',
+            'waiter_name': 'Jasur Rahimov',
+            'discount_percent': 10,
+            'is_paid': True,
+            'payment_method': 'karta',
+            'items': [
+                {'product_id': self.p_osh.id, 'quantity': 2, 'price': 45000},
+            ],
+        }), content_type='application/json')
+        self.assertEqual(order_res.status_code, 200)
+        order = order_res.json()['order']
+        self.assertEqual(order['waiter_name'], 'Jasur Rahimov')
+        self.assertEqual(order['discount_percent'], 10.0)
+        self.assertEqual(order['discount_amount'], 9000.0)
+        self.assertEqual(order['total_amount'], 81000.0)
+
+    def test_07_online_order_queue_and_accept_action(self):
+        """Online buyurtma qabul qilingandan so'ng yangi navbatdan chiqishi kerak"""
+        c = Customer.objects.create(telegram_id=-123456, full_name="Ali", phone_number="+998901234567")
+        ord_obj = Order.objects.create(
+            customer=c,
+            service_type='delivery',
+            status='yangi',
+            products_total=Decimal('45000'),
+            delivery_cost=Decimal('5000'),
+            total_amount=Decimal('50000'),
+        )
+        OrderItem.objects.create(order=ord_obj, product=self.p_osh, quantity=1, price=45000, total=45000)
+
+        q1 = self.client.get('/api/pos/online-orders/').json()
+        self.assertEqual(q1['count'], 1)
+
+        act = self.client.post(f'/api/pos/online-orders/{ord_obj.id}/action/', data=json.dumps({'action': 'accept'}), content_type='application/json')
+        self.assertEqual(act.status_code, 200)
+        self.assertEqual(act.json()['order']['status'], 'tasdiqlangan')
+
+        q2 = self.client.get('/api/pos/online-orders/').json()
+        self.assertEqual(q2['count'], 0)
+
+
