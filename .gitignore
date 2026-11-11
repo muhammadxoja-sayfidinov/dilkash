@@ -11,10 +11,15 @@ __pycache__/
 *$py.class
 *.sqlite3
 db.sqlite3
+.env
+.env.*
+!.env.example
 kitchenmanagementsystem1/kitchen_env/
 *env/
 restaurant_system/cloudflared
-restaurant_system/media/
+restaurant_system/media/*
+!restaurant_system/media/products/
+restaurant_system/staticfiles/
 
 # Flutter & Dart
 .dart_tool/

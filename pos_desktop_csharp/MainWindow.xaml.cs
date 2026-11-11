@@ -1201,6 +1201,10 @@ namespace DilkashPos
         private async void OnAcceptOnlineOrderClicked(object? sender, OnlineOrderCardVM vm)
         {
             var ord = vm.Model;
+            if (ord.Id > 0)
+            {
+                await _api.AcceptOnlineOrderAsync(ord.Id);
+            }
             await PrintOrderKitchenSlipsAsync(ord);
             string kassaIp = GetPrinterIpForDept("kassa");
             if (!string.IsNullOrEmpty(kassaIp))

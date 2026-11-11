@@ -303,6 +303,33 @@ def auto_print_order_to_network(order):
     return {'printed': True, 'async': True}
 
 
+def _background_kassa_print(order_id):
+    """Kassa chekini HTTP so'rovini kutdirmasdan alohida oqimda chiqarish."""
+    try:
+        from .models import Order
+        order = Order.objects.filter(id=order_id).first()
+        if not order:
+            return
+        settings = BotSettings.get_settings()
+        if settings.printer_kassa_ip and str(settings.printer_kassa_ip).strip():
+            categorized = categorize_order_items(order)
+            slip_bytes = format_escpos_slip(order, 'kassa', categorized['departments']['kassa'])
+            send_escpos_socket(settings.printer_kassa_ip, slip_bytes, timeout=0.8)
+    except Exception as e:
+        logger.warning(f"Kassa chekini orqa fonda chiqarishda xatolik: {e}")
+
+
+def async_print_kassa_slip(order):
+    """Kassa hisob chekini fon oqimida yuborish (cloud/LAN kechikishsiz)."""
+    settings = BotSettings.get_settings()
+    if not (settings.auto_print_network and settings.printer_kassa_ip and str(settings.printer_kassa_ip).strip()):
+        return {'printed': False, 'message': "Tarmoq printeriga avtomatik chiqarish o'chirilgan"}
+
+    thread = threading.Thread(target=_background_kassa_print, args=(order.id,), daemon=True)
+    thread.start()
+    return {'printed': True, 'async': True}
+
+
 def format_escpos_test_slip(department, printer_ip):
     """Printer aloqasini tekshirish uchun test cheki generatsiyasi"""
     cfg = DEPARTMENT_CONFIG.get(department, DEPARTMENT_CONFIG['kassa'])

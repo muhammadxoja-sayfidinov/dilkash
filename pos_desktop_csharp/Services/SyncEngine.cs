@@ -22,6 +22,7 @@ namespace DilkashPos.Services
         private readonly EscPosPrinterService _printer;
         private readonly PeriodicTimer _timer;
         private readonly CancellationTokenSource _cts = new();
+        private readonly SemaphoreSlim _syncLock = new(1, 1);
         private Task? _syncTask;
 
         public event EventHandler<SyncStatusEventArgs>? SyncStatusUpdated;
@@ -66,56 +67,67 @@ namespace DilkashPos.Services
 
         public async Task RunSyncCycleAsync()
         {
-            // 1. Tekshirish: Offline navbatda buyurtmalar bormi?
-            var pending = await _db.GetPendingSyncOrdersAsync();
-            PendingCount = pending.Count;
-
-            int onlineOrdersCount = 0;
-
-            // 2. Server bilan aloqa bo'lsa
-            var bootstrap = await _api.GetBootstrapAsync();
-            if (bootstrap != null && bootstrap.Status == "ok")
+            if (!await _syncLock.WaitAsync(0))
             {
-                LastSyncTime = DateTime.Now;
-
-                // A) Lokal keshni yangilash
-                try
-                {
-                    await _db.SaveBootstrapCacheAsync(
-                        bootstrap.Departments,
-                        bootstrap.Categories,
-                        bootstrap.Products,
-                        bootstrap.Tables
-                    );
-                }
-                catch { }
-
-                // B) Offline buyurtmalarni serverga yuklash
-                if (pending.Count > 0)
-                {
-                    var ordersToPush = pending.ConvertAll(p => p.Order);
-                    var syncedIds = await _api.PushOfflineOrdersAsync(ordersToPush);
-                    if (syncedIds.Count > 0)
-                    {
-                        await _db.MarkOrdersSyncedAsync(syncedIds);
-                        var remaining = await _db.GetPendingSyncOrdersAsync();
-                        PendingCount = remaining.Count;
-                    }
-                }
-
-                // C) Online yangi buyurtmalarni olish
-                var onlineOrders = await _api.GetOnlineOrdersAsync();
-                onlineOrdersCount = onlineOrders.Count;
-                OnlineOrdersReceived?.Invoke(this, onlineOrders);
+                return;
             }
-
-            SyncStatusUpdated?.Invoke(this, new SyncStatusEventArgs
+            try
             {
-                IsOnline = _api.IsOnline,
-                PendingOfflineOrdersCount = PendingCount,
-                OnlineOrdersCount = onlineOrdersCount,
-                LastSyncTime = LastSyncTime
-            });
+                // 1. Tekshirish: Offline navbatda buyurtmalar bormi?
+                var pending = await _db.GetPendingSyncOrdersAsync();
+                PendingCount = pending.Count;
+
+                int onlineOrdersCount = 0;
+
+                // 2. Server bilan aloqa bo'lsa
+                var bootstrap = await _api.GetBootstrapAsync();
+                if (bootstrap != null && bootstrap.Status == "ok")
+                {
+                    LastSyncTime = DateTime.Now;
+
+                    // A) Lokal keshni yangilash
+                    try
+                    {
+                        await _db.SaveBootstrapCacheAsync(
+                            bootstrap.Departments,
+                            bootstrap.Categories,
+                            bootstrap.Products,
+                            bootstrap.Tables
+                        );
+                    }
+                    catch { }
+
+                    // B) Offline buyurtmalarni serverga yuklash
+                    if (pending.Count > 0)
+                    {
+                        var ordersToPush = pending.ConvertAll(p => p.Order);
+                        var syncedIds = await _api.PushOfflineOrdersAsync(ordersToPush);
+                        if (syncedIds.Count > 0)
+                        {
+                            await _db.MarkOrdersSyncedAsync(syncedIds);
+                            var remaining = await _db.GetPendingSyncOrdersAsync();
+                            PendingCount = remaining.Count;
+                        }
+                    }
+
+                    // C) Online yangi buyurtmalarni olish
+                    var onlineOrders = await _api.GetOnlineOrdersAsync();
+                    onlineOrdersCount = onlineOrders.Count;
+                    OnlineOrdersReceived?.Invoke(this, onlineOrders);
+                }
+
+                SyncStatusUpdated?.Invoke(this, new SyncStatusEventArgs
+                {
+                    IsOnline = _api.IsOnline,
+                    PendingOfflineOrdersCount = PendingCount,
+                    OnlineOrdersCount = onlineOrdersCount,
+                    LastSyncTime = LastSyncTime
+                });
+            }
+            finally
+            {
+                _syncLock.Release();
+            }
         }
 
         public void Dispose()
@@ -123,6 +135,7 @@ namespace DilkashPos.Services
             _cts.Cancel();
             _timer.Dispose();
             _cts.Dispose();
+            _syncLock.Dispose();
         }
     }
 }
