@@ -28,13 +28,14 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
   bool _isLoading = true;
   String? _error;
   List<Map<String, dynamic>> _tables = [];
+  final Map<String, String> _previousStages = {};
   Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     _fetchTables();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (mounted) _fetchTables(silent: true);
     });
   }
@@ -56,11 +57,25 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
     try {
       final repo = ref.read(staffRepositoryProvider);
       final list = await repo.fetchTables();
+      final newlyReadyTables = <String>[];
+      for (final t in list) {
+        final key = (t['table_number'] ?? '').toString();
+        final nextStage = (t['status'] ?? 'free').toString();
+        final prevStage = _previousStages[key];
+        if (prevStage != null && prevStage != 'ready' && nextStage == 'ready') {
+          newlyReadyTables.add((t['name'] ?? 'Stol #$key').toString());
+        }
+        _previousStages[key] = nextStage;
+      }
+
       if (mounted) {
         setState(() {
           _tables = list;
           _isLoading = false;
         });
+        if (newlyReadyTables.isNotEmpty) {
+          _showKitchenReadyAlert(newlyReadyTables.join(', '));
+        }
       }
     } catch (e) {
       if (mounted && !silent) {
@@ -72,13 +87,12 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
     }
   }
 
-  void _triggerSimulatedKitchenReadyAlert() {
-    // Push + sound when kitchen marks something ready
+  void _showKitchenReadyAlert(String tableLabel) {
     HapticFeedback.vibrate();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: const Color(0xFF0F172A),
-        duration: const Duration(seconds: 6),
+        duration: const Duration(seconds: 5),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         content: Row(
@@ -93,21 +107,21 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
                   color: Colors.white, size: 22),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Oshxona tayyorladi! (T-03)',
-                    style: TextStyle(
+                    'Oshxona tayyorladi! ($tableLabel)',
+                    style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                       fontSize: 15,
                     ),
                   ),
-                  Text(
-                    'Qozon Kabob va Shashlik dasturxonga tayyor',
+                  const Text(
+                    'Buyurtma dasturxonga olib chiqishga tayyor',
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 13,
@@ -214,10 +228,10 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
         ),
         actions: [
           IconButton(
-            tooltip: 'Sinov: Oshxona tayyorladi signali',
-            icon: const Icon(Icons.notifications_active_outlined,
+            tooltip: 'Yangilash',
+            icon: const Icon(Icons.refresh_rounded,
                 color: DilkashColors.primary500),
-            onPressed: _triggerSimulatedKitchenReadyAlert,
+            onPressed: () => _fetchTables(),
           ),
         ],
       ),
@@ -265,14 +279,16 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
                   itemCount: _tables.length,
                   itemBuilder: (context, index) {
                     final t = _tables[index];
-                    final tableNum = t['table_number'] ?? 'T-${index + 1}';
+                    final tableNum = (t['table_number'] ?? '${index + 1}').toString();
+                    final tableLabel = (t['name'] ?? 'Stol #$tableNum').toString();
                     final stageName = t['status'] ?? 'free';
                     final stage = TableStage.values.firstWhere(
                       (s) => s.name == stageName,
                       orElse: () => TableStage.free,
                     );
-                    final guestCount = t['guest_count'] ?? 0;
+                    final guestCount = (t['guest_count'] as num?)?.toInt() ?? 0;
                     final total = (t['total_amount'] as num?)?.toDouble() ?? 0.0;
+                    final callInfo = t['call'] as Map<String, dynamic>?;
 
                     final cardBg = _getTableColor(stage);
                     final borderColor = _getTableBorderColor(stage);
@@ -304,12 +320,16 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    tableNum,
-                                    style: DilkashTypography.h2.copyWith(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                      color: DilkashColors.textPrimaryLight,
+                                  Expanded(
+                                    child: Text(
+                                      tableLabel,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: DilkashTypography.h2.copyWith(
+                                        fontSize: 19,
+                                        fontWeight: FontWeight.w800,
+                                        color: DilkashColors.textPrimaryLight,
+                                      ),
                                     ),
                                   ),
                                   if (guestCount > 0)
@@ -331,24 +351,46 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
                                 ],
                               ),
 
-                              // Table State Label
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.8),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  OrderStateMachine.tableStageLabel(stage),
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: textColor,
+                              // Table State Label (+ Call indicator if customer pressed Waiter/Bill)
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.8),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      OrderStateMachine.tableStageLabel(stage),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: textColor,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  if (callInfo != null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFEE2E2),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: const Icon(
+                                        Icons.notifications_active_rounded,
+                                        size: 14,
+                                        color: DilkashColors.error,
+                                      ),
+                                    ),
+                                ],
                               ),
 
                               // Total amount or "Bo’sh"

@@ -546,6 +546,29 @@ class MockStaffRepository implements StaffRepository {
   }
 
   @override
+  Future<bool> requestTableBill(String tableNumber) async {
+    await Future.delayed(const Duration(milliseconds: 120));
+    final index = _tables.indexWhere((t) => t['table_number'] == tableNumber);
+    if (index != -1) {
+      _tables[index]['status'] = TableStage.billRequested.name;
+      return true;
+    }
+    return false;
+  }
+
+  @override
+  Future<bool> dismissWaiterCall(int callId) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    return true;
+  }
+
+  @override
+  Future<bool> markTableDelivered(int orderId) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    return true;
+  }
+
+  @override
   Future<Map<String, dynamic>> settleTableBill({
     required String tableNumber,
     required String paymentMethod,

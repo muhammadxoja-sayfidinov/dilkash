@@ -3,7 +3,10 @@ from decimal import Decimal
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
-from .models import Category, Product, Order, OrderItem, Customer, RestaurantTable, BotSettings
+from .models import (
+    Category, Product, Order, OrderItem, Customer,
+    RestaurantTable, BotSettings, WaiterProfile, CourierProfile, WaiterCall
+)
 
 class PosApiTests(TestCase):
     def setUp(self):
@@ -208,5 +211,82 @@ class PosApiTests(TestCase):
 
         q2 = self.client.get('/api/pos/online-orders/').json()
         self.assertEqual(q2['count'], 0)
+
+    def test_08_mobile_staff_login_and_waiter_flow(self):
+        """Mobil Ofitsiant ilovasi: auto-login, stol ochish, qo'shish, bekor qilish, hisob yopish"""
+        waiter = WaiterProfile.objects.create(name="Sardor Alimov", phone="+998902223344", pin_code="2345")
+        CourierProfile.objects.create(name="Jasur Rahimov", phone="+998901112233", pin_code="1234")
+        WaiterProfile.objects.create(name="Jasur Rahimov", phone="+998901112233", pin_code="1234")
+
+        # 1. Auto role login (ikkala rol ham bor Jasur)
+        login_dual = self.client.post('/api/mobile/staff/login/', data=json.dumps({
+            'phone': '+998 90 111 22 33',
+            'pin': '1234',
+        }), content_type='application/json')
+        self.assertEqual(login_dual.status_code, 200)
+        self.assertEqual(set(login_dual.json()['assigned_roles']), {'waiter', 'courier'})
+
+        # 2. Yagona rol login (Sardor)
+        login_w = self.client.post('/api/mobile/staff/login/', data=json.dumps({
+            'role': 'auto',
+            'phone': '902223344',
+            'pin': '2345',
+        }), content_type='application/json')
+        self.assertEqual(login_w.status_code, 200)
+        self.assertEqual(login_w.json()['assigned_roles'], ['waiter'])
+
+        # 3. Stolni ochish / biriktirish va buyurtma yuborish
+        assign_res = self.client.post('/api/waiter/table/T-01/assign/', data=json.dumps({
+            'waiter_id': waiter.id,
+        }), content_type='application/json')
+        self.assertEqual(assign_res.status_code, 200)
+
+        create_1 = self.client.post('/api/waiter/order/create/', data=json.dumps({
+            'table_number': 'T-01',
+            'waiter_id': waiter.id,
+            'products': [[self.p_osh.id, 2]],
+            'notes': 'Piyozsiz',
+        }), content_type='application/json')
+        self.assertEqual(create_1.status_code, 200)
+        order_id = create_1.json()['order_id']
+
+        # 4. Ochiq stolga yana taom qo'shish (dublikat order yaratmasdan)
+        create_2 = self.client.post('/api/waiter/order/create/', data=json.dumps({
+            'table_number': '1',
+            'waiter_id': waiter.id,
+            'products': [[self.p_somsa.id, 2]],
+        }), content_type='application/json')
+        self.assertEqual(create_2.status_code, 200)
+        self.assertEqual(create_2.json()['order_id'], order_id)
+
+        # 5. Floor statusda element ID lar, jami summa va 10% xizmat haqi tekshiruvi
+        floor = self.client.get('/api/waiter/floor-status/').json()
+        t1 = next(t for t in floor['tables'] if t['table_number'] == '1')
+        self.assertEqual(t1['stage'], 'occupied')
+        self.assertEqual(len(t1['order']['items']), 2)
+        self.assertEqual(t1['order']['products_total'], 114000.0)
+        self.assertEqual(t1['order']['service_fee_amount'], 11400.0)
+        self.assertEqual(t1['order']['total_amount'], 125400.0)
+
+        # 6. Bitta taomni bekor qilish (somsa)
+        somsa_item_id = next(i['id'] for i in t1['order']['items'] if 'Somsa' in i['dish_name'])
+        cancel_res = self.client.post(f'/api/table/order/item/{somsa_item_id}/update/', data=json.dumps({'action': 'remove'}), content_type='application/json')
+        self.assertEqual(cancel_res.status_code, 200)
+        self.assertEqual(cancel_res.json()['new_total'], 99000.0)
+
+        # 7. Hisob so'rash va stolni karta bilan yopish
+        req_bill = self.client.post('/api/waiter/bill-request/1/')
+        self.assertEqual(req_bill.status_code, 200)
+        floor2 = self.client.get('/api/waiter/floor-status/').json()
+        t1_bill = next(t for t in floor2['tables'] if t['table_number'] == '1')
+        self.assertEqual(t1_bill['stage'], 'billRequested')
+
+        close_res = self.client.post(f'/api/waiter/order/{order_id}/close/', data=json.dumps({'payment_method': 'karta'}), content_type='application/json')
+        self.assertEqual(close_res.status_code, 200)
+        self.assertEqual(close_res.json()['payment_method'], 'karta')
+        floor3 = self.client.get('/api/waiter/floor-status/').json()
+        t1_free = next(t for t in floor3['tables'] if t['table_number'] == '1')
+        self.assertEqual(t1_free['stage'], 'free')
+
 
 

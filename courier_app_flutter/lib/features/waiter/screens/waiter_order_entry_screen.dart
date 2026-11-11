@@ -166,6 +166,7 @@ class _WaiterOrderEntryScreenState
     for (final entry in _newQuantities.entries) {
       final dish = _allDishes.firstWhere((d) => d['id'] == entry.key);
       itemsToSend.add({
+        'id': dish['id'],
         'name': dish['name'],
         'price': dish['price'],
         'quantity': entry.value,
@@ -399,43 +400,50 @@ class _WaiterOrderEntryScreenState
                           ),
                           const Divider(height: 16),
                           ...existingItems.map((it) {
-                            final itemId = it['id'] as int;
-                            final dishName = it['dish_name'] ?? '';
-                            final qty = it['quantity'] ?? 1;
+                            final itemId = it['id'] as int?;
+                            final dishName = (it['dish_name'] ?? '').toString();
+                            final qty = (it['quantity'] as num?)?.toInt() ?? 1;
                             final price = (it['price'] as num?)?.toDouble() ?? 0.0;
+                            final orderStatus = (_tableData?['order_status'] ?? 'yangi').toString();
+                            final canCancel = itemId != null && itemId > 0 && orderStatus == 'yangi';
 
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 4),
                               child: Row(
                                 children: [
-                                  Text(
-                                    '${qty}x $dishName',
-                                    style: DilkashTypography.bodyMedium.copyWith(
-                                      fontWeight: FontWeight.w600,
+                                  Expanded(
+                                    child: Text(
+                                      '${qty}x $dishName',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: DilkashTypography.bodyMedium.copyWith(
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
-                                  const Spacer(),
+                                  const SizedBox(width: 8),
                                   Text(
                                     UzbekFormatters.formatCurrency(price * qty),
                                     style: DilkashTypography.caption,
                                   ),
-                                  const SizedBox(width: 8),
-                                  // Cancel item before cooking
-                                  InkWell(
-                                    onTap: () => _cancelItem(itemId),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: DilkashColors.error.withValues(alpha: 0.1),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: const Icon(
-                                        Icons.close_rounded,
-                                        size: 16,
-                                        color: DilkashColors.error,
+                                  if (canCancel) ...[
+                                    const SizedBox(width: 8),
+                                    InkWell(
+                                      onTap: () => _cancelItem(itemId),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: DilkashColors.error.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Icon(
+                                          Icons.close_rounded,
+                                          size: 16,
+                                          color: DilkashColors.error,
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                  ],
                                 ],
                               ),
                             );

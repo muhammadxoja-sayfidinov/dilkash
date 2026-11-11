@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dilkash_design_system/dilkash_design_system.dart';
 import '../../../core/auth/auth_notifier.dart';
+import '../../../core/config/app_config.dart';
 
 class UnifiedLoginScreen extends ConsumerStatefulWidget {
   const UnifiedLoginScreen({super.key});
@@ -16,9 +17,58 @@ class UnifiedLoginScreen extends ConsumerStatefulWidget {
 }
 
 class _UnifiedLoginScreenState extends ConsumerState<UnifiedLoginScreen> {
-  final _phoneController = TextEditingController(text: '+998 90 123 45 67');
+  final _phoneController = TextEditingController(text: '+998 90 111 22 33');
   final _pinController = TextEditingController(text: '1234');
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    AppConfig.loadSavedBaseUrl();
+  }
+
+  Future<void> _showServerSettingsDialog() async {
+    await AppConfig.loadSavedBaseUrl();
+    if (!mounted) return;
+    final urlCtrl = TextEditingController(text: AppConfig.baseUrl);
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Server manzili'),
+        content: TextField(
+          controller: urlCtrl,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(
+            labelText: 'Backend URL',
+            hintText: 'https://dilkash-django-production.up.railway.app',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await AppConfig.resetBaseUrl();
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) {
+                DilkashFeedback.showSuccess(context, 'Standart server tiklandi');
+              }
+            },
+            child: const Text('Standart'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await AppConfig.setBaseUrl(urlCtrl.text);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) {
+                DilkashFeedback.showSuccess(context, 'Server saqlandi');
+              }
+            },
+            child: const Text('Saqlash'),
+          ),
+        ],
+      ),
+    );
+    urlCtrl.dispose();
+  }
 
   @override
   void dispose() {
@@ -74,11 +124,26 @@ class _UnifiedLoginScreenState extends ConsumerState<UnifiedLoginScreen> {
     return Scaffold(
       backgroundColor: DilkashColors.bgLight,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: DilkashSpacing.xl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: DilkashSpacing.xl),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+              Align(
+                alignment: Alignment.topRight,
+                child: IconButton(
+                  tooltip: 'Server manzili',
+                  icon: const Icon(
+                    Icons.dns_outlined,
+                    color: DilkashColors.textMutedLight,
+                  ),
+                  onPressed: _showServerSettingsDialog,
+                ),
+              ),
               const Spacer(flex: 1),
               // Brand Header
               Center(
@@ -223,17 +288,17 @@ class _UnifiedLoginScreenState extends ConsumerState<UnifiedLoginScreen> {
                   ActionChip(
                     label: const Text('Jasur (Ikkala rol)'),
                     backgroundColor: Colors.white,
-                    onPressed: () => _fillDemo('+998901234567', '1234'),
+                    onPressed: () => _fillDemo('+998 90 111 22 33', '1234'),
                   ),
                   ActionChip(
-                    label: const Text('Bobur (Kuryer)'),
+                    label: const Text('Sardor (Ofitsiant)'),
                     backgroundColor: Colors.white,
-                    onPressed: () => _fillDemo('+998935551122', '1234'),
+                    onPressed: () => _fillDemo('+998 90 222 33 44', '2345'),
                   ),
                   ActionChip(
-                    label: const Text('Malika (Ofitsiant)'),
+                    label: const Text('Nodir (Ofitsiant)'),
                     backgroundColor: Colors.white,
-                    onPressed: () => _fillDemo('+998977778899', '1234'),
+                    onPressed: () => _fillDemo('+998 90 333 44 55', '3456'),
                   ),
                 ],
               ),
@@ -274,6 +339,9 @@ class _UnifiedLoginScreenState extends ConsumerState<UnifiedLoginScreen> {
               ),
               const SizedBox(height: DilkashSpacing.lg),
             ],
+          ),
+              ),
+            ),
           ),
         ),
       ),
