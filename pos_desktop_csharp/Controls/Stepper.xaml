@@ -3,29 +3,29 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:DilkashPos.Controls">
     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <!-- Minus / Decrement Button (48x48 touch target) -->
+        <!-- Minus / Decrement Button -->
         <Button x:Name="DecrementBtn"
-                Width="48" Height="48" MinHeight="48" Padding="0"
+                Width="44" Height="44" MinWidth="44" MinHeight="44" Padding="0"
                 Style="{StaticResource SecondaryButton}"
                 Click="OnDecrementClick">
-            <local:Icon Data="{StaticResource IconMinus}" Size="18" />
+            <local:Icon Data="{StaticResource IconMinus}" Size="16" />
         </Button>
 
         <!-- Tabular Quantity -->
         <TextBlock x:Name="QuantityText"
                    Text="1"
-                   Width="38"
+                   Width="32"
                    TextAlignment="Center"
                    VerticalAlignment="Center"
                    Style="{StaticResource TextAmount}"
-                   FontWeight="Bold" />
+                   FontWeight="SemiBold" />
 
-        <!-- Plus / Increment Button (48x48 touch target) -->
+        <!-- Plus / Increment Button -->
         <Button x:Name="IncrementBtn"
-                Width="48" Height="48" MinHeight="48" Padding="0"
+                Width="44" Height="44" MinWidth="44" MinHeight="44" Padding="0"
                 Style="{StaticResource SecondaryButton}"
                 Click="OnIncrementClick">
-            <local:Icon Data="{StaticResource IconPlus}" Size="18" />
+            <local:Icon Data="{StaticResource IconPlus}" Size="16" />
         </Button>
     </StackPanel>
 </UserControl>

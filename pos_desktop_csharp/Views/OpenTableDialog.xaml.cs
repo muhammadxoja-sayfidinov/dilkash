@@ -31,13 +31,13 @@ namespace DilkashPos.Views
                 {
                     GroupName = "GuestCountChips",
                     Content = count.ToString(),
-                    MinWidth = 56,
-                    MinHeight = 56,
-                    Height = 56,
+                    MinWidth = 52,
+                    MinHeight = 48,
+                    Height = 48,
                     Margin = new Thickness(4),
                     Padding = new Thickness(0),
-                    FontSize = 18,
-                    FontWeight = FontWeights.Bold,
+                    FontSize = 15,
+                    FontWeight = FontWeights.SemiBold,
                     Style = segStyle,
                     IsChecked = count == SelectedGuestsCount,
                     Tag = count

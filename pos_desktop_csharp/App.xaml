@@ -4,19 +4,11 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
+                <!-- Active Theme Palette (Light Default, swappable via ThemeManager) -->
+                <ResourceDictionary Source="Resources/Theme/Tokens.Light.xaml" />
                 <!-- Official Dilkash Design System (Tokens -> Typography -> Icons -> Controls) -->
                 <ResourceDictionary Source="Resources/Theme/Controls.xaml" />
             </ResourceDictionary.MergedDictionaries>
-
-            <!-- Transitional Semantic Aliases mapped directly to Tokens (Zero hex values) -->
-            <SolidColorBrush x:Key="BrandPrimaryBrush" Color="{StaticResource ColorPrimary}" />
-            <SolidColorBrush x:Key="BrandDarkBrush" Color="{StaticResource ColorPrimaryTint}" />
-            <SolidColorBrush x:Key="BrandLightBrush" Color="{StaticResource ColorTextPrimary}" />
-            <SolidColorBrush x:Key="AccentGoldBrush" Color="{StaticResource ColorAmber}" />
-            <SolidColorBrush x:Key="DangerRedBrush" Color="{StaticResource ColorError}" />
-            <SolidColorBrush x:Key="SuccessGreenBrush" Color="{StaticResource ColorSuccess}" />
-            <SolidColorBrush x:Key="BgDarkBrush" Color="{StaticResource ColorBg}" />
-            <SolidColorBrush x:Key="CardDarkBrush" Color="{StaticResource ColorSurface}" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

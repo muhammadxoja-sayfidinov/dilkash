@@ -9,7 +9,11 @@
         AllowsTransparency="True"
         Background="Transparent"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
     <controls:DialogChrome x:Name="Chrome" Title="Stol #1" Subtitle="Mehmonlar soni va ofitsiantni tanlang">
         <StackPanel Margin="24,20">
             <!-- Guest Count Header -->

@@ -6,7 +6,7 @@
             BorderBrush="{DynamicResource BrushBorder}"
             BorderThickness="1"
             CornerRadius="{StaticResource RadiusMd}"
-            Padding="14,11">
+            Padding="12,9">
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -93,7 +93,8 @@
             <!-- IP:Port Field -->
             <TextBox Grid.Column="4"
                      Text="{Binding PrinterIp, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                     Padding="12,10"
+                     MinHeight="44"
+                     Padding="10,7"
                      HorizontalContentAlignment="Center"
                      Typography.NumeralAlignment="Tabular"
                      VerticalAlignment="Center"

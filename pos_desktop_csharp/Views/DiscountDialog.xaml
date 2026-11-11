@@ -9,7 +9,11 @@
         AllowsTransparency="True"
         Background="Transparent"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
     <controls:DialogChrome x:Name="Chrome" Title="Chegirma qoʻllash" Subtitle="Buyurtmaga foizli chegirma belgilang">
         <StackPanel Margin="24,18">
             <!-- Segmented Preset Percentages (0 / 5 / 10 / 15%) -->

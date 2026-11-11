@@ -5,7 +5,13 @@
         Title="Dilkash POS — Komponentlar Galereyasi"
         Height="960" Width="1600"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource BrushBg}">
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        Background="{DynamicResource BrushBg}"
+        Foreground="{DynamicResource BrushTextPrimary}"
+        TextElement.Foreground="{DynamicResource BrushTextPrimary}">
     <ScrollViewer x:Name="MainScroll" Padding="24">
         <StackPanel x:Name="GalleryContent" MaxWidth="1540">
 
@@ -34,38 +40,38 @@
 
                 <!-- 1. Palette Swatches -->
                 <StackPanel Grid.Column="0">
-                    <controls:SectionHeader Title="1. Rang Tokenlari (Deep Pine)" Subtitle="Barcha ranglar DynamicResource orqali boshqariladi" />
+                    <controls:SectionHeader Title="1. Rang Tokenlari (Kun / Tun)" Subtitle="Barcha ranglar DynamicResource orqali boshqariladi" />
                     <WrapPanel>
-                        <Border Width="168" Height="64" Background="{DynamicResource BrushBg}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
-                            <TextBlock Text="Bg (#09100C)" Style="{StaticResource TextCaption}" VerticalAlignment="Bottom" />
+                        <Border Width="168" Height="60" Background="{DynamicResource BrushBg}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Bg · Asosiy fon" Style="{StaticResource TextCaption}" VerticalAlignment="Bottom" />
                         </Border>
-                        <Border Width="168" Height="64" Background="{DynamicResource BrushSurface}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
-                            <TextBlock Text="Surface (#111D17)" Style="{StaticResource TextCaption}" VerticalAlignment="Bottom" />
+                        <Border Width="168" Height="60" Background="{DynamicResource BrushSurface}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Surface · Karta" Style="{StaticResource TextCaption}" VerticalAlignment="Bottom" />
                         </Border>
-                        <Border Width="168" Height="64" Background="{DynamicResource BrushSurfaceElevated}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
-                            <TextBlock Text="Elevated (#182820)" Style="{StaticResource TextCaption}" VerticalAlignment="Bottom" />
+                        <Border Width="168" Height="60" Background="{DynamicResource BrushSurfaceElevated}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Elevated · Panel" Style="{StaticResource TextCaption}" VerticalAlignment="Bottom" />
                         </Border>
-                        <Border Width="168" Height="64" Background="{DynamicResource BrushPrimary}" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
-                            <TextBlock Text="Primary (#0D6B4E)" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Bottom" />
+                        <Border Width="168" Height="60" Background="{DynamicResource BrushPrimary}" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Primary · Zumrad" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextOnPrimary}" VerticalAlignment="Bottom" />
                         </Border>
-                        <Border Width="168" Height="64" Background="{DynamicResource BrushPrimaryBright}" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
-                            <TextBlock Text="Bright (#10B981)" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushBg}" FontWeight="Bold" VerticalAlignment="Bottom" />
+                        <Border Width="168" Height="60" Background="{DynamicResource BrushPrimaryTint}" BorderBrush="{DynamicResource BrushPrimary}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="PrimaryTint · Aktiv" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushPrimaryBright}" FontWeight="SemiBold" VerticalAlignment="Bottom" />
                         </Border>
-                        <Border Width="168" Height="64" Background="{DynamicResource BrushAmber}" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
-                            <TextBlock Text="Amber (#D97706)" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushBg}" FontWeight="Bold" VerticalAlignment="Bottom" />
+                        <Border Width="168" Height="60" Background="{DynamicResource BrushAmber}" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Amber · Urgʻu" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextOnAmber}" FontWeight="SemiBold" VerticalAlignment="Bottom" />
                         </Border>
-                        <Border Width="168" Height="64" Background="{DynamicResource BrushError}" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
-                            <TextBlock Text="Error (#E11D48)" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextOnError}" VerticalAlignment="Bottom" />
+                        <Border Width="168" Height="60" Background="{DynamicResource BrushError}" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Error · Ogoh" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextOnError}" VerticalAlignment="Bottom" />
                         </Border>
-                        <Border Width="168" Height="64" Background="{DynamicResource BrushReservedTint}" BorderBrush="{DynamicResource BrushReserved}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
-                            <TextBlock Text="Reserved (#8B5CF6)" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushReservedText}" VerticalAlignment="Bottom" />
+                        <Border Width="168" Height="60" Background="{DynamicResource BrushReservedTint}" BorderBrush="{DynamicResource BrushReserved}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Margin="0,0,10,10" Padding="10">
+                            <TextBlock Text="Reserved · Bron" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushReservedText}" VerticalAlignment="Bottom" />
                         </Border>
                     </WrapPanel>
                 </StackPanel>
 
                 <!-- 2. Typography & Uzbek Orthography -->
                 <StackPanel Grid.Column="2">
-                    <controls:SectionHeader Title="2. Tipografika va Oʻzbekcha Imlo" Subtitle="Inter + Tabular Numerals + U+02BB (ʻ)" />
+                    <controls:SectionHeader Title="2. Tipografika va Oʻzbekcha Imlo" Subtitle="Segoe UI Variable + ClearType Display + U+02BB (ʻ)" />
                     <Border Background="{DynamicResource BrushSurface}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusMd}" Padding="16">
                         <Grid>
                             <Grid.ColumnDefinitions>

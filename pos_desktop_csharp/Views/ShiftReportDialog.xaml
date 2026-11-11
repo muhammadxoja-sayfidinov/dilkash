@@ -9,7 +9,11 @@
         AllowsTransparency="True"
         Background="Transparent"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
     <controls:DialogChrome x:Name="Chrome" Title="Kassa smenasi hisoboti" Subtitle="Smena maʻlumotlari">
         <StackPanel Margin="24,20">
             <!-- 1. Hero Total First -->
@@ -145,11 +149,11 @@
 
                 <Button Grid.Column="2"
                         Style="{StaticResource GoldButton}"
-                        MinHeight="54"
+                        MinHeight="50"
                         Click="OnPrintZReportClick">
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <controls:Icon Data="{StaticResource IconLock}" Size="18" Foreground="{DynamicResource BrushBg}" Margin="0,0,8,0" VerticalAlignment="Center" />
-                        <TextBlock Text="Z-hisobot (Smenani yopish)" Style="{StaticResource TextLabel}" FontWeight="Bold" Foreground="{DynamicResource BrushBg}" VerticalAlignment="Center" />
+                        <controls:Icon Data="{StaticResource IconLock}" Size="17" Foreground="{DynamicResource BrushTextOnAmber}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                        <TextBlock Text="Z-hisobot (Smenani yopish)" Style="{StaticResource TextLabel}" FontWeight="SemiBold" Foreground="{DynamicResource BrushTextOnAmber}" VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
             </Grid>

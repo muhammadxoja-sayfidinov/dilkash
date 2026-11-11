@@ -2,38 +2,43 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
-    <!-- Canonical Font Stack (Bundled Inter + System Fallback) -->
-    <FontFamily x:Key="FontFamilyBase">pack://application:,,,/Resources/Fonts/#Inter, Segoe UI Variable, Segoe UI</FontFamily>
+    <!-- Canonical Font Stack (Windows ClearType Segoe UI Variable / Segoe UI + Bundled Inter fallback) -->
+    <FontFamily x:Key="FontFamilyBase">Segoe UI Variable Text, Segoe UI Variable, Segoe UI, pack://application:,,,/Resources/Fonts/#Inter</FontFamily>
 
-    <!-- Font Size Tokens -->
-    <sys:Double x:Key="FontSizeCaption">13</sys:Double>
-    <sys:Double x:Key="FontSizeLabel">14</sys:Double>
-    <sys:Double x:Key="FontSizeBody">16</sys:Double>
-    <sys:Double x:Key="FontSizeAmount">18</sys:Double>
-    <sys:Double x:Key="FontSizeTitle">20</sys:Double>
-    <sys:Double x:Key="FontSizeSection">24</sys:Double>
-    <sys:Double x:Key="FontSizeKpi">32</sys:Double>
-    <sys:Double x:Key="FontSizeGrandTotal">40</sys:Double>
+    <!-- Balanced Font Size Tokens (Restrained hierarchy, comfortable reading) -->
+    <sys:Double x:Key="FontSizeCaption">12</sys:Double>
+    <sys:Double x:Key="FontSizeLabel">13</sys:Double>
+    <sys:Double x:Key="FontSizeBody">14</sys:Double>
+    <sys:Double x:Key="FontSizeAmount">15</sys:Double>
+    <sys:Double x:Key="FontSizeTitle">17</sys:Double>
+    <sys:Double x:Key="FontSizeSection">20</sys:Double>
+    <sys:Double x:Key="FontSizeKpi">24</sys:Double>
+    <sys:Double x:Key="FontSizeGrandTotal">28</sys:Double>
 
-    <!-- Base TextBlock Style (Implicit default) -->
+    <!-- Base TextBlock Style (Implicit ClearType Display rendering; inherits Foreground cleanly) -->
     <Style TargetType="{x:Type TextBlock}">
         <Setter Property="FontFamily" Value="{StaticResource FontFamilyBase}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
-        <Setter Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
 
-    <!-- Typography Styles -->
+    <!-- Typography Styles (Softer weights, crisp hierarchy) -->
     <Style x:Key="TextCaption" TargetType="{x:Type TextBlock}">
         <Setter Property="FontFamily" Value="{StaticResource FontFamilyBase}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}" />
         <Setter Property="Foreground" Value="{DynamicResource BrushTextSecondary}" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
 
     <Style x:Key="TextCaptionMuted" TargetType="{x:Type TextBlock}">
         <Setter Property="FontFamily" Value="{StaticResource FontFamilyBase}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeCaption}" />
         <Setter Property="Foreground" Value="{DynamicResource BrushTextMuted}" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
 
     <Style x:Key="TextLabel" TargetType="{x:Type TextBlock}">
@@ -41,6 +46,8 @@
         <Setter Property="FontSize" Value="{StaticResource FontSizeLabel}" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource BrushTextSecondary}" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
 
     <Style x:Key="TextLabelCaps" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource TextLabel}">
@@ -54,33 +61,43 @@
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource BrushTextSecondary}" />
         <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
 
     <Style x:Key="TextBody" TargetType="{x:Type TextBlock}">
         <Setter Property="FontFamily" Value="{StaticResource FontFamilyBase}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
         <Setter Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
 
     <Style x:Key="TextBodyBold" TargetType="{x:Type TextBlock}">
         <Setter Property="FontFamily" Value="{StaticResource FontFamilyBase}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeBody}" />
-        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
 
     <Style x:Key="TextTitle" TargetType="{x:Type TextBlock}">
         <Setter Property="FontFamily" Value="{StaticResource FontFamilyBase}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeTitle}" />
-        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
 
     <Style x:Key="TextSection" TargetType="{x:Type TextBlock}">
         <Setter Property="FontFamily" Value="{StaticResource FontFamilyBase}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeSection}" />
-        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
 
     <!-- Tabular Numerals Styles -->
@@ -90,11 +107,13 @@
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
         <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
 
     <Style x:Key="TextAmountHero" TargetType="{x:Type TextBlock}" BasedOn="{StaticResource TextAmount}">
         <Setter Property="FontSize" Value="{StaticResource FontSizeSection}" />
-        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource BrushAmberBright}" />
     </Style>
 
@@ -104,15 +123,18 @@
         <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
         <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
 
     <Style x:Key="TextGrandTotal" TargetType="{x:Type TextBlock}">
         <Setter Property="FontFamily" Value="{StaticResource FontFamilyBase}" />
         <Setter Property="FontSize" Value="{StaticResource FontSizeGrandTotal}" />
-        <Setter Property="FontWeight" Value="ExtraBold" />
+        <Setter Property="FontWeight" Value="Bold" />
         <Setter Property="Foreground" Value="{DynamicResource BrushPrimaryBright}" />
         <Setter Property="Typography.NumeralAlignment" Value="Tabular" />
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+        <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
     </Style>
 
 </ResourceDictionary>
-

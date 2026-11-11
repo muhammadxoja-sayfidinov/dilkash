@@ -9,7 +9,11 @@
         AllowsTransparency="True"
         Background="Transparent"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
+        ShowInTaskbar="False"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
     <controls:DialogChrome x:Name="Chrome" Title="Taom izohi" Subtitle="Oshxona uchun maxsus tayyorlash talablarini belgilang">
         <StackPanel Margin="24,20">
             <TextBlock Text="Tezkor talablar" Style="{StaticResource TextLabel}" Margin="0,0,0,10" />

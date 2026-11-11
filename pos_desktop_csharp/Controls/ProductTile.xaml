@@ -2,8 +2,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:DilkashPos.Controls"
-             MinWidth="220"
-             Height="178">
+             MinWidth="200"
+             Height="152">
     <Button x:Name="TileButton"
             Click="OnTileClick"
             IsEnabled="{Binding IsAvailable}"
@@ -77,7 +77,7 @@
 
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="76" />
+                <RowDefinition Height="56" />
                 <RowDefinition Height="*" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
@@ -140,28 +140,28 @@
                     <!-- Category Tag (Top-Left) -->
                     <Border HorizontalAlignment="Left"
                             VerticalAlignment="Top"
-                            Margin="8"
-                            Background="{DynamicResource BrushBg}"
-                            BorderBrush="{DynamicResource BrushBorderSubtle}"
+                            Margin="7"
+                            Background="{DynamicResource BrushSurface}"
+                            BorderBrush="{DynamicResource BrushBorder}"
                             BorderThickness="1"
                             CornerRadius="{StaticResource RadiusXs}"
                             Padding="6,2"
-                            Opacity="0.9">
+                            Opacity="0.94">
                         <TextBlock Text="{Binding CategoryName}"
                                    Style="{StaticResource TextCaption}"
-                                   FontSize="13"
-                                   MaxWidth="130"
+                                   FontSize="12"
+                                   MaxWidth="126"
                                    TextTrimming="CharacterEllipsis" />
                     </Border>
 
                     <!-- Quantity Badge (Top-Right when in cart) -->
                     <Border HorizontalAlignment="Right"
                             VerticalAlignment="Top"
-                            Margin="8"
-                            MinWidth="30" Height="28"
-                            Background="{DynamicResource BrushAmberBright}"
+                            Margin="7"
+                            MinWidth="26" Height="24"
+                            Background="{DynamicResource BrushAmber}"
                             CornerRadius="{StaticResource RadiusFull}"
-                            Padding="8,2">
+                            Padding="7,1">
                         <Border.Style>
                             <Style TargetType="{x:Type Border}">
                                 <Setter Property="Visibility" Value="Collapsed" />
@@ -173,9 +173,9 @@
                             </Style>
                         </Border.Style>
                         <TextBlock Text="{Binding InCartBadgeText}"
-                                   FontSize="14"
+                                   FontSize="12.5"
                                    FontWeight="Bold"
-                                   Foreground="{DynamicResource BrushBg}"
+                                   Foreground="{DynamicResource BrushTextOnAmber}"
                                    Typography.NumeralAlignment="Tabular"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center" />
@@ -183,23 +183,23 @@
                 </Grid>
             </Border>
 
-            <!-- Product Name (2 lines max, 16 SemiBold) -->
+            <!-- Product Name (2 lines max, 14 SemiBold) -->
             <TextBlock Grid.Row="1"
                        Text="{Binding Name}"
-                       FontSize="16"
+                       FontSize="14"
                        FontWeight="SemiBold"
                        Foreground="{DynamicResource BrushTextPrimary}"
                        TextWrapping="Wrap"
                        TextTrimming="CharacterEllipsis"
-                       LineHeight="20"
-                       MaxHeight="42"
-                       Margin="12,10,12,4"
+                       LineHeight="18"
+                       MaxHeight="38"
+                       Margin="10,8,10,2"
                        VerticalAlignment="Top" />
 
             <!-- Price + Stop-list Pill -->
-            <Grid Grid.Row="2" Margin="12,0,12,10">
+            <Grid Grid.Row="2" Margin="10,0,10,10">
                 <TextBlock Text="{Binding PriceFormatted}"
-                           FontSize="16"
+                           FontSize="15"
                            FontWeight="SemiBold"
                            Foreground="{DynamicResource BrushPrimaryBright}"
                            Typography.NumeralAlignment="Tabular"

@@ -107,6 +107,26 @@ namespace DilkashPos
 
             _syncEngine.SyncStatusUpdated += OnSyncStatusUpdated;
             _syncEngine.OnlineOrdersReceived += OnOnlineOrdersReceived;
+
+            UpdateThemeToggleVisuals(ThemeManager.IsDark);
+            ThemeManager.ThemeChanged += OnThemeManagerChanged;
+            Closed += (_, _) => ThemeManager.ThemeChanged -= OnThemeManagerChanged;
+        }
+
+        private void OnThemeManagerChanged(object? sender, bool isDark)
+        {
+            Dispatcher.Invoke(() => UpdateThemeToggleVisuals(isDark));
+        }
+
+        private void UpdateThemeToggleVisuals(bool isDark)
+        {
+            ThemeToggleIcon.Data = (Geometry)FindResource(isDark ? "IconSun" : "IconMoon");
+            ThemeToggleText.Text = isDark ? "Kun" : "Tun";
+        }
+
+        private void OnToggleThemeClick(object sender, RoutedEventArgs e)
+        {
+            ThemeManager.Toggle();
         }
 
         private void UpdateClockDisplay()
@@ -128,23 +148,23 @@ namespace DilkashPos
 
         public void UpdateShellLayoutForWidth(double width)
         {
-            RailColumn.Width = new GridLength(width < 1366 ? 84 : 88);
-            CartColumn.Width = new GridLength(width >= 1600 ? 440 : 380);
+            RailColumn.Width = new GridLength(84);
+            CartColumn.Width = new GridLength(width >= 1550 ? 400 : 356);
 
-            int newProductCols = width >= 2200 ? 6 : width >= 1800 ? 5 : width >= 1550 ? 4 : 3;
+            int newProductCols = width >= 2200 ? 6 : width >= 1800 ? 5 : width >= 1500 ? 4 : 3;
             if (newProductCols != ProductColumns)
             {
                 ProductColumns = newProductCols;
             }
 
-            int newStopCols = width >= 2200 ? 4 : width >= 1550 ? 3 : 2;
+            int newStopCols = width >= 2200 ? 4 : width >= 1500 ? 3 : 2;
             if (newStopCols != StopListColumns)
             {
                 StopListColumns = newStopCols;
                 StopListLoadingGrid.Columns = newStopCols;
             }
 
-            int newCols = width >= 2200 ? 5 : width >= 1550 ? 4 : 3;
+            int newCols = width >= 2200 ? 5 : width >= 1500 ? 4 : 3;
             if (newCols != _tableColumns)
             {
                 _tableColumns = newCols;
@@ -1661,6 +1681,12 @@ namespace DilkashPos
         public void SwitchToTabPublic(string tag)
         {
             SwitchToTab(tag);
+        }
+
+        public void SetDemoTheme(bool isDark)
+        {
+            ThemeManager.ApplyTheme(isDark);
+            UpdateThemeToggleVisuals(isDark);
         }
         #endregion
     }
