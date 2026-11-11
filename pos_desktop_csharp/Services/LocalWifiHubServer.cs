@@ -492,7 +492,7 @@ namespace DilkashPos.Services
             List<Product> prods;
             lock (_stateLock)
             {
-                cats = _getCategories().Select(c => new Category { Id = c.Id, Name = c.Name, Department = c.Department, Description = c.Description }).ToList();
+                cats = _getCategories().Where(c => c.IsActive).Select(c => new Category { Id = c.Id, Name = c.Name, Department = c.Department, Description = c.Description, IsActive = c.IsActive }).ToList();
                 prods = _getProducts().Select(p => new Product
                 {
                     Id = p.Id,

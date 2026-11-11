@@ -379,6 +379,91 @@ class PosApiTests(TestCase):
         qr_call2.refresh_from_db()
         self.assertTrue(qr_call2.is_resolved)
 
+    def test_10_pos_full_admin_management_apis(self):
+        """POS Desktop boshqaruv API lari: kategoriya, taom, xodim, stol va tizim sozlamalari CRUD"""
+        # 1. Kategoriya yaratish va tahrirlash
+        cat_res = self.client.post('/api/pos/categories/save/', data=json.dumps({
+            'name': 'Issiq ichimliklar',
+            'department': 'bar',
+            'description': 'Choy va kofe',
+        }), content_type='application/json')
+        self.assertEqual(cat_res.status_code, 200)
+        cat_id = cat_res.json()['category']['id']
+        self.assertEqual(cat_res.json()['category']['department'], 'bar')
+
+        # 2. Taom yaratish, tahrirlash va o'chirish
+        prod_res = self.client.post('/api/pos/products/save/', data=json.dumps({
+            'category_id': cat_id,
+            'name': 'Limonli Choy',
+            'price': 15000,
+            'description': 'Yangi damlangan',
+            'is_available': True,
+        }), content_type='application/json')
+        self.assertEqual(prod_res.status_code, 200)
+        prod_id = prod_res.json()['product']['id']
+        self.assertEqual(prod_res.json()['product']['price'], 15000.0)
+
+        # Taom bor kategoriyani o'chirish rad etilishi kerak
+        bad_cat_del = self.client.post(f'/api/pos/categories/{cat_id}/delete/')
+        self.assertEqual(bad_cat_del.status_code, 400)
+
+        # Taomni o'chirish -> keyin bo'sh kategoriyani o'chirish
+        self.assertEqual(self.client.post(f'/api/pos/products/{prod_id}/delete/').status_code, 200)
+        self.assertEqual(self.client.post(f'/api/pos/categories/{cat_id}/delete/').status_code, 200)
+
+        # 3. Xodim qo'shish (Ofitsiant + Kuryer), holatini almashtirish va o'chirish
+        w_res = self.client.post('/api/pos/staff/save/', data=json.dumps({
+            'role': 'waiter',
+            'name': 'Azizbek Tursunov',
+            'phone': '904445566',
+            'pin_code': '7890',
+        }), content_type='application/json')
+        self.assertEqual(w_res.status_code, 200)
+        w_id = w_res.json()['staff']['id']
+        self.assertEqual(w_res.json()['staff']['phone'], '+998904445566')
+
+        tog_res = self.client.post(f'/api/pos/staff/waiter/{w_id}/toggle/')
+        self.assertEqual(tog_res.status_code, 200)
+        self.assertFalse(tog_res.json()['is_active'])
+
+        del_w = self.client.post(f'/api/pos/staff/waiter/{w_id}/delete/')
+        self.assertEqual(del_w.status_code, 200)
+
+        # 4. Stol qo'shish, tahrirlash va o'chirish
+        t_res = self.client.post('/api/pos/tables/save/', data=json.dumps({
+            'number': 15,
+            'name': 'VIP Xona 15',
+            'capacity': 12,
+        }), content_type='application/json')
+        self.assertEqual(t_res.status_code, 200)
+        t_id = t_res.json()['table']['id']
+        self.assertEqual(t_res.json()['table']['capacity'], 12)
+        self.assertEqual(self.client.post(f'/api/pos/tables/{t_id}/delete/').status_code, 200)
+
+        # 5. Barcha Bot/Printer/Yetkazish/To'lov sozlamalarini saqlash
+        s_res = self.client.post('/api/pos/settings/save/', data=json.dumps({
+            'service_start_time': '09:30',
+            'service_end_time': '23:30',
+            'delivery_base_cost': 8000,
+            'delivery_cost_per_extra_km_block': 5000,
+            'delivery_max_radius_km': 15,
+            'service_fee_type': 'percent',
+            'service_fee_percent': 12,
+            'auto_print_network': True,
+            'printers': {'kassa': '192.168.1.200:9100'},
+            'click_merchant_id': 'M123',
+            'broadcast_message_text': 'Yangi aksiyalar!',
+        }), content_type='application/json')
+        self.assertEqual(s_res.status_code, 200)
+        s_data = s_res.json()['settings']
+        self.assertEqual(s_data['service_start_time'], '09:30')
+        self.assertEqual(s_data['service_end_time'], '23:30')
+        self.assertEqual(s_data['delivery_base_cost'], 8000.0)
+        self.assertEqual(s_data['delivery_max_radius_km'], 15.0)
+        self.assertEqual(s_data['click_merchant_id'], 'M123')
+        self.assertEqual(s_data['printers']['kassa'], '192.168.1.200:9100')
+
+
 
 
 

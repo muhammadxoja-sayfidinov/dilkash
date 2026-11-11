@@ -99,7 +99,16 @@ namespace DilkashPos.Services
                 PendingCount = pending.Count;
                 int onlineOrdersCount = 0;
 
-                // 2. AVVAL Offline navbatni Cloud Django ga yuklash (Push before Pull!)
+                // 2. Offline saqlangan Admin/Sozlama o'zgarishlarini avval Cloud ga yuborish
+                var pendingAdmin = await _db.GetPendingAdminActionsAsync();
+                foreach (var act in pendingAdmin)
+                {
+                    var ack = await _api.ReplayPendingAdminActionAsync(act.Endpoint, act.PayloadJson);
+                    if (!ack) break;
+                    await _db.DeletePendingAdminActionAsync(act.Id);
+                }
+
+                // 3. Offline navbatdagi buyurtma va hal qilingan chaqiruvlarni Cloud Django ga yuklash (Push before Pull!)
                 if (pending.Count > 0 || dismissedCallIds.Count > 0 || localBillTables.Count > 0)
                 {
                     var ordersToPush = pending.ConvertAll(p => p.Order);
