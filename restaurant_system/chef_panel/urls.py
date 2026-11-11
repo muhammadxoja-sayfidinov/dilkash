@@ -96,5 +96,6 @@ urlpatterns = [
     path('api/pos/online-orders/', pos_api.pos_online_orders_api, name='pos_online_orders_api'),
     path('api/pos/online-orders/<int:order_id>/action/', pos_api.pos_online_order_action_api, name='pos_online_order_action_api'),
     path('api/pos/sync/push/', pos_api.pos_sync_push_api, name='pos_sync_push_api'),
+    path('api/pos/waiter-calls/<int:call_id>/dismiss/', views.waiter_dismiss_call_api, name='pos_waiter_dismiss_call_api'),
 ]
 

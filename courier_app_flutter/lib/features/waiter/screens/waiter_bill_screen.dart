@@ -97,6 +97,23 @@ class _WaiterBillScreenState extends ConsumerState<WaiterBillScreen> {
     }
   }
 
+  Future<void> _requestBillFromCashier() async {
+    try {
+      await ref.read(staffRepositoryProvider).requestTableBill(widget.tableNumber);
+      if (!mounted) return;
+      DilkashFeedback.showSuccess(
+        context,
+        'Kassaga hisob so’rovi yuborildi',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      DilkashFeedback.showError(
+        context,
+        e.toString().replaceAll('Exception: ', ''),
+      );
+    }
+  }
+
   Future<void> _settleBill() async {
     if (_isSettling || _tableData == null) return;
 
@@ -257,7 +274,7 @@ class _WaiterBillScreenState extends ConsumerState<WaiterBillScreen> {
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(ctx);
-                  DilkashFeedback.showSuccess(context, 'Chek printerga yuborildi');
+                  _requestBillFromCashier();
                 },
                 icon: const Icon(Icons.print_rounded, color: Colors.white),
                 label: const Text(
@@ -333,18 +350,21 @@ class _WaiterBillScreenState extends ConsumerState<WaiterBillScreen> {
       _tableData!['items'] as List? ?? [],
     );
     final rawTotal = (_tableData!['total_amount'] as num?)?.toDouble() ?? 0.0;
-    final itemsSubtotal = items.fold<double>(
-      0.0,
-      (acc, it) =>
-          acc +
-          (((it['price'] as num?)?.toDouble() ?? 0.0) *
-              ((it['quantity'] as num?)?.toInt() ?? 1)),
-    );
-    // If backend returns total with service charge already included, use that
-    // Otherwise calculate standard 10% service charge
-    final serviceCharge = rawTotal > itemsSubtotal
-        ? (rawTotal - itemsSubtotal)
-        : (itemsSubtotal * 0.10).roundToDouble();
+    final backendSubtotal = (_tableData!['products_total'] as num?)?.toDouble() ?? 0.0;
+    final itemsSubtotal = backendSubtotal > 0
+        ? backendSubtotal
+        : items.fold<double>(
+            0.0,
+            (acc, it) =>
+                acc +
+                (((it['price'] as num?)?.toDouble() ?? 0.0) *
+                    ((it['quantity'] as num?)?.toInt() ?? 1)),
+          );
+    final backendFee = _tableData!['service_fee_amount'] != null
+        ? (_tableData!['service_fee_amount'] as num).toDouble()
+        : null;
+    final serviceCharge = backendFee ??
+        (rawTotal > itemsSubtotal ? (rawTotal - itemsSubtotal) : (itemsSubtotal * 0.10).roundToDouble());
     final grandTotal = rawTotal > 0 ? rawTotal : (itemsSubtotal + serviceCharge);
 
     return Scaffold(

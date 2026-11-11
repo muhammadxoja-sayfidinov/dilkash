@@ -4,7 +4,7 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.core.management.color import no_style
 from django.db import connection
-from chef_panel.models import BotSettings, Category, Product, RestaurantTable, WaiterProfile
+from chef_panel.models import BotSettings, Category, CourierProfile, Product, RestaurantTable, WaiterProfile
 
 
 DEFAULT_TABLES = [
@@ -64,6 +64,15 @@ class Command(BaseCommand):
                     is_active=True,
                 )
                 created_waiters += 1
+
+        if not CourierProfile.objects.exists():
+            CourierProfile.objects.create(
+                name="Jasur Rahimov",
+                phone="+998901112233",
+                pin_code="1234",
+                vehicle_info="Honda Dio Scooter (Oq)",
+                is_active=True,
+            )
 
         admin_password = os.environ.get("DJANGO_ADMIN_PASSWORD", "").strip()
         admin_username = os.environ.get("DJANGO_ADMIN_USERNAME", "admin").strip() or "admin"

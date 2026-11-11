@@ -1005,11 +1005,35 @@ def waiter_app(request):
     return render(request, 'chef_panel/waiter_app.html', context)
 
 
+def _normalize_table_number(raw):
+    """'T-01' yoki '01' ko'rinishidagi stol raqamini '1' ga keltirish."""
+    s = str(raw or '').strip().upper()
+    if s.startswith('T-'):
+        s = s[2:]
+    s = s.lstrip('#').strip()
+    if s.isdigit():
+        return str(int(s))
+    return s or '1'
+
+
+def _calculate_dine_in_service_fee(products_total, guests_count=1):
+    """BotSettings sozlamasi asosida zal xizmat haqini hisoblash."""
+    bot_cfg = BotSettings.get_settings()
+    if bot_cfg.service_fee_type == 'percent':
+        pct = Decimal(str(bot_cfg.service_fee_percent or 10)) / Decimal('100')
+        return (products_total * pct).quantize(Decimal('1'))
+    if bot_cfg.service_fee_type == 'per_person':
+        per_person = Decimal(str(bot_cfg.service_fee_per_person or 5000))
+        return Decimal(max(1, int(guests_count or 1))) * per_person
+    return Decimal('0')
+
+
 def waiter_floor_status_api(request):
     """Ofitsiant terminali uchun stollar xaritasi va jonli statuslar API"""
     tables = RestaurantTable.objects.filter(is_active=True).order_by('number')
     active_orders = Order.objects.filter(
         service_type='dine_in',
+        is_paid=False,
         status__in=['yangi', 'tasdiqlangan', 'tayor']
     ).prefetch_related('items__product').order_by('-created_at')
 
@@ -1017,8 +1041,9 @@ def waiter_floor_status_api(request):
     active_calls = WaiterCall.objects.filter(is_resolved=False).order_by('-created_at')
     calls_map = {}
     for c in active_calls:
-        if c.table_number not in calls_map:
-            calls_map[c.table_number] = {
+        norm_t = _normalize_table_number(c.table_number)
+        if norm_t not in calls_map:
+            calls_map[norm_t] = {
                 'id': c.id,
                 'reason': c.reason,
                 'created_at': c.created_at.strftime('%H:%M')
@@ -1026,43 +1051,74 @@ def waiter_floor_status_api(request):
 
     orders_map = {}
     for o in active_orders:
-        if o.table_number and o.table_number not in orders_map:
+        norm_t = _normalize_table_number(o.table_number) if o.table_number else None
+        if norm_t and norm_t not in orders_map:
             items_list = []
             for it in o.items.all():
                 items_list.append({
+                    'id': it.id,
+                    'product_id': it.product_id,
                     'name': it.product.name,
+                    'dish_name': it.product.name,
                     'quantity': it.quantity,
                     'price': float(it.price),
-                    'total': float(it.total)
+                    'total': float(it.total),
+                    'status': 'ready' if o.status == 'tayor' else 'cooking',
                 })
-            orders_map[o.table_number] = {
+            orders_map[norm_t] = {
                 'id': o.id,
                 'order_number': o.order_number,
                 'status': o.status,
                 'status_display': o.get_status_display(),
                 'created_at': o.created_at.strftime('%H:%M'),
-                'total_amount': float(o.total_amount),
+                'guests_count': o.guests_count,
+                'products_total': float(o.products_total or 0),
+                'service_fee_amount': float(o.service_fee_amount or 0),
+                'total_amount': float(o.total_amount or 0),
+                'waiter_name': o.waiter_name or (o.waiter.name if o.waiter else None),
                 'items': items_list
             }
 
+    bot_cfg = BotSettings.get_settings()
     tables_data = []
     for t in tables:
         t_num = str(t.number)
+        active_order = orders_map.get(t_num)
+        active_call = calls_map.get(t_num)
+        stage = 'free'
+        if active_order:
+            if active_call and ('hisob' in active_call['reason'].lower() or 'chek' in active_call['reason'].lower()):
+                stage = 'billRequested'
+            elif active_order['status'] == 'tayor':
+                stage = 'ready'
+            else:
+                stage = 'occupied'
+        elif active_call and ('hisob' in active_call['reason'].lower() or 'chek' in active_call['reason'].lower()):
+            stage = 'billRequested'
+
         tables_data.append({
             'number': t.number,
+            'table_number': t_num,
             'name': t.name or f"Stol #{t.number}",
             'capacity': t.capacity,
-            'is_occupied': t_num in orders_map,
+            'guests_count': active_order['guests_count'] if active_order else t.guests_count,
+            'is_occupied': active_order is not None,
+            'stage': stage,
             'assigned_waiter_id': t.assigned_waiter.id if t.assigned_waiter else None,
             'assigned_waiter_name': t.assigned_waiter.name if t.assigned_waiter else None,
             'assigned_waiter_phone': t.assigned_waiter.phone if t.assigned_waiter else None,
-            'order': orders_map.get(t_num),
-            'call': calls_map.get(t_num)
+            'order': active_order,
+            'call': active_call
         })
 
     return JsonResponse({
         'success': True,
         'tables': tables_data,
+        'settings': {
+            'service_fee_type': bot_cfg.service_fee_type,
+            'service_fee_percent': float(bot_cfg.service_fee_percent or 10),
+            'service_fee_per_person': float(bot_cfg.service_fee_per_person or 5000),
+        },
         'total_tables': len(tables_data),
         'occupied_count': len(orders_map),
         'calls_count': len(calls_map)
@@ -1071,7 +1127,7 @@ def waiter_floor_status_api(request):
 
 @csrf_exempt
 def waiter_create_order_api(request):
-    """Ofitsiant terminalidan to'g'ridan-to'g'ri stolga buyurtma yaratish"""
+    """Ofitsiant terminalidan to'g'ridan-to'g'ri stolga buyurtma yaratish yoki ochiq stolga qo'shish"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
 
@@ -1080,7 +1136,7 @@ def waiter_create_order_api(request):
     except Exception:
         data = request.POST
 
-    table_number = str(data.get('table_number', '1'))
+    table_number = _normalize_table_number(data.get('table_number', '1'))
     table_num_int = int(table_number) if table_number.isdigit() else 1
     table_obj = RestaurantTable.objects.filter(number=table_num_int).first()
 
@@ -1100,16 +1156,13 @@ def waiter_create_order_api(request):
         current_waiter = WaiterProfile.objects.filter(name__iexact=waiter_name).first()
 
     # Bo'sh stolga zakaz olinganda darhol shu ofitsiantga avtomatik belgilanadi
-    if not table_obj.assigned_waiter:
-        if not current_waiter and waiter_name and waiter_name != 'Ofitsiant':
-            current_waiter, _ = WaiterProfile.objects.get_or_create(name=waiter_name)
-        if current_waiter:
-            table_obj.assigned_waiter = current_waiter
-            table_obj.save()
+    if not table_obj.assigned_waiter and current_waiter:
+        table_obj.assigned_waiter = current_waiter
+        table_obj.save()
 
     assigned_waiter = table_obj.assigned_waiter or current_waiter
     waiter_name = assigned_waiter.name if assigned_waiter else waiter_name
-    products_raw = data.get('products', [])
+    products_raw = data.get('products') or data.get('items') or []
 
     if not products_raw:
         return JsonResponse({'success': False, 'message': 'Savatcha bo\'sh'}, status=400)
@@ -1120,13 +1173,18 @@ def waiter_create_order_api(request):
         defaults={'full_name': f"Stol #{table_number}", 'phone_number': "+998900000000"}
     )
 
-    total_amount = Decimal('0')
     items_to_create = []
-
     for item in products_raw:
-        # [id or name, qty, price]
-        p_identifier = item[0]
-        qty = int(item[1])
+        if isinstance(item, dict):
+            p_identifier = item.get('product_id') or item.get('id') or item.get('name') or item.get('dish_name')
+            qty = int(item.get('quantity', 1))
+        else:
+            p_identifier = item[0]
+            qty = int(item[1])
+
+        if qty <= 0 or not p_identifier:
+            continue
+
         if isinstance(p_identifier, int) or (isinstance(p_identifier, str) and p_identifier.isdigit()):
             prod = Product.objects.filter(id=int(p_identifier)).first()
         else:
@@ -1135,21 +1193,53 @@ def waiter_create_order_api(request):
         if prod:
             price = prod.price
             subtotal = price * qty
-            total_amount += subtotal
             items_to_create.append((prod, qty, price, subtotal))
 
-    order = Order.objects.create(
-        customer=customer,
-        status='yangi',
-        payment_method='naqd',
+    if not items_to_create:
+        return JsonResponse({'success': False, 'message': 'Hech qanday haqiqiy taom topilmadi'}, status=400)
+
+    guests_count = int(data.get('guests_count', table_obj.guests_count or 2))
+    notes = str(data.get('notes', '') or '').strip()
+
+    # Agar stolda hali yopilmagan buyurtma bo'lsa, unga qo'shamiz (dublikat order ochmaymiz)
+    existing_order = Order.objects.filter(
         service_type='dine_in',
         table_number=table_number,
-        waiter=assigned_waiter,
-        waiter_name=waiter_name,
-        products_total=total_amount,
-        delivery_cost=Decimal('0'),
-        total_amount=total_amount
-    )
+        is_paid=False,
+        status__in=['yangi', 'tasdiqlangan', 'tayor']
+    ).order_by('-created_at').first()
+
+    if existing_order:
+        order = existing_order
+        old_status = order.status
+        if notes:
+            order.notes = f"{order.notes}\n{notes}".strip() if order.notes else notes
+        if assigned_waiter and not order.waiter:
+            order.waiter = assigned_waiter
+            order.waiter_name = waiter_name
+        if order.status == 'tayor':
+            order.status = 'yangi'
+    else:
+        old_status = ''
+        order = Order.objects.create(
+            customer=customer,
+            status='yangi',
+            payment_method='naqd',
+            service_type='dine_in',
+            table_number=table_number,
+            guests_count=guests_count,
+            waiter=assigned_waiter,
+            waiter_name=waiter_name,
+            notes=notes,
+            products_total=Decimal('0'),
+            delivery_cost=Decimal('0'),
+            service_fee_amount=Decimal('0'),
+            total_amount=Decimal('0'),
+        )
+        if not table_obj.opened_at:
+            table_obj.guests_count = guests_count
+            table_obj.opened_at = timezone.now()
+            table_obj.save()
 
     for prod, qty, price, subtotal in items_to_create:
         OrderItem.objects.create(
@@ -1160,15 +1250,24 @@ def waiter_create_order_api(request):
             total=subtotal
         )
 
-    notes = data.get('notes', '')
+    all_products_total = sum((it.total for it in order.items.all()), Decimal('0'))
+    service_fee = _calculate_dine_in_service_fee(all_products_total, order.guests_count or guests_count)
+    order.products_total = all_products_total
+    order.service_fee_amount = service_fee
+    order.total_amount = max(
+        Decimal('0'),
+        (all_products_total - (order.discount_amount or Decimal('0'))) + service_fee + (order.delivery_cost or Decimal('0')),
+    )
+    order.save()
+
     history_note = f'Ofitsiant terminali orqali qabul qilindi ({waiter_name})'
     if notes:
         history_note += f" | Izoh: {notes}"
 
     OrderStatusHistory.objects.create(
         order=order,
-        old_status='',
-        new_status='yangi',
+        old_status=old_status,
+        new_status=order.status,
         notes=history_note
     )
 
@@ -1263,40 +1362,59 @@ def waiter_dismiss_call_api(request, call_id):
 
 @csrf_exempt
 def waiter_close_table_api(request, order_id):
-    """Stol hisobini yopish va stolni bo'shatish (Kassir)"""
+    """Stol hisobini yopish va stolni bo'shatish (Kassir / Ofitsiant)"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
+
+    try:
+        body = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except Exception:
+        body = request.POST
+
+    payment_method = str(body.get('payment_method', 'naqd') or 'naqd').strip()
+    if payment_method not in ('naqd', 'karta', 'click', 'payme', 'online'):
+        payment_method = 'naqd'
 
     order = get_object_or_404(Order, id=order_id)
     order.status = 'yetkazildi'
     order.is_paid = True
+    order.payment_method = payment_method
     order.delivered_at = timezone.now()
     order.save()
 
     # Stolga tegishli barcha ochiq buyurtmalar va chaqiruvlarni yopish (stolni to'liq bo'shatish)
     if order.table_number:
+        norm_table = _normalize_table_number(order.table_number)
         Order.objects.filter(
             service_type='dine_in',
-            table_number=str(order.table_number),
+            table_number__in=[str(order.table_number), norm_table],
             status__in=['yangi', 'tasdiqlangan', 'tayor']
         ).update(
             status='yetkazildi',
             is_paid=True,
+            payment_method=payment_method,
             delivered_at=timezone.now()
         )
 
-        WaiterCall.objects.filter(table_number=str(order.table_number), is_resolved=False).update(
+        WaiterCall.objects.filter(
+            table_number__in=[str(order.table_number), norm_table],
+            is_resolved=False
+        ).update(
             is_resolved=True,
             resolved_at=timezone.now()
         )
 
-        # Stolni ofitsiantdan to'liq bo'shatish (kassir hisobni yopganda stol yana bo'sh qolishi uchun)
-        t_int = int(order.table_number) if str(order.table_number).isdigit() else None
+        t_int = int(norm_table) if norm_table.isdigit() else None
         if t_int is not None:
-            RestaurantTable.objects.filter(number=t_int).update(assigned_waiter=None)
+            RestaurantTable.objects.filter(number=t_int).update(
+                assigned_waiter=None,
+                guests_count=0,
+                opened_at=None,
+            )
 
     return JsonResponse({
         'success': True,
+        'payment_method': payment_method,
         'message': f'Stol #{order.table_number} hisobi yopildi va stol to\'liq bo\'shatildi.'
     })
 
@@ -1364,21 +1482,19 @@ def table_order_status_api(request, table_number):
 @csrf_exempt
 def waiter_request_bill_api(request, table_number):
     """Ofitsiant yoki mijoz tomonidan kassirga hisob-kitob so'rovi yuborish"""
-    active_order = Order.objects.filter(
-        service_type='dine_in',
-        table_number=str(table_number),
-        status__in=['yangi', 'tasdiqlangan', 'tayor']
-    ).first()
+    norm_t = _normalize_table_number(table_number)
+    if not WaiterCall.objects.filter(table_number=norm_t, is_resolved=False, reason__icontains='Hisob').exists():
+        WaiterCall.objects.create(table_number=norm_t, reason="Hisob (Pre-chek) so'raldi", is_resolved=False)
 
     return JsonResponse({
         'success': True,
-        'message': f"Stol #{table_number} bo'yicha kassirga hisob so'rovi yuborildi."
+        'message': f"Stol #{norm_t} bo'yicha kassirga hisob so'rovi yuborildi."
     })
 
 
 @csrf_exempt
 def table_item_update_api(request, item_id):
-    """Mijoz QR menyudan taom sonini o'zgartirish yoki bekor qilish (faqat 'yangi' holatda)"""
+    """Mijoz QR menyudan yoki ofitsiantdan taom sonini o'zgartirish yoki bekor qilish (faqat 'yangi' holatda)"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'Faqat POST so\'rov qabul qilinadi'}, status=405)
 
@@ -1398,25 +1514,25 @@ def table_item_update_api(request, item_id):
         }, status=400)
 
     if action == 'remove' or (action == 'decrease' and item.quantity <= 1):
-        removed_total = item.total
         item.delete()
-        order.products_total = max(Decimal('0'), (order.products_total or Decimal('0')) - removed_total)
-        order.total_amount = max(Decimal('0'), (order.total_amount or Decimal('0')) - removed_total)
-        order.save()
     elif action == 'decrease':
         item.quantity -= 1
         item.total = item.quantity * item.price
         item.save()
-        order.products_total = max(Decimal('0'), (order.products_total or Decimal('0')) - item.price)
-        order.total_amount = max(Decimal('0'), (order.total_amount or Decimal('0')) - item.price)
-        order.save()
     elif action == 'increase':
         item.quantity += 1
         item.total = item.quantity * item.price
         item.save()
-        order.products_total = (order.products_total or Decimal('0')) + item.price
-        order.total_amount = (order.total_amount or Decimal('0')) + item.price
-        order.save()
+
+    products_total = sum((it.total for it in order.items.all()), Decimal('0'))
+    service_fee = _calculate_dine_in_service_fee(products_total, order.guests_count) if order.service_type == 'dine_in' else Decimal('0')
+    order.products_total = products_total
+    order.service_fee_amount = service_fee
+    order.total_amount = max(
+        Decimal('0'),
+        (products_total - (order.discount_amount or Decimal('0'))) + service_fee + (order.delivery_cost or Decimal('0')),
+    )
+    order.save()
 
     return JsonResponse({
         'success': True,
@@ -1991,9 +2107,24 @@ def cashier_test_print_api(request):
     })
 
 
+def _find_staff_by_phone_and_pin(model_cls, last_9, pin, token_prefix):
+    """Telefon oxirgi 9 raqami va PIN-kod bo'yicha faol xodimni topish."""
+    if len(last_9) < 7:
+        return None
+    for obj in model_cls.objects.filter(is_active=True):
+        digits = ''.join(c for c in (obj.phone or '') if c.isdigit())
+        if (digits.endswith(last_9) or last_9 in digits) and obj.pin_code == pin:
+            if not obj.auth_token:
+                import uuid
+                obj.auth_token = f"{token_prefix}_{uuid.uuid4().hex[:16]}"
+                obj.save(update_fields=['auth_token'])
+            return obj
+    return None
+
+
 @csrf_exempt
 def mobile_staff_login_api(request):
-    """Yagona Xodimlar Mobil Ilovasi: Kuryer va Ofitsiant kirishi (PIN-kod)"""
+    """Yagona Xodimlar Mobil Ilovasi: Kuryer va Ofitsiant kirishi (PIN-kod, auto-rol qo'llab-quvvatlanadi)"""
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Faqat POST'}, status=405)
 
@@ -2002,68 +2133,106 @@ def mobile_staff_login_api(request):
     except Exception:
         data = request.POST
 
-    role = data.get('role', 'courier')  # 'courier' or 'waiter'
-    phone = data.get('phone', '').strip()
-    pin = data.get('pin', '').strip()
+    role = str(data.get('role') or 'auto').strip().lower()
+    phone = str(data.get('phone', '') or '').strip()
+    pin = str(data.get('pin', '') or '').strip()
 
     clean_digits = ''.join(c for c in phone if c.isdigit())
     last_9 = clean_digits[-9:] if len(clean_digits) >= 9 else clean_digits
 
-    import uuid
+    if len(last_9) < 7 or not pin:
+        return JsonResponse({'status': 'error', 'success': False, 'message': "Telefon raqami yoki PIN-kod noto'g'ri!"}, status=401)
+
     if role == 'courier':
-        courier = CourierProfile.objects.filter(phone__icontains=last_9, is_active=True).first()
-        if not courier or courier.pin_code != pin:
+        courier = _find_staff_by_phone_and_pin(CourierProfile, last_9, pin, 'cour')
+        if not courier:
             return JsonResponse({'status': 'error', 'success': False, 'message': "Kuryer telefon raqami yoki PIN-kod noto'g'ri!"}, status=401)
-        if not courier.auth_token:
-            courier.auth_token = f"cour_{uuid.uuid4().hex[:16]}"
-            courier.save()
+        payload = {
+            'id': courier.id,
+            'name': courier.name,
+            'phone': courier.phone,
+            'staff_code': f"DIL-{courier.id}",
+            'vehicle_info': courier.vehicle_info,
+            'token': courier.auth_token,
+            'assigned_roles': ['courier'],
+            'active_role': 'courier',
+        }
         return JsonResponse({
             'status': 'success',
             'success': True,
             'role': 'courier',
-            'user': {
-                'id': courier.id,
-                'name': courier.name,
-                'phone': courier.phone,
-                'vehicle_info': courier.vehicle_info,
-                'token': courier.auth_token,
-            },
-            'courier': {
-                'id': courier.id,
-                'name': courier.name,
-                'phone': courier.phone,
-                'vehicle_info': courier.vehicle_info,
-                'token': courier.auth_token,
-            },
+            'assigned_roles': ['courier'],
+            'user': payload,
+            'courier': payload,
             'message': f"Xush kelibsiz, {courier.name}!"
         })
-    elif role == 'waiter':
-        waiter = WaiterProfile.objects.filter(phone__icontains=last_9, is_active=True).first()
-        if not waiter or waiter.pin_code != pin:
+
+    if role == 'waiter':
+        waiter = _find_staff_by_phone_and_pin(WaiterProfile, last_9, pin, 'wait')
+        if not waiter:
             return JsonResponse({'status': 'error', 'success': False, 'message': "Ofitsiant telefon raqami yoki PIN-kod noto'g'ri!"}, status=401)
-        if not waiter.auth_token:
-            waiter.auth_token = f"wait_{uuid.uuid4().hex[:16]}"
-            waiter.save()
+        payload = {
+            'id': waiter.id,
+            'name': waiter.name,
+            'phone': waiter.phone,
+            'staff_code': f"DIL-{waiter.id}",
+            'vehicle_info': '',
+            'token': waiter.auth_token,
+            'assigned_roles': ['waiter'],
+            'active_role': 'waiter',
+        }
         return JsonResponse({
             'status': 'success',
             'success': True,
             'role': 'waiter',
-            'user': {
-                'id': waiter.id,
-                'name': waiter.name,
-                'phone': waiter.phone,
-                'token': waiter.auth_token,
-            },
-            'waiter': {
-                'id': waiter.id,
-                'name': waiter.name,
-                'phone': waiter.phone,
-                'token': waiter.auth_token,
-            },
+            'assigned_roles': ['waiter'],
+            'user': payload,
+            'waiter': payload,
             'message': f"Xush kelibsiz, {waiter.name}!"
         })
-    else:
-        return JsonResponse({'status': 'error', 'message': "Noma'lum rol"}, status=400)
+
+    if role in ('auto', 'all', ''):
+        courier = _find_staff_by_phone_and_pin(CourierProfile, last_9, pin, 'cour')
+        waiter = _find_staff_by_phone_and_pin(WaiterProfile, last_9, pin, 'wait')
+        assigned_roles = []
+        if waiter:
+            assigned_roles.append('waiter')
+        if courier:
+            assigned_roles.append('courier')
+        if not assigned_roles:
+            return JsonResponse({'status': 'error', 'success': False, 'message': "Telefon raqami yoki PIN-kod noto'g'ri!"}, status=401)
+
+        primary = waiter or courier
+        active_role = 'waiter' if waiter else 'courier'
+        user_payload = {
+            'id': primary.id,
+            'waiter_id': waiter.id if waiter else None,
+            'courier_id': courier.id if courier else None,
+            'name': primary.name,
+            'phone': primary.phone,
+            'staff_code': f"DIL-{primary.id}",
+            'vehicle_info': courier.vehicle_info if courier else '',
+            'token': primary.auth_token,
+            'waiter_token': waiter.auth_token if waiter else None,
+            'courier_token': courier.auth_token if courier else None,
+            'assigned_roles': assigned_roles,
+            'active_role': active_role,
+        }
+        resp = {
+            'status': 'success',
+            'success': True,
+            'role': active_role,
+            'assigned_roles': assigned_roles,
+            'user': user_payload,
+            'message': f"Xush kelibsiz, {primary.name}!",
+        }
+        if waiter:
+            resp['waiter'] = {'id': waiter.id, 'name': waiter.name, 'phone': waiter.phone, 'token': waiter.auth_token}
+        if courier:
+            resp['courier'] = {'id': courier.id, 'name': courier.name, 'phone': courier.phone, 'vehicle_info': courier.vehicle_info, 'token': courier.auth_token}
+        return JsonResponse(resp)
+
+    return JsonResponse({'status': 'error', 'message': "Noma'lum rol"}, status=400)
 
 
 @csrf_exempt
@@ -2905,10 +3074,11 @@ def waiter_assign_table_api(request, table_number):
     if not waiter:
         return JsonResponse({'success': False, 'message': 'Ofitsiant profili topilmadi!'}, status=404)
 
-    table_num_int = int(table_number) if str(table_number).isdigit() else 1
+    norm_t = _normalize_table_number(table_number)
+    table_num_int = int(norm_t) if norm_t.isdigit() else 1
     table_obj = RestaurantTable.objects.filter(number=table_num_int).first()
     if not table_obj:
-        return JsonResponse({'success': False, 'message': f"Stol #{table_number} topilmadi!"}, status=404)
+        return JsonResponse({'success': False, 'message': f"Stol #{norm_t} topilmadi!"}, status=404)
 
     table_obj.assigned_waiter = waiter
     table_obj.save()
@@ -2916,7 +3086,7 @@ def waiter_assign_table_api(request, table_number):
     # Faol buyurtma bo'lsa unga ham biriktiramiz
     active_order = Order.objects.filter(
         service_type='dine_in',
-        table_number=str(table_number),
+        table_number=norm_t,
         status__in=['yangi', 'tasdiqlangan', 'tayor']
     ).first()
     if active_order:
@@ -2926,7 +3096,7 @@ def waiter_assign_table_api(request, table_number):
 
     return JsonResponse({
         'success': True,
-        'message': f"Stol #{table_number} {waiter.name}ga muvaffaqiyatli biriktirildi.",
+        'message': f"Stol #{norm_t} {waiter.name}ga muvaffaqiyatli biriktirildi.",
         'assigned_waiter_id': waiter.id,
         'assigned_waiter_name': waiter.name
     })
@@ -2938,7 +3108,8 @@ def waiter_release_table_api(request, table_number):
     if request.method != 'POST':
         return JsonResponse({'success': False, 'message': 'Faqat POST'}, status=405)
 
-    table_num_int = int(table_number) if str(table_number).isdigit() else 1
+    norm_t = _normalize_table_number(table_number)
+    table_num_int = int(norm_t) if norm_t.isdigit() else 1
     table_obj = RestaurantTable.objects.filter(number=table_num_int).first()
     if not table_obj:
         return JsonResponse({'success': False, 'message': f"Stol #{table_number} topilmadi!"}, status=404)

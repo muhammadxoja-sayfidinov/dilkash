@@ -4,12 +4,13 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../network/mock_staff_repository.dart';
+import '../config/app_config.dart';
+import '../network/remote_staff_repository.dart';
 import '../network/staff_repository.dart';
 import 'staff_session.dart';
 
 final staffRepositoryProvider = Provider<StaffRepository>((ref) {
-  return MockStaffRepository.instance;
+  return RemoteStaffRepository.instance;
 });
 
 final authProvider =
@@ -29,6 +30,7 @@ class AuthNotifier extends Notifier<AsyncValue<StaffSession?>> {
 
   Future<void> _tryRestoreSession() async {
     try {
+      await AppConfig.loadSavedBaseUrl();
       final prefs = await SharedPreferences.getInstance();
       final jsonStr = prefs.getString(_sessionKey);
       if (jsonStr != null && jsonStr.isNotEmpty) {
@@ -41,6 +43,7 @@ class AuthNotifier extends Notifier<AsyncValue<StaffSession?>> {
           session = session.copyWith(activeRole: lastRole);
         }
 
+        RemoteStaffRepository.instance.applySession(session);
         state = AsyncValue.data(session);
       }
     } catch (_) {
@@ -54,6 +57,7 @@ class AuthNotifier extends Notifier<AsyncValue<StaffSession?>> {
   }) async {
     state = const AsyncValue.loading();
     try {
+      await AppConfig.loadSavedBaseUrl();
       final rawSession = await _repository.authenticate(
         phone: phone,
         pin: pin,
@@ -69,6 +73,7 @@ class AuthNotifier extends Notifier<AsyncValue<StaffSession?>> {
         session = session.copyWith(activeRole: lastRole);
       }
 
+      RemoteStaffRepository.instance.applySession(session);
       await prefs.setString(_sessionKey, jsonEncode(session.toJson()));
       state = AsyncValue.data(session);
       return session;
@@ -87,6 +92,7 @@ class AuthNotifier extends Notifier<AsyncValue<StaffSession?>> {
     }
 
     final updated = current.copyWith(activeRole: newRole);
+    RemoteStaffRepository.instance.applySession(updated);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_sessionKey, jsonEncode(updated.toJson()));
     await prefs.setString(_lastRoleKey, newRole);
@@ -95,6 +101,7 @@ class AuthNotifier extends Notifier<AsyncValue<StaffSession?>> {
   }
 
   Future<void> logout() async {
+    RemoteStaffRepository.instance.applySession(null);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_sessionKey);
     state = const AsyncValue.data(null);

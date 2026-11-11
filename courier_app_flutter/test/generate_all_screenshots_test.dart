@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:courier_app_flutter/core/auth/auth_notifier.dart';
 import 'package:courier_app_flutter/core/auth/staff_session.dart';
+import 'package:courier_app_flutter/core/network/mock_staff_repository.dart';
 import 'package:courier_app_flutter/features/auth/screens/unified_login_screen.dart';
 import 'package:courier_app_flutter/features/auth/screens/role_selection_screen.dart';
 import 'package:courier_app_flutter/features/courier/screens/courier_home_screen.dart';
@@ -60,6 +61,7 @@ Widget wrapScreen(Widget child, {StaffSession? session}) {
     key: const ValueKey('screenshot_boundary'),
     child: ProviderScope(
       overrides: [
+        staffRepositoryProvider.overrideWithValue(MockStaffRepository.instance),
         if (session != null)
           authProvider.overrideWith(() => _StaticAuthNotifier(session)),
       ],

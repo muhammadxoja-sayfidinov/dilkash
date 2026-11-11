@@ -34,6 +34,9 @@ abstract class StaffRepository {
     required String tableNumber,
     required int itemId,
   });
+  Future<bool> requestTableBill(String tableNumber);
+  Future<bool> dismissWaiterCall(int callId);
+  Future<bool> markTableDelivered(int orderId);
   Future<Map<String, dynamic>> settleTableBill({
     required String tableNumber,
     required String paymentMethod,

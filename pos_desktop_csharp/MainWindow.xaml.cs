@@ -26,6 +26,9 @@ namespace DilkashPos
         private readonly ApiService _api;
         private readonly EscPosPrinterService _printer;
         private readonly SyncEngine _syncEngine;
+        private readonly LocalWifiHubServer _localHub;
+        private readonly object _stateLock = new();
+        private readonly HashSet<int> _notifiedCallIds = new();
         private readonly DispatcherTimer _clockTimer;
 
         // Xotiradagi asosiy ma'lumotlar
@@ -83,9 +86,19 @@ namespace DilkashPos
             InitializeComponent();
 
             _db = new LocalDatabase();
-            _api = new ApiService("http://127.0.0.1:8000");
+            _api = new ApiService("https://dilkash-django-production.up.railway.app");
             _printer = new EscPosPrinterService();
             _syncEngine = new SyncEngine(_api, _db, _printer);
+            _localHub = new LocalWifiHubServer(
+                _db,
+                _stateLock,
+                () => _tables,
+                () => _categories,
+                () => _products,
+                () => _settings,
+                () => _api.IsOnline,
+                () => _syncEngine.TriggerImmediateSync()
+            );
 
             TableZonesItemsControl.ItemsSource = _tableZoneSections;
             CategoryChipsItemsControl.ItemsSource = _categoryChips;
@@ -107,10 +120,30 @@ namespace DilkashPos
 
             _syncEngine.SyncStatusUpdated += OnSyncStatusUpdated;
             _syncEngine.OnlineOrdersReceived += OnOnlineOrdersReceived;
+            _syncEngine.BootstrapSynced += OnBootstrapSynced;
+
+            _localHub.HubStateChanged += OnHubStateChanged;
+            _localHub.WaiterOrderReceived += OnHubWaiterOrderReceived;
+            _localHub.WaiterOrderPaid += OnHubWaiterOrderPaid;
+            _localHub.WaiterCallCreated += OnHubWaiterCallCreated;
+
+            try
+            {
+                _localHub.Start();
+            }
+            catch (Exception ex)
+            {
+                Toast.Show($"Wi-Fi Hub ishga tushmadi: {ex.Message}", ToastTone.Warning);
+            }
 
             UpdateThemeToggleVisuals(ThemeManager.IsDark);
             ThemeManager.ThemeChanged += OnThemeManagerChanged;
-            Closed += (_, _) => ThemeManager.ThemeChanged -= OnThemeManagerChanged;
+            Closed += (_, _) =>
+            {
+                ThemeManager.ThemeChanged -= OnThemeManagerChanged;
+                _localHub.Dispose();
+                _syncEngine.Dispose();
+            };
         }
 
         private void OnThemeManagerChanged(object? sender, bool isDark)
@@ -228,20 +261,42 @@ namespace DilkashPos
             _isLoadingTables = true;
             UpdateTablesLoadingAndEmptyStates();
 
-            // 1. Lokal SQLite keshidan o'qish (Darhol yuklanadi)
-            _products = await _db.GetCachedProductsAsync();
-            _categories = await _db.GetCachedCategoriesAsync();
-            _tables = await _db.GetCachedTablesAsync();
-
-            if (_tables.Count == 0)
+            // 1. Saqlangan lokal sozlamalarni o'qish (Cloud URL & Kassir)
+            var savedServerUrl = await _db.GetSettingAsync("server_url", "https://dilkash-django-production.up.railway.app");
+            if (!string.IsNullOrWhiteSpace(savedServerUrl))
             {
-                // Standart 12 ta stol (Zal, Terrasa, VIP)
+                _settings.ServerUrl = savedServerUrl;
+                _api.SetBaseUrl(savedServerUrl);
+            }
+            var savedCashier = await _db.GetSettingAsync("cashier_name");
+            if (!string.IsNullOrWhiteSpace(savedCashier))
+            {
+                _settings.CashierName = savedCashier;
+            }
+
+            // 2. Lokal SQLite keshidan o'qish (Darhol, internetsiz ham yuklanadi)
+            var cachedDepts = await _db.GetCachedDepartmentsAsync();
+            var cachedProds = await _db.GetCachedProductsAsync();
+            var cachedCats = await _db.GetCachedCategoriesAsync();
+            var cachedTables = await _db.GetCachedTablesAsync();
+
+            if (cachedTables.Count == 0)
+            {
                 for (int i = 1; i <= 6; i++)
-                    _tables.Add(new RestaurantTable { Id = i, Number = i, Name = $"Stol #{i}", Zone = "Zal", Capacity = 4 });
+                    cachedTables.Add(new RestaurantTable { Id = i, Number = i, Name = $"Stol #{i}", Zone = "Zal", Capacity = 4 });
                 for (int i = 7; i <= 9; i++)
-                    _tables.Add(new RestaurantTable { Id = i, Number = i, Name = $"Terrasa #{i - 6}", Zone = "Terrasa", Capacity = 6 });
+                    cachedTables.Add(new RestaurantTable { Id = i, Number = i, Name = $"Terrasa #{i - 6}", Zone = "Terrasa", Capacity = 6 });
                 for (int i = 10; i <= 12; i++)
-                    _tables.Add(new RestaurantTable { Id = i, Number = i, Name = $"VIP Xona #{i - 9}", Zone = "VIP", Capacity = 10 });
+                    cachedTables.Add(new RestaurantTable { Id = i, Number = i, Name = $"VIP Xona #{i - 9}", Zone = "VIP", Capacity = 10 });
+            }
+            AssignTableZones(cachedTables);
+
+            lock (_stateLock)
+            {
+                if (cachedDepts.Count > 0) _departments = cachedDepts;
+                _products = cachedProds;
+                _categories = cachedCats;
+                _tables = cachedTables;
             }
 
             _isLoadingTables = false;
@@ -253,36 +308,168 @@ namespace DilkashPos
             UpdateShiftReportUI();
             ApplySettingsToUI();
 
-            // 2. Server bilan sinxronlash
-            var bootstrap = await _api.GetBootstrapAsync();
-            if (bootstrap != null && bootstrap.Status == "ok")
+            // 3. Server bilan sinxronlash (Avval SyncEngine offline navbatni yuklaydi, keyin bootstrap oladi)
+            await _syncEngine.RunSyncCycleAsync();
+        }
+
+        private static void AssignTableZones(List<RestaurantTable> tables)
+        {
+            foreach (var t in tables)
             {
-                _departments = bootstrap.Departments;
-                _categories = bootstrap.Categories;
-                _products = bootstrap.Products;
-                _tables = bootstrap.Tables;
+                if (t.Number <= 6) t.Zone = "Zal";
+                else if (t.Number <= 9) t.Zone = "Terrasa";
+                else t.Zone = "VIP";
+            }
+        }
 
-                // Zonalar biriktirish
-                foreach (var t in _tables)
+        private async void OnBootstrapSynced(object? sender, BootstrapResponse bootstrap)
+        {
+            var preserveNums = await _db.GetPendingTableNumbersAsync();
+            var activeCalls = await _db.GetCachedWaiterCallsAsync(includeResolved: false);
+
+            Dispatcher.Invoke(() =>
+            {
+                bool activeCartUpdatedFromServer = false;
+                lock (_stateLock)
                 {
-                    if (t.Number <= 6) t.Zone = "Zal";
-                    else if (t.Number <= 9) t.Zone = "Terrasa";
-                    else t.Zone = "VIP";
-                }
+                    if (bootstrap.Departments.Count > 0) _departments = bootstrap.Departments;
+                    if (bootstrap.Categories.Count > 0) _categories = bootstrap.Categories;
+                    if (bootstrap.Products.Count > 0) _products = bootstrap.Products;
 
-                if (bootstrap.Settings != null)
-                {
-                    _settings = bootstrap.Settings;
-                    ApplySettingsToUI();
-                }
+                    AssignTableZones(bootstrap.Tables);
+                    var existingByNum = _tables.ToDictionary(t => t.Number, t => t);
+                    var merged = new List<RestaurantTable>();
 
-                await _db.SaveBootstrapCacheAsync(_departments, _categories, _products, _tables);
+                    foreach (var srvT in bootstrap.Tables)
+                    {
+                        if (preserveNums.Contains(srvT.Number.ToString()) && existingByNum.TryGetValue(srvT.Number, out var localT))
+                        {
+                            merged.Add(localT);
+                        }
+                        else
+                        {
+                            var matchCall = activeCalls.FirstOrDefault(c => c.TableNumber == srvT.Number.ToString());
+                            if (matchCall != null && srvT.ActiveCall == null)
+                                srvT.ActiveCall = matchCall;
+                            else if (srvT.ActiveCall != null && !activeCalls.Any(c => c.Id == srvT.ActiveCall.Id))
+                                srvT.ActiveCall = null;
+                            merged.Add(srvT);
+                        }
+                    }
+
+                    if (merged.Count > 0)
+                    {
+                        _tables = merged;
+                        if (_activeTableContext != null)
+                        {
+                            var updatedCtx = _tables.FirstOrDefault(t => t.Number == _activeTableContext.Number);
+                            if (updatedCtx != null)
+                            {
+                                _activeTableContext = updatedCtx;
+                                if (updatedCtx.ActiveOrder != null && string.IsNullOrWhiteSpace(_currentCart.OfflineId))
+                                {
+                                    _currentCart = updatedCtx.ActiveOrder;
+                                    activeCartUpdatedFromServer = true;
+                                }
+                            }
+                        }
+                    }
+
+                    if (bootstrap.Settings != null)
+                    {
+                        var keepServerUrl = _settings.ServerUrl;
+                        var keepCashier = _settings.CashierName;
+                        _settings = bootstrap.Settings;
+                        if (!string.IsNullOrWhiteSpace(keepServerUrl)) _settings.ServerUrl = keepServerUrl;
+                        if (!string.IsNullOrWhiteSpace(keepCashier)) _settings.CashierName = keepCashier;
+                    }
+                }
 
                 RenderTables();
                 RenderCategories();
                 RenderProducts();
                 RenderStopList();
+                if (activeCartUpdatedFromServer)
+                {
+                    SyncProductInCartQuantities();
+                    UpdateCartUI();
+                }
+
+                foreach (var call in activeCalls)
+                {
+                    if (call.Id > 0 && _notifiedCallIds.Add(call.Id))
+                    {
+                        Toast.Show($"Stol #{call.TableNumber}: {call.Reason}", ToastTone.Warning);
+                    }
+                }
+            });
+        }
+
+        private void OnHubStateChanged(object? sender, EventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                RenderTables();
+                UpdateShiftReportUI();
+            });
+        }
+
+        private async void OnHubWaiterOrderReceived(object? sender, HubWaiterOrderEventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                Toast.Show($"Stol #{e.Table.Number}: Ofitsiantdan yangi buyurtma ({e.NewlyAddedItems.Sum(i => i.Quantity)} ta)", ToastTone.Info);
+            });
+
+            if (_settings.AutoPrintNetwork && e.NewlyAddedItems.Count > 0)
+            {
+                var slipOrder = new Order
+                {
+                    OrderNumber = e.Table.ActiveOrder?.OrderNumber ?? $"POS-{e.Table.Number}",
+                    ServiceType = "dine_in",
+                    TableNumber = e.Table.Number.ToString(),
+                    WaiterName = e.Table.AssignedWaiter,
+                    GuestsCount = e.Table.GuestsCount,
+                    Items = e.NewlyAddedItems,
+                };
+                await PrintOrderKitchenSlipsAsync(slipOrder);
             }
+        }
+
+        private void OnHubWaiterOrderPaid(object? sender, HubOrderPaidEventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                _currentShift.TotalOrdersCount++;
+                _currentShift.TotalRevenue += e.PaidOrder.TotalAmount;
+                if (e.PaidOrder.PaymentMethod == "naqd") _currentShift.CashRevenue += e.PaidOrder.TotalAmount;
+                else if (e.PaidOrder.PaymentMethod == "karta") _currentShift.CardRevenue += e.PaidOrder.TotalAmount;
+                else _currentShift.CashRevenue += e.PaidOrder.TotalAmount;
+
+                _currentShift.ServiceFeesCollected += e.PaidOrder.ServiceFeeAmount;
+                _currentShift.DiscountsGiven += e.PaidOrder.DiscountAmount;
+                UpdateShiftReportUI();
+
+                if (_activeTableContext != null && _activeTableContext.Number == e.Table.Number)
+                {
+                    _activeTableContext = null;
+                    _currentCart = new Order { ServiceType = "pickup" };
+                    CartTitleText.Text = "Saboy";
+                    CartSubtitleText.Text = "Kassir: " + _settings.CashierName;
+                    SyncProductInCartQuantities();
+                    UpdateCartUI();
+                }
+
+                Toast.Show($"Stol #{e.Table.Number} ofitsiant tomonidan yopildi ({e.PaidOrder.PaymentMethod})", ToastTone.Success);
+            });
+        }
+
+        private void OnHubWaiterCallCreated(object? sender, HubWaiterCallEventArgs e)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                Toast.Show($"Stol #{e.TableNumber}: {e.Reason}", ToastTone.Warning);
+            });
         }
 
         private void OnSyncStatusUpdated(object? sender, SyncStatusEventArgs e)
@@ -555,10 +742,12 @@ namespace DilkashPos
             if (t.ActiveOrder != null && t.ActiveOrder.Items.Count > 0)
             {
                 string kassaIp = GetPrinterIpForDept("kassa");
-                await _printer.PrintPreChekAsync(t.ActiveOrder, kassaIp);
+                if (!string.IsNullOrWhiteSpace(kassaIp))
+                    await _printer.PrintPreChekAsync(t.ActiveOrder, kassaIp);
                 t.Status = "bill_printed";
+                await _db.SaveTableStateAsync(t);
                 RefreshSingleTableCard(t);
-                Toast.Show($"{t.Name} uchun hisob pre-cheki chop etildi", ToastTone.Success);
+                Toast.Show($"{t.Name} uchun hisob pre-cheki belgilandi", ToastTone.Success);
             }
         }
 
@@ -576,26 +765,27 @@ namespace DilkashPos
                 var dialog = new OpenTableDialog(table.Number, table.Name, _settings.CashierName);
                 if (Dialogs.ShowModal(dialog, this) == true)
                 {
-                    table.IsOccupied = true;
-                    table.GuestsCount = dialog.SelectedGuestsCount;
-                    table.AssignedWaiter = dialog.WaiterName;
-
-                    var order = await _api.OpenTableAsync(table.Number, table.GuestsCount, dialog.WaiterName);
-                    if (order != null)
+                    lock (_stateLock)
                     {
-                        table.ActiveOrder = order;
-                    }
-                    else
-                    {
+                        table.IsOccupied = true;
+                        table.Status = "occupied";
+                        table.OpenedAt ??= DateTime.UtcNow.ToString("o");
+                        table.GuestsCount = dialog.SelectedGuestsCount;
+                        table.AssignedWaiter = dialog.WaiterName;
                         table.ActiveOrder = new Order
                         {
                             ServiceType = "dine_in",
                             TableNumber = table.Number.ToString(),
                             GuestsCount = table.GuestsCount,
                             WaiterName = dialog.WaiterName,
-                            OfflineId = Guid.NewGuid().ToString("N")
+                            Status = "yangi",
+                            OfflineId = Guid.NewGuid().ToString("N"),
+                            CreatedAt = DateTime.UtcNow.ToString("o"),
                         };
                     }
+
+                    await _db.SaveTableStateAsync(table);
+                    _syncEngine.TriggerImmediateSync();
 
                     RefreshSingleTableCard(table);
                     OpenTableOrderInQuickPos(table);
@@ -867,10 +1057,40 @@ namespace DilkashPos
                 return;
             }
 
-            await _api.CreateOrUpdateOrderAsync(_currentCart);
-            await PrintOrderKitchenSlipsAsync(_currentCart);
+            lock (_stateLock)
+            {
+                if (string.IsNullOrWhiteSpace(_currentCart.OfflineId))
+                {
+                    _currentCart.OfflineId = _currentCart.Id > 0
+                        ? $"srv-{_currentCart.Id}-{Guid.NewGuid():N}"
+                        : Guid.NewGuid().ToString("N");
+                }
+                if (string.IsNullOrWhiteSpace(_currentCart.OrderNumber))
+                {
+                    _currentCart.OrderNumber = $"POS-{DateTime.Now:HHmmss}";
+                }
+                if (_activeTableContext != null)
+                {
+                    _activeTableContext.ActiveOrder = _currentCart;
+                    _activeTableContext.IsOccupied = true;
+                    _activeTableContext.Status = _activeTableContext.Status == "bill_printed" ? "bill_printed" : "occupied";
+                    _activeTableContext.OrderStatus = _currentCart.Status;
+                    _activeTableContext.GuestsCount = Math.Max(1, _currentCart.GuestsCount);
+                    if (string.IsNullOrWhiteSpace(_activeTableContext.AssignedWaiter))
+                        _activeTableContext.AssignedWaiter = _currentCart.WaiterName ?? _settings.CashierName;
+                }
+            }
 
-            Toast.Show("Buyurtma barcha boʻlim printerlariga yuborildi", ToastTone.Success);
+            if (_activeTableContext != null)
+            {
+                await _db.SaveTableStateAsync(_activeTableContext);
+                RefreshSingleTableCard(_activeTableContext);
+            }
+            await _db.UpsertPendingSyncOrderAsync(_currentCart);
+            await PrintOrderKitchenSlipsAsync(_currentCart);
+            _syncEngine.TriggerImmediateSync();
+
+            Toast.Show("Buyurtma saqlandi, boʻlimlarga va ofitsiantlarga yuborildi", ToastTone.Success);
         }
 
         private async void OnPrintPreChekClick(object sender, RoutedEventArgs e)
@@ -881,27 +1101,22 @@ namespace DilkashPos
                 return;
             }
 
+            if (_activeTableContext != null)
+            {
+                _activeTableContext.Status = "bill_printed";
+                await _db.SaveTableStateAsync(_activeTableContext);
+                RefreshSingleTableCard(_activeTableContext);
+            }
+
             string kassaIp = GetPrinterIpForDept("kassa");
             if (string.IsNullOrEmpty(kassaIp))
             {
-                Toast.Show("Kassa printeri IP manzili kiritilmagan", ToastTone.Warning);
+                Toast.Show("Stol hisob holatiga oʻtdi (Kassa printeri IP kiritilmagan)", ToastTone.Info);
                 return;
             }
 
             var res = await _printer.PrintPreChekAsync(_currentCart, kassaIp);
-            if (res.Success)
-            {
-                if (_activeTableContext != null)
-                {
-                    _activeTableContext.Status = "bill_printed";
-                    RefreshSingleTableCard(_activeTableContext);
-                }
-                Toast.Show("Mijoz uchun hisob pre-cheki chop etildi", ToastTone.Success);
-            }
-            else
-            {
-                Toast.Show(res.Message, ToastTone.Warning);
-            }
+            Toast.Show(res.Success ? "Mijoz uchun hisob pre-cheki chop etildi" : res.Message, res.Success ? ToastTone.Success : ToastTone.Warning);
         }
 
         private async void OnPayCartClick(object sender, RoutedEventArgs e)
@@ -917,18 +1132,15 @@ namespace DilkashPos
             {
                 _currentCart.IsPaid = true;
                 _currentCart.PaymentMethod = dialog.SelectedPaymentMethod;
-
-                var savedOrder = await _api.CreateOrUpdateOrderAsync(_currentCart);
-                if (savedOrder != null)
+                _currentCart.Status = _currentCart.ServiceType == "dine_in" ? "yetkazildi" : "olib_ketildi";
+                if (string.IsNullOrWhiteSpace(_currentCart.OfflineId))
                 {
-                    _currentCart = savedOrder;
-                    await _api.PayOrderAsync(savedOrder.Id, dialog.SelectedPaymentMethod, dialog.PaidCash, dialog.PaidCard);
-                }
-                else
-                {
-                    await _db.EnqueueOfflineOrderAsync(_currentCart);
+                    _currentCart.OfflineId = _currentCart.Id > 0
+                        ? $"srv-{_currentCart.Id}-{Guid.NewGuid():N}"
+                        : Guid.NewGuid().ToString("N");
                 }
 
+                await _db.UpsertPendingSyncOrderAsync(_currentCart);
                 await PrintOrderKitchenSlipsAsync(_currentCart);
                 string kassaIp = GetPrinterIpForDept("kassa");
                 if (!string.IsNullOrEmpty(kassaIp))
@@ -949,11 +1161,25 @@ namespace DilkashPos
 
                 if (_activeTableContext != null)
                 {
-                    var closed = _activeTableContext;
-                    closed.IsOccupied = false;
-                    closed.Status = "empty";
-                    closed.ActiveOrder = null;
-                    _activeTableContext = null;
+                    RestaurantTable closed;
+                    int? activeCallId = null;
+                    lock (_stateLock)
+                    {
+                        closed = _activeTableContext;
+                        if (closed.ActiveCall != null) activeCallId = closed.ActiveCall.Id;
+                        closed.IsOccupied = false;
+                        closed.Status = "empty";
+                        closed.OrderStatus = null;
+                        closed.GuestsCount = 0;
+                        closed.AssignedWaiter = null;
+                        closed.OpenedAt = null;
+                        closed.ActiveOrder = null;
+                        closed.ActiveCall = null;
+                        _activeTableContext = null;
+                    }
+                    if (activeCallId.HasValue)
+                        await _db.DismissWaiterCallOfflineAsync(activeCallId.Value);
+                    await _db.SaveTableStateAsync(closed);
                     RefreshSingleTableCard(closed);
                 }
 
@@ -962,6 +1188,7 @@ namespace DilkashPos
                 CartSubtitleText.Text = "Kassir: " + _settings.CashierName;
                 SyncProductInCartQuantities();
                 UpdateCartUI();
+                _syncEngine.TriggerImmediateSync();
 
                 Toast.Show("Toʻlov qabul qilindi va kassa cheki chop etildi", ToastTone.Success);
             }
@@ -1436,6 +1663,7 @@ namespace DilkashPos
                 ServiceFeeValueBox.IsEnabled = _settings.ServiceFeeType != "none";
 
                 ServerUrlBox.Text = _settings.ServerUrl;
+                LocalHubInfoBox.Text = string.Join("  |  ", LocalWifiHubServer.GetLocalLanUrls());
                 CashierNameBox.Text = _settings.CashierName;
                 SidebarCashierNameText.Text = _settings.CashierName;
                 LockCashierNameText.Text = _settings.CashierName;
@@ -1500,12 +1728,16 @@ namespace DilkashPos
             }
         }
 
-        private void OnSaveSettingsClick(object sender, RoutedEventArgs e)
+        private async void OnSaveSettingsClick(object sender, RoutedEventArgs e)
         {
-            _api.SetBaseUrl(ServerUrlBox.Text.Trim());
-            _settings.ServerUrl = ServerUrlBox.Text.Trim();
+            var newServerUrl = ServerUrlBox.Text.Trim();
+            _api.SetBaseUrl(newServerUrl);
+            _settings.ServerUrl = newServerUrl;
             _settings.CashierName = CashierNameBox.Text.Trim();
             _settings.AutoPrintNetwork = AutoPrintCheck.IsChecked == true;
+
+            await _db.SaveSettingAsync("server_url", newServerUrl);
+            await _db.SaveSettingAsync("cashier_name", _settings.CashierName);
 
             foreach (var card in _printerCardVMs)
             {
@@ -1527,7 +1759,8 @@ namespace DilkashPos
             UpdateShiftReportUI();
             UpdateCartUI();
             SetSettingsDirty(false);
-            Toast.Show("Barcha sozlamalar saqlandi", ToastTone.Success);
+            _syncEngine.TriggerImmediateSync();
+            Toast.Show("Barcha sozlamalar saqlandi va sinxronlash boshlandi", ToastTone.Success);
         }
         #endregion
 

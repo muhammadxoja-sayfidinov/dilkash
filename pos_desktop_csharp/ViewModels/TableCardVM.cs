@@ -95,6 +95,8 @@ namespace DilkashPos.ViewModels
         public string ItemsCountText => $"{ItemsCount} taom";
         public decimal TotalAmount => _table.ActiveOrder?.TotalAmount ?? 0;
         public string TotalFormatted => MoneyFormatter.Format(TotalAmount);
+        public bool HasActiveCall => _table.HasActiveCall;
+        public string ActiveCallText => _table.ActiveCall?.Reason ?? "Chaqiruv";
 
         public void Refresh()
         {
