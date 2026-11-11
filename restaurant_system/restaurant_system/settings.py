@@ -160,6 +160,7 @@ _use_secure_ssl = (not DEBUG) and (
 )
 if _use_secure_ssl:
     SECURE_SSL_REDIRECT = True
+    SECURE_REDIRECT_EXEMPT = [r'^health/$', r'^api/health/$']
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
