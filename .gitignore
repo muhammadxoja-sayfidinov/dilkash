@@ -14,7 +14,6 @@ db.sqlite3
 .env
 .env.*
 !.env.example
-kitchenmanagementsystem1/kitchen_env/
 *env/
 restaurant_system/cloudflared
 restaurant_system/media/*

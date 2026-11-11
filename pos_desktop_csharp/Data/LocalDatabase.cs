@@ -156,102 +156,31 @@ namespace DilkashPos.Data
             }
         }
 
-        public async Task SaveBootstrapCacheAsync(
-            List<Department> departments,
-            List<Category> categories,
-            List<Product> products,
-            List<RestaurantTable> tables)
+        private static async Task UpsertTableRowAsync(SqliteConnection conn, SqliteTransaction? trans, RestaurantTable t)
         {
-            using var conn = new SqliteConnection(_connectionString);
-            await conn.OpenAsync();
-            using var trans = conn.BeginTransaction();
-
-            try
-            {
-                // Products
-                var cmdDelP = conn.CreateCommand();
-                cmdDelP.Transaction = trans;
-                cmdDelP.CommandText = "DELETE FROM cache_products;";
-                await cmdDelP.ExecuteNonQueryAsync();
-
-                foreach (var p in products)
-                {
-                    var cmdP = conn.CreateCommand();
-                    cmdP.Transaction = trans;
-                    cmdP.CommandText = @"
-                        INSERT INTO cache_products (id, name, price, category_id, category_name, department, is_available, description, image_url)
-                        VALUES (@id, @name, @price, @cat_id, @cat_name, @dept, @avail, @desc, @img);
-                    ";
-                    cmdP.Parameters.AddWithValue("@id", p.Id);
-                    cmdP.Parameters.AddWithValue("@name", p.Name);
-                    cmdP.Parameters.AddWithValue("@price", (double)p.Price);
-                    cmdP.Parameters.AddWithValue("@cat_id", p.CategoryId);
-                    cmdP.Parameters.AddWithValue("@cat_name", p.CategoryName);
-                    cmdP.Parameters.AddWithValue("@dept", p.Department);
-                    cmdP.Parameters.AddWithValue("@avail", p.IsAvailable ? 1 : 0);
-                    cmdP.Parameters.AddWithValue("@desc", p.Description);
-                    cmdP.Parameters.AddWithValue("@img", (object?)p.ImageUrl ?? DBNull.Value);
-                    await cmdP.ExecuteNonQueryAsync();
-                }
-
-                // Categories
-                var cmdDelC = conn.CreateCommand();
-                cmdDelC.Transaction = trans;
-                cmdDelC.CommandText = "DELETE FROM cache_categories;";
-                await cmdDelC.ExecuteNonQueryAsync();
-
-                foreach (var c in categories)
-                {
-                    var cmdC = conn.CreateCommand();
-                    cmdC.Transaction = trans;
-                    cmdC.CommandText = "INSERT INTO cache_categories (id, name, department, description) VALUES (@id, @name, @dept, @desc);";
-                    cmdC.Parameters.AddWithValue("@id", c.Id);
-                    cmdC.Parameters.AddWithValue("@name", c.Name);
-                    cmdC.Parameters.AddWithValue("@dept", c.Department);
-                    cmdC.Parameters.AddWithValue("@desc", c.Description);
-                    await cmdC.ExecuteNonQueryAsync();
-                }
-
-                // Tables
-                var cmdDelT = conn.CreateCommand();
-                cmdDelT.Transaction = trans;
-                cmdDelT.CommandText = "DELETE FROM cache_tables;";
-                await cmdDelT.ExecuteNonQueryAsync();
-
-                foreach (var t in tables)
-                {
-                    var cmdT = conn.CreateCommand();
-                    cmdT.Transaction = trans;
-                    cmdT.CommandText = @"
-                        INSERT INTO cache_tables (
-                            number, name, zone, capacity, guests_count, is_occupied,
-                            status, assigned_waiter, opened_at, order_status, active_order_json, active_call_json
-                        ) VALUES (
-                            @num, @name, @zone, @cap, @guests, @occ,
-                            @status, @waiter, @opened, @ostatus, @orderJson, @callJson
-                        );";
-                    cmdT.Parameters.AddWithValue("@num", t.Number);
-                    cmdT.Parameters.AddWithValue("@name", t.Name);
-                    cmdT.Parameters.AddWithValue("@zone", string.IsNullOrWhiteSpace(t.Zone) ? "Zal" : t.Zone);
-                    cmdT.Parameters.AddWithValue("@cap", t.Capacity);
-                    cmdT.Parameters.AddWithValue("@guests", t.GuestsCount);
-                    cmdT.Parameters.AddWithValue("@occ", t.IsOccupied ? 1 : 0);
-                    cmdT.Parameters.AddWithValue("@status", string.IsNullOrWhiteSpace(t.Status) ? "empty" : t.Status);
-                    cmdT.Parameters.AddWithValue("@waiter", (object?)t.AssignedWaiter ?? DBNull.Value);
-                    cmdT.Parameters.AddWithValue("@opened", (object?)t.OpenedAt ?? DBNull.Value);
-                    cmdT.Parameters.AddWithValue("@ostatus", (object?)t.OrderStatus ?? DBNull.Value);
-                    cmdT.Parameters.AddWithValue("@orderJson", t.ActiveOrder != null ? JsonSerializer.Serialize(t.ActiveOrder) : DBNull.Value);
-                    cmdT.Parameters.AddWithValue("@callJson", t.ActiveCall != null ? JsonSerializer.Serialize(t.ActiveCall) : DBNull.Value);
-                    await cmdT.ExecuteNonQueryAsync();
-                }
-
-                trans.Commit();
-            }
-            catch
-            {
-                trans.Rollback();
-                throw;
-            }
+            using var cmd = conn.CreateCommand();
+            if (trans != null) cmd.Transaction = trans;
+            cmd.CommandText = @"
+                INSERT OR REPLACE INTO cache_tables (
+                    number, name, zone, capacity, guests_count, is_occupied,
+                    status, assigned_waiter, opened_at, order_status, active_order_json, active_call_json
+                ) VALUES (
+                    @num, @name, @zone, @cap, @guests, @occ,
+                    @status, @waiter, @opened, @ostatus, @orderJson, @callJson
+                );";
+            cmd.Parameters.AddWithValue("@num", t.Number);
+            cmd.Parameters.AddWithValue("@name", t.Name);
+            cmd.Parameters.AddWithValue("@zone", string.IsNullOrWhiteSpace(t.Zone) ? "Zal" : t.Zone);
+            cmd.Parameters.AddWithValue("@cap", t.Capacity);
+            cmd.Parameters.AddWithValue("@guests", t.GuestsCount);
+            cmd.Parameters.AddWithValue("@occ", t.IsOccupied ? 1 : 0);
+            cmd.Parameters.AddWithValue("@status", string.IsNullOrWhiteSpace(t.Status) ? "empty" : t.Status);
+            cmd.Parameters.AddWithValue("@waiter", (object?)t.AssignedWaiter ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@opened", (object?)t.OpenedAt ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@ostatus", (object?)t.OrderStatus ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("@orderJson", t.ActiveOrder != null ? JsonSerializer.Serialize(t.ActiveOrder) : DBNull.Value);
+            cmd.Parameters.AddWithValue("@callJson", t.ActiveCall != null ? JsonSerializer.Serialize(t.ActiveCall) : DBNull.Value);
+            await cmd.ExecuteNonQueryAsync();
         }
 
         public async Task<List<Product>> GetCachedProductsAsync()
@@ -515,28 +444,7 @@ namespace DilkashPos.Data
         {
             using var conn = new SqliteConnection(_connectionString);
             await conn.OpenAsync();
-            var cmd = conn.CreateCommand();
-            cmd.CommandText = @"
-                INSERT OR REPLACE INTO cache_tables (
-                    number, name, zone, capacity, guests_count, is_occupied,
-                    status, assigned_waiter, opened_at, order_status, active_order_json, active_call_json
-                ) VALUES (
-                    @num, @name, @zone, @cap, @guests, @occ,
-                    @status, @waiter, @opened, @ostatus, @orderJson, @callJson
-                );";
-            cmd.Parameters.AddWithValue("@num", t.Number);
-            cmd.Parameters.AddWithValue("@name", t.Name);
-            cmd.Parameters.AddWithValue("@zone", string.IsNullOrWhiteSpace(t.Zone) ? "Zal" : t.Zone);
-            cmd.Parameters.AddWithValue("@cap", t.Capacity);
-            cmd.Parameters.AddWithValue("@guests", t.GuestsCount);
-            cmd.Parameters.AddWithValue("@occ", t.IsOccupied ? 1 : 0);
-            cmd.Parameters.AddWithValue("@status", string.IsNullOrWhiteSpace(t.Status) ? "empty" : t.Status);
-            cmd.Parameters.AddWithValue("@waiter", (object?)t.AssignedWaiter ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@opened", (object?)t.OpenedAt ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@ostatus", (object?)t.OrderStatus ?? DBNull.Value);
-            cmd.Parameters.AddWithValue("@orderJson", t.ActiveOrder != null ? JsonSerializer.Serialize(t.ActiveOrder) : DBNull.Value);
-            cmd.Parameters.AddWithValue("@callJson", t.ActiveCall != null ? JsonSerializer.Serialize(t.ActiveCall) : DBNull.Value);
-            await cmd.ExecuteNonQueryAsync();
+            await UpsertTableRowAsync(conn, null, t);
         }
 
         public async Task SaveBootstrapStateAsync(BootstrapResponse boot, HashSet<string>? preserveTableNums = null)
@@ -695,29 +603,7 @@ namespace DilkashPos.Data
                             t.Status = t.IsOccupied ? "occupied" : "empty";
                     }
 
-                    using var cmdT = conn.CreateCommand();
-                    cmdT.Transaction = trans;
-                    cmdT.CommandText = @"
-                        INSERT INTO cache_tables (
-                            number, name, zone, capacity, guests_count, is_occupied,
-                            status, assigned_waiter, opened_at, order_status, active_order_json, active_call_json
-                        ) VALUES (
-                            @num, @name, @zone, @cap, @guests, @occ,
-                            @status, @waiter, @opened, @ostatus, @orderJson, @callJson
-                        );";
-                    cmdT.Parameters.AddWithValue("@num", t.Number);
-                    cmdT.Parameters.AddWithValue("@name", t.Name);
-                    cmdT.Parameters.AddWithValue("@zone", string.IsNullOrWhiteSpace(t.Zone) ? "Zal" : t.Zone);
-                    cmdT.Parameters.AddWithValue("@cap", t.Capacity);
-                    cmdT.Parameters.AddWithValue("@guests", t.GuestsCount);
-                    cmdT.Parameters.AddWithValue("@occ", t.IsOccupied ? 1 : 0);
-                    cmdT.Parameters.AddWithValue("@status", string.IsNullOrWhiteSpace(t.Status) ? "empty" : t.Status);
-                    cmdT.Parameters.AddWithValue("@waiter", (object?)t.AssignedWaiter ?? DBNull.Value);
-                    cmdT.Parameters.AddWithValue("@opened", (object?)t.OpenedAt ?? DBNull.Value);
-                    cmdT.Parameters.AddWithValue("@ostatus", (object?)t.OrderStatus ?? DBNull.Value);
-                    cmdT.Parameters.AddWithValue("@orderJson", t.ActiveOrder != null ? JsonSerializer.Serialize(t.ActiveOrder) : DBNull.Value);
-                    cmdT.Parameters.AddWithValue("@callJson", t.ActiveCall != null ? JsonSerializer.Serialize(t.ActiveCall) : DBNull.Value);
-                    await cmdT.ExecuteNonQueryAsync();
+                    await UpsertTableRowAsync(conn, trans, t);
                 }
 
                 trans.Commit();

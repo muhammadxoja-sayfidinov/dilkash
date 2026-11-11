@@ -52,6 +52,33 @@ def _get_or_create_pos_customer(phone, full_name):
     raise RuntimeError("Noyob Telegram ID yaratib bo'lmadi")
 
 
+def _parse_json_body(request):
+    try:
+        return json.loads(request.body.decode('utf-8')) if request.body else {}
+    except Exception:
+        return None
+
+
+def _replace_order_items(order, items_in):
+    """Offline/POS buyurtma elementlarini ID yoki nom bo'yicha yaratish."""
+    for item_d in items_in:
+        prod_id = item_d.get('product_id')
+        prod_name = (item_d.get('product_name') or '').strip()
+        qty = int(item_d.get('quantity', 1))
+        price = Decimal(str(item_d.get('price', 0)))
+        prod = Product.objects.filter(id=prod_id).first()
+        if not prod and prod_name:
+            prod = Product.objects.filter(name__iexact=prod_name).first()
+        if prod and qty > 0:
+            OrderItem.objects.create(
+                order=order,
+                product=prod,
+                quantity=qty,
+                price=price,
+                total=price * qty,
+            )
+
+
 def _norm_table_num(raw):
     s = str(raw or '').strip().upper()
     if s.startswith('T-'):
@@ -351,10 +378,9 @@ def pos_tables_api(request):
         return JsonResponse({'status': 'ok', 'tables': _serialize_tables()})
 
     if request.method == 'POST':
-        try:
-            body = json.loads(request.body.decode('utf-8'))
-        except Exception:
-            return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
+        body = _parse_json_body(request)
+        if body is None:
+            return JsonResponse({'error': "Noto'g'ri JSON format"}, status=400)
 
         action = body.get('action', 'open')
         table_number = str(body.get('table_number', '')).strip()
@@ -468,10 +494,9 @@ def pos_orders_api(request):
         return JsonResponse({'status': 'ok', 'orders': orders_data})
 
     if request.method == 'POST':
-        try:
-            data = json.loads(request.body.decode('utf-8'))
-        except Exception:
-            return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
+        data = _parse_json_body(request)
+        if data is None:
+            return JsonResponse({'error': "Noto'g'ri JSON format"}, status=400)
 
         order_id = data.get('id')
         offline_id = data.get('offline_id')
@@ -648,10 +673,7 @@ def pos_order_pay_api(request, order_id):
         return JsonResponse({'error': 'Faqat POST qabul qilinadi'}, status=405)
 
     order = get_object_or_404(Order, id=order_id)
-    try:
-        body = json.loads(request.body.decode('utf-8'))
-    except Exception:
-        body = {}
+    body = _parse_json_body(request) or {}
 
     payment_method = body.get('payment_method', 'naqd')
     paid_cash = Decimal(str(body.get('paid_cash', 0)))
@@ -720,11 +742,7 @@ def pos_toggle_stop_api(request, product_id):
         return JsonResponse({'error': 'Faqat POST qabul qilinadi'}, status=405)
 
     product = get_object_or_404(Product, id=product_id)
-
-    try:
-        body = json.loads(request.body.decode('utf-8'))
-    except Exception:
-        body = {}
+    body = _parse_json_body(request) or {}
 
     if 'is_available' in body:
         product.is_available = bool(body['is_available'])
@@ -772,10 +790,7 @@ def pos_online_order_action_api(request, order_id):
         return JsonResponse({'error': 'Faqat POST qabul qilinadi'}, status=405)
 
     order = get_object_or_404(Order, id=order_id)
-    try:
-        body = json.loads(request.body.decode('utf-8'))
-    except Exception:
-        body = {}
+    body = _parse_json_body(request) or {}
 
     action = body.get('action', 'accept')
 
@@ -819,10 +834,9 @@ def pos_sync_push_api(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Faqat POST qabul qilinadi'}, status=405)
 
-    try:
-        data = json.loads(request.body.decode('utf-8'))
-    except Exception:
-        return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
+    data = _parse_json_body(request)
+    if data is None:
+        return JsonResponse({'error': "Noto'g'ri JSON format"}, status=400)
 
     orders_batch = data.get('orders', [])
     dismissed_call_ids = data.get('dismissed_call_ids', [])
@@ -901,22 +915,7 @@ def pos_sync_push_api(request):
                 items_in = o_data.get('items', [])
                 if items_in:
                     order.items.all().delete()
-                    for item_d in items_in:
-                        prod_id = item_d.get('product_id')
-                        prod_name = (item_d.get('product_name') or '').strip()
-                        qty = int(item_d.get('quantity', 1))
-                        price = Decimal(str(item_d.get('price', 0)))
-                        prod = Product.objects.filter(id=prod_id).first()
-                        if not prod and prod_name:
-                            prod = Product.objects.filter(name__iexact=prod_name).first()
-                        if prod and qty > 0:
-                            OrderItem.objects.create(
-                                order=order,
-                                product=prod,
-                                quantity=qty,
-                                price=price,
-                                total=price * qty,
-                            )
+                    _replace_order_items(order, items_in)
             else:
                 customer = _get_or_create_pos_customer(customer_phone, customer_name)
                 default_status = ('yetkazildi' if service_type == 'dine_in' else 'olib_ketildi') if is_paid else 'yangi'
@@ -940,22 +939,7 @@ def pos_sync_push_api(request):
                     is_synced=True,
                 )
 
-                for item_d in o_data.get('items', []):
-                    prod_id = item_d.get('product_id')
-                    prod_name = (item_d.get('product_name') or '').strip()
-                    qty = int(item_d.get('quantity', 1))
-                    price = Decimal(str(item_d.get('price', 0)))
-                    prod = Product.objects.filter(id=prod_id).first()
-                    if not prod and prod_name:
-                        prod = Product.objects.filter(name__iexact=prod_name).first()
-                    if prod and qty > 0:
-                        OrderItem.objects.create(
-                            order=order,
-                            product=prod,
-                            quantity=qty,
-                            price=price,
-                            total=price * qty
-                        )
+                _replace_order_items(order, o_data.get('items', []))
 
             if service_type == 'dine_in' and table_number:
                 t_int = int(table_number) if str(table_number).isdigit() else 0
@@ -988,13 +972,6 @@ def pos_sync_push_api(request):
         'server_id_map': server_id_map,
         'server_time': timezone.now().isoformat(),
     })
-
-
-def _parse_json_body(request):
-    try:
-        return json.loads(request.body.decode('utf-8')) if request.body else {}
-    except Exception:
-        return None
 
 
 def _normalize_uz_phone(raw_phone):

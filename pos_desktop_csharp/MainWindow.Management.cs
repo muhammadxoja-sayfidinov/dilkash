@@ -213,32 +213,50 @@ namespace DilkashPos
                 await OpenAndSaveProductDialogAsync(p);
         }
 
-        private async void OnManageDeleteProductClick(object sender, RoutedEventArgs e)
+        private async Task<(bool Proceed, JsonElement Doc)> TryConfirmAndDeleteAsync(
+            string title,
+            string message,
+            int remoteId,
+            Func<Task<(bool NetworkOk, bool Success, JsonElement Doc, string Error)>> callApi,
+            string offlineEndpoint)
         {
-            if (sender is not Button btn || btn.Tag is not Product p) return;
-            var confirm = new ConfirmDialog("Taomni oʻchirish", $"'{p.Name}' taomini menyudan oʻchirasizmi?", "Oʻchirish", isDestructive: true);
-            if (Dialogs.ShowModal(confirm, this) != true) return;
+            var confirm = new ConfirmDialog(title, message, "Oʻchirish", isDestructive: true);
+            if (Dialogs.ShowModal(confirm, this) != true)
+                return (false, default);
 
-            if (p.Id > 0)
+            if (remoteId > 0)
             {
-                var (netOk, ok, doc, err) = await _api.DeleteProductAsync(p.Id);
+                var (netOk, ok, doc, err) = await callApi();
                 if (netOk && !ok)
                 {
                     Toast.Show(err, ToastTone.Warning);
-                    return;
+                    return (false, doc);
                 }
                 if (!netOk)
-                {
-                    await _db.EnqueueAdminActionAsync($"/api/pos/products/{p.Id}/delete/", "{}");
-                }
-                else if (doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("archived", out var arch) && arch.GetBoolean())
-                {
-                    p.IsAvailable = false;
-                    await _db.UpsertLocalProductAsync(p);
-                    RefreshAllProductViews();
-                    Toast.Show($"'{p.Name}' oldingi buyurtmalarda qatnashgani uchun Stop-listga oʻtkazildi", ToastTone.Info);
-                    return;
-                }
+                    await _db.EnqueueAdminActionAsync(offlineEndpoint, "{}");
+                return (true, doc);
+            }
+            return (true, default);
+        }
+
+        private async void OnManageDeleteProductClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn || btn.Tag is not Product p) return;
+            var (proceed, doc) = await TryConfirmAndDeleteAsync(
+                "Taomni oʻchirish",
+                $"'{p.Name}' taomini menyudan oʻchirasizmi?",
+                p.Id,
+                () => _api.DeleteProductAsync(p.Id),
+                $"/api/pos/products/{p.Id}/delete/");
+            if (!proceed) return;
+
+            if (doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("archived", out var arch) && arch.GetBoolean())
+            {
+                p.IsAvailable = false;
+                await _db.UpsertLocalProductAsync(p);
+                RefreshAllProductViews();
+                Toast.Show($"'{p.Name}' oldingi buyurtmalarda qatnashgani uchun Stop-listga oʻtkazildi", ToastTone.Info);
+                return;
             }
 
             lock (_stateLock) _products.RemoveAll(x => x.Id == p.Id);
@@ -264,20 +282,13 @@ namespace DilkashPos
                 return;
             }
 
-            var confirm = new ConfirmDialog("Guruhni oʻchirish", $"'{c.Name}' guruhini oʻchirasizmi?", "Oʻchirish", isDestructive: true);
-            if (Dialogs.ShowModal(confirm, this) != true) return;
-
-            if (c.Id > 0)
-            {
-                var (netOk, ok, _, err) = await _api.DeleteCategoryAsync(c.Id);
-                if (netOk && !ok)
-                {
-                    Toast.Show(err, ToastTone.Warning);
-                    return;
-                }
-                if (!netOk)
-                    await _db.EnqueueAdminActionAsync($"/api/pos/categories/{c.Id}/delete/", "{}");
-            }
+            var (proceed, _) = await TryConfirmAndDeleteAsync(
+                "Guruhni oʻchirish",
+                $"'{c.Name}' guruhini oʻchirasizmi?",
+                c.Id,
+                () => _api.DeleteCategoryAsync(c.Id),
+                $"/api/pos/categories/{c.Id}/delete/");
+            if (!proceed) return;
 
             lock (_stateLock) _categories.RemoveAll(x => x.Id == c.Id);
             await _db.DeleteLocalCategoryAsync(c.Id);
@@ -315,20 +326,13 @@ namespace DilkashPos
         private async void OnManageDeleteStaffClick(object sender, RoutedEventArgs e)
         {
             if (sender is not Button btn || btn.Tag is not StaffAccount s) return;
-            var confirm = new ConfirmDialog("Xodimni oʻchirish", $"'{s.Name}' ({s.RoleLabel}) ni oʻchirasizmi?", "Oʻchirish", isDestructive: true);
-            if (Dialogs.ShowModal(confirm, this) != true) return;
-
-            if (s.Id > 0)
-            {
-                var (netOk, ok, _, err) = await _api.DeleteStaffAsync(s.Role, s.Id);
-                if (netOk && !ok)
-                {
-                    Toast.Show(err, ToastTone.Warning);
-                    return;
-                }
-                if (!netOk)
-                    await _db.EnqueueAdminActionAsync($"/api/pos/staff/{s.Role}/{s.Id}/delete/", "{}");
-            }
+            var (proceed, _) = await TryConfirmAndDeleteAsync(
+                "Xodimni oʻchirish",
+                $"'{s.Name}' ({s.RoleLabel}) ni oʻchirasizmi?",
+                s.Id,
+                () => _api.DeleteStaffAsync(s.Role, s.Id),
+                $"/api/pos/staff/{s.Role}/{s.Id}/delete/");
+            if (!proceed) return;
 
             lock (_stateLock) _staffAccounts.RemoveAll(x => x.Role == s.Role && x.Id == s.Id);
             await _db.DeleteLocalStaffAsync(s.Role, s.Id);
@@ -351,20 +355,13 @@ namespace DilkashPos
                 return;
             }
 
-            var confirm = new ConfirmDialog("Stolni oʻchirish", $"Stol #{t.Number} ({t.Name}) ni oʻchirasizmi?", "Oʻchirish", isDestructive: true);
-            if (Dialogs.ShowModal(confirm, this) != true) return;
-
-            if (t.Id > 0)
-            {
-                var (netOk, ok, _, err) = await _api.DeleteTableAsync(t.Id);
-                if (netOk && !ok)
-                {
-                    Toast.Show(err, ToastTone.Warning);
-                    return;
-                }
-                if (!netOk)
-                    await _db.EnqueueAdminActionAsync($"/api/pos/tables/{t.Id}/delete/", "{}");
-            }
+            var (proceed, _) = await TryConfirmAndDeleteAsync(
+                "Stolni oʻchirish",
+                $"Stol #{t.Number} ({t.Name}) ni oʻchirasizmi?",
+                t.Id,
+                () => _api.DeleteTableAsync(t.Id),
+                $"/api/pos/tables/{t.Id}/delete/");
+            if (!proceed) return;
 
             lock (_stateLock) _tables.RemoveAll(x => x.Number == t.Number);
             await _db.DeleteLocalTableByNumberAsync(t.Number);
