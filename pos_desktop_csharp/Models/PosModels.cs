@@ -41,6 +41,7 @@ namespace DilkashPos.Models
         public string Description { get; set; } = "";
         public string Icon { get; set; } = "🍽";
         public int ProductsCount { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 
     public class Product : BaseModel
@@ -90,6 +91,7 @@ namespace DilkashPos.Models
         public string Name { get; set; } = "";
         public string Zone { get; set; } = "Zal"; // 'Zal', 'Terrasa', 'VIP'
         public int Capacity { get; set; } = 4;
+        public bool IsActive { get; set; } = true;
         public string? AssignedWaiter { get; set; }
         public string? OpenedAt { get; set; }
         public string? OrderStatus { get; set; }
@@ -326,6 +328,11 @@ namespace DilkashPos.Models
         public string StaffCode { get; set; } = "";
         public string Token { get; set; } = "";
         public string VehicleInfo { get; set; } = "";
+        public bool IsActive { get; set; } = true;
+        public long? TelegramId { get; set; }
+
+        public string RoleLabel => Role == "courier" ? "Kuryer" : "Ofitsiant";
+        public string StatusLabel => IsActive ? "Faol" : "Nofaol";
     }
 
     public class PosSettings
@@ -334,7 +341,19 @@ namespace DilkashPos.Models
         public decimal ServiceFeePercent { get; set; } = 10.0m;
         public decimal ServiceFeePerPerson { get; set; } = 5000.0m;
         public bool AutoPrintNetwork { get; set; } = true;
+        public string ServiceStartTime { get; set; } = "10:00";
+        public string ServiceEndTime { get; set; } = "22:00";
         public decimal DeliveryBaseCost { get; set; } = 5000.0m;
+        public decimal DeliveryCostPerExtraKmBlock { get; set; } = 6000.0m;
+        public double DeliveryMaxRadiusKm { get; set; } = 10.0;
+        public string BroadcastMessageText { get; set; } = "";
+        public string ClickServiceId { get; set; } = "";
+        public string ClickMerchantId { get; set; } = "";
+        public string ClickSecretKey { get; set; } = "";
+        public string PaymeMerchantId { get; set; } = "";
+        public string PaymeSecretKey { get; set; } = "";
+        public bool HasClickSecret { get; set; }
+        public bool HasPaymeSecret { get; set; }
         public Dictionary<string, string> Printers { get; set; } = new();
         public string ServerUrl { get; set; } = "https://dilkash-django-production.up.railway.app";
         public string CashierName { get; set; } = "Jasur Rahimov";

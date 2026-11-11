@@ -84,7 +84,16 @@ namespace DilkashPos.Data
                         staff_code TEXT,
                         token TEXT,
                         vehicle_info TEXT,
+                        is_active INTEGER NOT NULL DEFAULT 1,
+                        telegram_id INTEGER,
                         PRIMARY KEY (role, id)
+                    );
+
+                    CREATE TABLE IF NOT EXISTS pending_admin_actions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        endpoint TEXT NOT NULL,
+                        payload_json TEXT NOT NULL,
+                        created_at TEXT NOT NULL
                     );
 
                     CREATE TABLE IF NOT EXISTS cache_waiter_calls (
@@ -120,6 +129,10 @@ namespace DilkashPos.Data
                 EnsureColumnExists(conn, "cache_tables", "order_status", "TEXT");
                 EnsureColumnExists(conn, "cache_tables", "active_order_json", "TEXT");
                 EnsureColumnExists(conn, "cache_tables", "active_call_json", "TEXT");
+                EnsureColumnExists(conn, "cache_categories", "is_active", "INTEGER NOT NULL DEFAULT 1");
+                EnsureColumnExists(conn, "cache_categories", "products_count", "INTEGER NOT NULL DEFAULT 0");
+                EnsureColumnExists(conn, "cache_staff", "is_active", "INTEGER NOT NULL DEFAULT 1");
+                EnsureColumnExists(conn, "cache_staff", "telegram_id", "INTEGER");
             }
         }
 
@@ -275,7 +288,7 @@ namespace DilkashPos.Data
             await conn.OpenAsync();
 
             var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT id, name, department, description FROM cache_categories ORDER BY name;";
+            cmd.CommandText = "SELECT id, name, department, description, COALESCE(is_active, 1), COALESCE(products_count, 0) FROM cache_categories ORDER BY name;";
             using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
@@ -283,8 +296,10 @@ namespace DilkashPos.Data
                 {
                     Id = reader.GetInt32(0),
                     Name = reader.GetString(1),
-                    Department = reader.GetString(2),
-                    Description = reader.GetString(3),
+                    Department = reader.IsDBNull(2) ? "kitchen" : reader.GetString(2),
+                    Description = reader.IsDBNull(3) ? "" : reader.GetString(3),
+                    IsActive = reader.GetInt32(4) == 1,
+                    ProductsCount = reader.GetInt32(5),
                 });
             }
             return list;
@@ -594,11 +609,15 @@ namespace DilkashPos.Data
                 {
                     using var cmdC = conn.CreateCommand();
                     cmdC.Transaction = trans;
-                    cmdC.CommandText = "INSERT INTO cache_categories (id, name, department, description) VALUES (@id, @name, @dept, @desc);";
+                    cmdC.CommandText = @"
+                        INSERT INTO cache_categories (id, name, department, description, is_active, products_count)
+                        VALUES (@id, @name, @dept, @desc, @act, @cnt);";
                     cmdC.Parameters.AddWithValue("@id", c.Id);
                     cmdC.Parameters.AddWithValue("@name", c.Name);
                     cmdC.Parameters.AddWithValue("@dept", c.Department);
                     cmdC.Parameters.AddWithValue("@desc", c.Description);
+                    cmdC.Parameters.AddWithValue("@act", c.IsActive ? 1 : 0);
+                    cmdC.Parameters.AddWithValue("@cnt", c.ProductsCount);
                     await cmdC.ExecuteNonQueryAsync();
                 }
 
@@ -615,8 +634,8 @@ namespace DilkashPos.Data
                         using var cmdS = conn.CreateCommand();
                         cmdS.Transaction = trans;
                         cmdS.CommandText = @"
-                            INSERT OR REPLACE INTO cache_staff (id, role, name, phone, pin_hash, staff_code, token, vehicle_info)
-                            VALUES (@id, @role, @name, @phone, @pinh, @code, @tok, @veh);";
+                            INSERT OR REPLACE INTO cache_staff (id, role, name, phone, pin_hash, staff_code, token, vehicle_info, is_active, telegram_id)
+                            VALUES (@id, @role, @name, @phone, @pinh, @code, @tok, @veh, @act, @tg);";
                         cmdS.Parameters.AddWithValue("@id", s.Id);
                         cmdS.Parameters.AddWithValue("@role", s.Role);
                         cmdS.Parameters.AddWithValue("@name", s.Name);
@@ -625,6 +644,8 @@ namespace DilkashPos.Data
                         cmdS.Parameters.AddWithValue("@code", s.StaffCode ?? $"DIL-{s.Id}");
                         cmdS.Parameters.AddWithValue("@tok", s.Token ?? "");
                         cmdS.Parameters.AddWithValue("@veh", s.VehicleInfo ?? "");
+                        cmdS.Parameters.AddWithValue("@act", s.IsActive ? 1 : 0);
+                        cmdS.Parameters.AddWithValue("@tg", s.TelegramId.HasValue ? s.TelegramId.Value : DBNull.Value);
                         await cmdS.ExecuteNonQueryAsync();
                     }
                 }
@@ -714,7 +735,7 @@ namespace DilkashPos.Data
             using var conn = new SqliteConnection(_connectionString);
             await conn.OpenAsync();
             var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT id, role, name, phone, pin_hash, staff_code, token, vehicle_info FROM cache_staff ORDER BY role, id;";
+            cmd.CommandText = "SELECT id, role, name, phone, pin_hash, staff_code, token, vehicle_info, COALESCE(is_active, 1), telegram_id FROM cache_staff ORDER BY is_active DESC, role, name, id;";
             using var r = await cmd.ExecuteReaderAsync();
             while (await r.ReadAsync())
             {
@@ -728,6 +749,8 @@ namespace DilkashPos.Data
                     StaffCode = r.IsDBNull(5) ? "" : r.GetString(5),
                     Token = r.IsDBNull(6) ? "" : r.GetString(6),
                     VehicleInfo = r.IsDBNull(7) ? "" : r.GetString(7),
+                    IsActive = r.IsDBNull(8) || r.GetInt32(8) == 1,
+                    TelegramId = r.IsDBNull(9) ? null : r.GetInt64(9),
                 });
             }
             return list;
@@ -741,10 +764,10 @@ namespace DilkashPos.Data
                 // Cold-boot emergency fallback ONLY when SQLite has zero synced staff records yet
                 staff = new List<StaffAccount>
                 {
-                    new() { Id = 1, Role = "waiter", Name = "Jasur Rahimov", Phone = "+998901112233", PinHash = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4", StaffCode = "DIL-1", Token = "local_w1" },
-                    new() { Id = 1, Role = "courier", Name = "Jasur Rahimov", Phone = "+998901112233", PinHash = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4", StaffCode = "DIL-1", Token = "local_c1" },
-                    new() { Id = 2, Role = "waiter", Name = "Sardor Alimov", Phone = "+998902223344", PinHash = "38083c7ee9121e17401883566a148aa5c2e2d55dc53bc4a94a026517dbff3c6b", StaffCode = "DIL-2", Token = "local_w2" },
-                    new() { Id = 3, Role = "waiter", Name = "Nodir Karimov", Phone = "+998903334455", PinHash = "ceaa28bba4caba687dc31b1bbe79eca3c70c33f871f1ce8f528cf9ab5cfd76dd", StaffCode = "DIL-3", Token = "local_w3" },
+                    new() { Id = 1, Role = "waiter", Name = "Jasur Rahimov", Phone = "+998901112233", PinHash = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4", StaffCode = "DIL-1", Token = "local_w1", IsActive = true },
+                    new() { Id = 1, Role = "courier", Name = "Jasur Rahimov", Phone = "+998901112233", PinHash = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4", StaffCode = "DIL-1", Token = "local_c1", IsActive = true },
+                    new() { Id = 2, Role = "waiter", Name = "Sardor Alimov", Phone = "+998902223344", PinHash = "38083c7ee9121e17401883566a148aa5c2e2d55dc53bc4a94a026517dbff3c6b", StaffCode = "DIL-2", Token = "local_w2", IsActive = true },
+                    new() { Id = 3, Role = "waiter", Name = "Nodir Karimov", Phone = "+998903334455", PinHash = "ceaa28bba4caba687dc31b1bbe79eca3c70c33f871f1ce8f528cf9ab5cfd76dd", StaffCode = "DIL-3", Token = "local_w3", IsActive = true },
                 };
             }
 
@@ -752,7 +775,7 @@ namespace DilkashPos.Data
             var targetPinHash = ComputeSha256Hex(pin.Trim());
 
             return staff
-                .Where(s => NormalizePhoneLast9(s.Phone) == targetPhone && string.Equals(s.PinHash, targetPinHash, StringComparison.OrdinalIgnoreCase))
+                .Where(s => s.IsActive && NormalizePhoneLast9(s.Phone) == targetPhone && string.Equals(s.PinHash, targetPinHash, StringComparison.OrdinalIgnoreCase))
                 .ToList();
         }
 
@@ -850,6 +873,204 @@ namespace DilkashPos.Data
                 del.CommandText = "DELETE FROM pending_call_dismissals WHERE call_id = @id;";
                 del.Parameters.AddWithValue("@id", id);
                 await del.ExecuteNonQueryAsync();
+            }
+        }
+
+        public async Task EnqueueAdminActionAsync(string endpoint, string payloadJson)
+        {
+            using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = "INSERT INTO pending_admin_actions (endpoint, payload_json, created_at) VALUES (@ep, @pl, @cat);";
+            cmd.Parameters.AddWithValue("@ep", endpoint);
+            cmd.Parameters.AddWithValue("@pl", payloadJson ?? "{}");
+            cmd.Parameters.AddWithValue("@cat", DateTime.UtcNow.ToString("o"));
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task<List<(long Id, string Endpoint, string PayloadJson)>> GetPendingAdminActionsAsync()
+        {
+            var list = new List<(long, string, string)>();
+            using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT id, endpoint, payload_json FROM pending_admin_actions ORDER BY id ASC;";
+            using var r = await cmd.ExecuteReaderAsync();
+            while (await r.ReadAsync())
+            {
+                list.Add((r.GetInt64(0), r.GetString(1), r.GetString(2)));
+            }
+            return list;
+        }
+
+        public async Task DeletePendingAdminActionAsync(long actionId)
+        {
+            using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = "DELETE FROM pending_admin_actions WHERE id = @id;";
+            cmd.Parameters.AddWithValue("@id", actionId);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task<int> UpsertLocalCategoryAsync(Category c)
+        {
+            using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            if (c.Id == 0)
+            {
+                using var minCmd = conn.CreateCommand();
+                minCmd.CommandText = "SELECT COALESCE(MIN(id), 0) FROM cache_categories WHERE id < 0;";
+                c.Id = Convert.ToInt32(await minCmd.ExecuteScalarAsync()) - 1;
+            }
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                INSERT OR REPLACE INTO cache_categories (id, name, department, description, is_active, products_count)
+                VALUES (@id, @n, @d, @ds, @act, @cnt);";
+            cmd.Parameters.AddWithValue("@id", c.Id);
+            cmd.Parameters.AddWithValue("@n", c.Name);
+            cmd.Parameters.AddWithValue("@d", c.Department ?? "kitchen");
+            cmd.Parameters.AddWithValue("@ds", c.Description ?? "");
+            cmd.Parameters.AddWithValue("@act", c.IsActive ? 1 : 0);
+            cmd.Parameters.AddWithValue("@cnt", c.ProductsCount);
+            await cmd.ExecuteNonQueryAsync();
+            return c.Id;
+        }
+
+        public async Task DeleteLocalCategoryAsync(int catId)
+        {
+            using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "DELETE FROM cache_categories WHERE id = @id;";
+            cmd.Parameters.AddWithValue("@id", catId);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task<int> UpsertLocalProductAsync(Product p)
+        {
+            using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            if (p.Id == 0)
+            {
+                using var minCmd = conn.CreateCommand();
+                minCmd.CommandText = "SELECT COALESCE(MIN(id), 0) FROM cache_products WHERE id < 0;";
+                p.Id = Convert.ToInt32(await minCmd.ExecuteScalarAsync()) - 1;
+            }
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                INSERT OR REPLACE INTO cache_products (id, name, price, category_id, category_name, department, is_available, description, image_url)
+                VALUES (@id, @n, @pr, @cid, @cn, @dept, @av, @ds, @img);";
+            cmd.Parameters.AddWithValue("@id", p.Id);
+            cmd.Parameters.AddWithValue("@n", p.Name);
+            cmd.Parameters.AddWithValue("@pr", (double)p.Price);
+            cmd.Parameters.AddWithValue("@cid", p.CategoryId);
+            cmd.Parameters.AddWithValue("@cn", p.CategoryName ?? "");
+            cmd.Parameters.AddWithValue("@dept", p.Department ?? "kitchen");
+            cmd.Parameters.AddWithValue("@av", p.IsAvailable ? 1 : 0);
+            cmd.Parameters.AddWithValue("@ds", p.Description ?? "");
+            cmd.Parameters.AddWithValue("@img", (object?)p.ImageUrl ?? DBNull.Value);
+            await cmd.ExecuteNonQueryAsync();
+            return p.Id;
+        }
+
+        public async Task DeleteLocalProductAsync(int prodId)
+        {
+            using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "DELETE FROM cache_products WHERE id = @id;";
+            cmd.Parameters.AddWithValue("@id", prodId);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task<int> UpsertLocalStaffAsync(StaffAccount s, string? plainPin = null)
+        {
+            using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            if (s.Id == 0)
+            {
+                using var minCmd = conn.CreateCommand();
+                minCmd.CommandText = "SELECT COALESCE(MIN(id), 0) FROM cache_staff WHERE id < 0;";
+                s.Id = Convert.ToInt32(await minCmd.ExecuteScalarAsync()) - 1;
+            }
+            if (!string.IsNullOrWhiteSpace(plainPin))
+            {
+                s.PinHash = ComputeSha256Hex(plainPin.Trim());
+            }
+            if (string.IsNullOrWhiteSpace(s.PinHash))
+            {
+                s.PinHash = ComputeSha256Hex("1234");
+            }
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                INSERT OR REPLACE INTO cache_staff (id, role, name, phone, pin_hash, staff_code, token, vehicle_info, is_active, telegram_id)
+                VALUES (@id, @r, @n, @ph, @pinh, @sc, @tok, @veh, @act, @tg);";
+            cmd.Parameters.AddWithValue("@id", s.Id);
+            cmd.Parameters.AddWithValue("@r", s.Role);
+            cmd.Parameters.AddWithValue("@n", s.Name);
+            cmd.Parameters.AddWithValue("@ph", s.Phone ?? "");
+            cmd.Parameters.AddWithValue("@pinh", s.PinHash);
+            cmd.Parameters.AddWithValue("@sc", string.IsNullOrWhiteSpace(s.StaffCode) ? $"DIL-{Math.Abs(s.Id)}" : s.StaffCode);
+            cmd.Parameters.AddWithValue("@tok", string.IsNullOrWhiteSpace(s.Token) ? $"loc_{s.Role}_{Math.Abs(s.Id)}" : s.Token);
+            cmd.Parameters.AddWithValue("@veh", s.VehicleInfo ?? "");
+            cmd.Parameters.AddWithValue("@act", s.IsActive ? 1 : 0);
+            cmd.Parameters.AddWithValue("@tg", s.TelegramId.HasValue ? s.TelegramId.Value : DBNull.Value);
+            await cmd.ExecuteNonQueryAsync();
+            return s.Id;
+        }
+
+        public async Task ToggleLocalStaffAsync(string role, int staffId)
+        {
+            using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE cache_staff SET is_active = CASE WHEN COALESCE(is_active, 1) = 1 THEN 0 ELSE 1 END WHERE role = @r AND id = @id;";
+            cmd.Parameters.AddWithValue("@r", role);
+            cmd.Parameters.AddWithValue("@id", staffId);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task DeleteLocalStaffAsync(string role, int staffId)
+        {
+            using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "DELETE FROM cache_staff WHERE role = @r AND id = @id;";
+            cmd.Parameters.AddWithValue("@r", role);
+            cmd.Parameters.AddWithValue("@id", staffId);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task DeleteLocalTableByNumberAsync(int tableNumber)
+        {
+            using var conn = new SqliteConnection(_connectionString);
+            await conn.OpenAsync();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "DELETE FROM cache_tables WHERE number = @num;";
+            cmd.Parameters.AddWithValue("@num", tableNumber);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task SaveFullSettingsLocalAsync(PosSettings settings)
+        {
+            var json = JsonSerializer.Serialize(settings);
+            await SaveSettingAsync("full_settings_json", json);
+            await SaveSettingAsync("server_url", settings.ServerUrl ?? "");
+            await SaveSettingAsync("cashier_name", settings.CashierName ?? "");
+        }
+
+        public async Task<PosSettings?> LoadFullSettingsLocalAsync()
+        {
+            var raw = await GetSettingAsync("full_settings_json");
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            try
+            {
+                return JsonSerializer.Deserialize<PosSettings>(raw);
+            }
+            catch
+            {
+                return null;
             }
         }
     }

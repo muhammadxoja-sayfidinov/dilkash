@@ -218,7 +218,30 @@
                                 </Grid>
                             </RadioButton>
 
-                            <!-- 6. Sozlamalar -->
+                            <!-- 6. Boshqaruv (Taomlar, Guruhlar, Xodimlar, Stollar) -->
+                            <RadioButton x:Name="NavManageBtn"
+                                         GroupName="MainNav"
+                                         Style="{StaticResource NavRailItem}"
+                                         Click="OnNavClicked"
+                                         Tag="manage">
+                                <Grid>
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,3">
+                                        <controls:Icon Data="{StaticResource IconEdit}"
+                                                       Size="20"
+                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                       HorizontalAlignment="Center" />
+                                        <TextBlock Text="Boshqaruv"
+                                                   FontSize="11.5"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                   TextAlignment="Center"
+                                                   TextTrimming="None"
+                                                   Margin="0,3,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </RadioButton>
+
+                            <!-- 7. Sozlamalar -->
                             <RadioButton x:Name="NavSettingsBtn"
                                          GroupName="MainNav"
                                          Style="{StaticResource NavRailItem}"
@@ -1410,6 +1433,248 @@
             </Grid>
 
             <!-- ===================================================== -->
+            <!-- 5.5. TAB: BOSHQARUV (TAOM, GURUH, XODIM, STOL CRUD)    -->
+            <!-- ===================================================== -->
+            <Grid x:Name="ManageTab" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Header Bar: Sub-tabs + Search + + Qo'shish CTA -->
+                <Grid Grid.Row="0" Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="14" />
+                        <ColumnDefinition Width="*" MaxWidth="360" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0"
+                            Background="{DynamicResource BrushSurface}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusSm}"
+                            Padding="4"
+                            VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="ManageSubProductsBtn"
+                                         GroupName="ManageSubTabs"
+                                         Content="Taomlar"
+                                         Style="{StaticResource SegmentedItem}"
+                                         IsChecked="True"
+                                         Tag="products"
+                                         Click="OnManageSubTabClick" />
+                            <RadioButton x:Name="ManageSubCategoriesBtn"
+                                         GroupName="ManageSubTabs"
+                                         Content="Guruhlar"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Tag="categories"
+                                         Click="OnManageSubTabClick" />
+                            <RadioButton x:Name="ManageSubStaffBtn"
+                                         GroupName="ManageSubTabs"
+                                         Content="Xodimlar"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Tag="staff"
+                                         Click="OnManageSubTabClick" />
+                            <RadioButton x:Name="ManageSubTablesBtn"
+                                         GroupName="ManageSubTabs"
+                                         Content="Stollar"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Tag="tables"
+                                         Click="OnManageSubTabClick" />
+                        </StackPanel>
+                    </Border>
+
+                    <controls:SearchBox x:Name="ManageSearchBox"
+                                        Grid.Column="2"
+                                        Placeholder="Qidirish..."
+                                        VerticalAlignment="Center"
+                                        TextChanged="OnManageSearchChanged" />
+
+                    <Button x:Name="ManageAddBtn"
+                            Grid.Column="4"
+                            Style="{StaticResource PrimaryButton}"
+                            MinHeight="46"
+                            Padding="18,10"
+                            Click="OnManageAddClick">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <controls:Icon Data="{StaticResource IconPlus}" Size="16" Foreground="{DynamicResource BrushTextOnPrimary}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="ManageAddBtnText" Text="Taom qoʻshish" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+
+                <!-- Scrollable Management Rows -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="0,0,0,16">
+                        <!-- 1. Taomlar -->
+                        <ItemsControl x:Name="ManageProductsItemsControl" Visibility="Visible">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BrushSurface}"
+                                            BorderBrush="{DynamicResource BrushBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMd}"
+                                            Padding="16,12"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="2.2*" />
+                                                <ColumnDefinition Width="1.2*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="14" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource TextTitle}" />
+                                                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Background="{DynamicResource BrushSurfaceElevated}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusXs}" Padding="8,4" Margin="0,0,8,0">
+                                                    <TextBlock Text="{Binding CategoryAndDept}" Style="{StaticResource TextCaption}" FontWeight="SemiBold" />
+                                                </Border>
+                                                <TextBlock Text="{Binding PriceFormatted}" Style="{StaticResource TextBodyBold}" Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource BrushPrimaryBright}" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                            <Border Grid.Column="2" Background="{Binding StatusBg}" CornerRadius="{StaticResource RadiusFull}" Padding="10,4" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="SemiBold" Foreground="{Binding StatusFg}" />
+                                            </Border>
+                                            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="Tahrirlash" Style="{StaticResource SecondaryButton}" MinHeight="40" Padding="14,6" Margin="0,0,8,0" Tag="{Binding Model}" Click="OnManageEditProductClick" />
+                                                <Button Content="Oʻchirish" Style="{StaticResource DangerButton}" MinHeight="40" Padding="12,6" Tag="{Binding Model}" Click="OnManageDeleteProductClick" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 2. Guruhlar (Kategoriyalar) -->
+                        <ItemsControl x:Name="ManageCategoriesItemsControl" Visibility="Collapsed">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BrushSurface}"
+                                            BorderBrush="{DynamicResource BrushBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMd}"
+                                            Padding="16,12"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="2*" />
+                                                <ColumnDefinition Width="1.2*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="14" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource TextTitle}" />
+                                                <TextBlock Text="{Binding Description}" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Background="{DynamicResource BrushSurfaceElevated}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusXs}" Padding="8,4" Margin="0,0,10,0">
+                                                    <TextBlock Text="{Binding DepartmentLabel}" Style="{StaticResource TextCaption}" FontWeight="SemiBold" />
+                                                </Border>
+                                                <TextBlock Text="{Binding ProductsCountText}" Style="{StaticResource TextBody}" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                            <Border Grid.Column="2" Background="{DynamicResource BrushSurfaceElevated}" CornerRadius="{StaticResource RadiusFull}" Padding="10,4" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding StatusText}" Style="{StaticResource TextCaption}" FontWeight="SemiBold" />
+                                            </Border>
+                                            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="Tahrirlash" Style="{StaticResource SecondaryButton}" MinHeight="40" Padding="14,6" Margin="0,0,8,0" Tag="{Binding Model}" Click="OnManageEditCategoryClick" />
+                                                <Button Content="Oʻchirish" Style="{StaticResource DangerButton}" MinHeight="40" Padding="12,6" Tag="{Binding Model}" Click="OnManageDeleteCategoryClick" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 3. Xodimlar (Ofitsiantlar & Kuryerlar) -->
+                        <ItemsControl x:Name="ManageStaffItemsControl" Visibility="Collapsed">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BrushSurface}"
+                                            BorderBrush="{DynamicResource BrushBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMd}"
+                                            Padding="16,12"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="2*" />
+                                                <ColumnDefinition Width="1.2*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="14" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource TextTitle}" />
+                                                <TextBlock Text="{Binding DetailsText}" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Background="{DynamicResource BrushPrimaryTint}" BorderBrush="{DynamicResource BrushPrimary}" BorderThickness="1" CornerRadius="{StaticResource RadiusXs}" Padding="8,4" Margin="0,0,8,0">
+                                                    <TextBlock Text="{Binding RoleLabel}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource BrushPrimaryBright}" />
+                                                </Border>
+                                                <TextBlock Text="{Binding StaffCode}" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextMuted}" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                            <Button Grid.Column="2" Content="{Binding ToggleButtonText}" Style="{StaticResource SecondaryButton}" MinHeight="38" Padding="12,5" Tag="{Binding Model}" Click="OnManageToggleStaffClick" VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="Tahrirlash" Style="{StaticResource SecondaryButton}" MinHeight="40" Padding="14,6" Margin="0,0,8,0" Tag="{Binding Model}" Click="OnManageEditStaffClick" />
+                                                <Button Content="Oʻchirish" Style="{StaticResource DangerButton}" MinHeight="40" Padding="12,6" Tag="{Binding Model}" Click="OnManageDeleteStaffClick" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 4. Stollar -->
+                        <ItemsControl x:Name="ManageTablesItemsControl" Visibility="Collapsed">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BrushSurface}"
+                                            BorderBrush="{DynamicResource BrushBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMd}"
+                                            Padding="16,12"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="2*" />
+                                                <ColumnDefinition Width="1.2*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="14" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource TextTitle}" />
+                                                <TextBlock Text="{Binding Subtitle}" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Background="{DynamicResource BrushSurfaceElevated}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusXs}" Padding="8,4" Margin="0,0,10,0">
+                                                    <TextBlock Text="{Binding Zone}" Style="{StaticResource TextCaption}" FontWeight="SemiBold" />
+                                                </Border>
+                                                <TextBlock Text="{Binding CapacityText}" Style="{StaticResource TextBody}" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                            <Border Grid.Column="2" Background="{DynamicResource BrushSurfaceElevated}" CornerRadius="{StaticResource RadiusFull}" Padding="10,4" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding StatusText}" Style="{StaticResource TextCaption}" FontWeight="SemiBold" />
+                                            </Border>
+                                            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="Tahrirlash" Style="{StaticResource SecondaryButton}" MinHeight="40" Padding="14,6" Margin="0,0,8,0" Tag="{Binding Model}" Click="OnManageEditTableClick" />
+                                                <Button Content="Oʻchirish" Style="{StaticResource DangerButton}" MinHeight="40" Padding="12,6" Tag="{Binding Model}" Click="OnManageDeleteTableClick" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- ===================================================== -->
             <!-- 6. TAB: SOZLAMALAR (2-COLUMN + STICKY SAVE BAR)       -->
             <!-- ===================================================== -->
             <Grid x:Name="SettingsTab" Visibility="Collapsed">
@@ -1446,16 +1711,64 @@
                                     BorderThickness="1"
                                     CornerRadius="{StaticResource RadiusMd}"
                                     Padding="16,12"
-                                    Margin="0,4,0,0">
+                                    Margin="0,4,0,20">
                                 <CheckBox x:Name="AutoPrintCheck"
                                           Style="{StaticResource ToggleSwitch}"
                                           Content="Buyurtmada boʻlim printerlariga avtomatik chek chiqarish"
                                           IsChecked="True"
                                           Click="OnSettingsCheckChanged" />
                             </Border>
+
+                            <controls:SectionHeader Title="Telegram Bot va yetkazib berish"
+                                                    Subtitle="Ish vaqti, yetkazish tariflari va bot eʼloni" />
+
+                            <Border Background="{DynamicResource BrushSurface}"
+                                    BorderBrush="{DynamicResource BrushBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="{StaticResource RadiusMd}"
+                                    Padding="20">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <controls:Field Grid.Column="0" Label="Ish boshlanishi (HH:MM)">
+                                            <TextBox x:Name="ServiceStartTimeBox" Text="10:00" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
+                                        </controls:Field>
+                                        <controls:Field Grid.Column="2" Label="Ish tugashi (HH:MM)">
+                                            <TextBox x:Name="ServiceEndTimeBox" Text="22:00" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
+                                        </controls:Field>
+                                    </Grid>
+
+                                    <Grid Margin="0,0,0,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="0.8*" />
+                                        </Grid.ColumnDefinitions>
+                                        <controls:Field Grid.Column="0" Label="Boshlangʻich (soʻm)">
+                                            <TextBox x:Name="DeliveryBaseCostBox" Text="5000" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
+                                        </controls:Field>
+                                        <controls:Field Grid.Column="2" Label="Har km (soʻm)">
+                                            <TextBox x:Name="DeliveryExtraKmCostBox" Text="6000" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
+                                        </controls:Field>
+                                        <controls:Field Grid.Column="4" Label="Radius (km)">
+                                            <TextBox x:Name="DeliveryMaxRadiusBox" Text="10" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
+                                        </controls:Field>
+                                    </Grid>
+
+                                    <controls:Field Label="Bot eʼlon matni (ixtiyoriy)">
+                                        <TextBox x:Name="BroadcastTextBox" Height="64" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" Padding="12,10" TextChanged="OnSettingsTextChanged" />
+                                    </controls:Field>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
 
-                        <!-- Right: Server va xizmat haqi Fields -->
+                        <!-- Right: Server, xizmat haqi va onlayn toʻlovlar -->
                         <StackPanel Grid.Column="2">
                             <controls:SectionHeader Title="Server va xizmat haqi"
                                                     Subtitle="Tarmoq ulanishi, zal xizmati va kassir" />
@@ -1464,7 +1777,8 @@
                                     BorderBrush="{DynamicResource BrushBorder}"
                                     BorderThickness="1"
                                     CornerRadius="{StaticResource RadiusMd}"
-                                    Padding="20">
+                                    Padding="20"
+                                    Margin="0,0,0,20">
                                 <StackPanel>
                                     <controls:Field Label="Cloud Django Server manzili" HelperText="Internet boʻlganda markaziy server bilan sinxronlash uchun" Margin="0,0,0,16">
                                         <TextBox x:Name="ServerUrlBox" Text="https://dilkash-django-production.up.railway.app" TextChanged="OnSettingsTextChanged" />
@@ -1489,6 +1803,47 @@
                                     <controls:Field Label="Kassir ismi">
                                         <TextBox x:Name="CashierNameBox" Text="Jasur Rahimov" TextChanged="OnSettingsTextChanged" />
                                     </controls:Field>
+                                </StackPanel>
+                            </Border>
+
+                            <controls:SectionHeader Title="Click va Payme integratsiyasi"
+                                                    Subtitle="Onlayn toʻlov tizimi parametrlari" />
+
+                            <Border Background="{DynamicResource BrushSurface}"
+                                    BorderBrush="{DynamicResource BrushBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="{StaticResource RadiusMd}"
+                                    Padding="20">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <controls:Field Grid.Column="0" Label="Click Service ID">
+                                            <TextBox x:Name="ClickServiceIdBox" TextChanged="OnSettingsTextChanged" />
+                                        </controls:Field>
+                                        <controls:Field Grid.Column="2" Label="Click Merchant ID">
+                                            <TextBox x:Name="ClickMerchantIdBox" TextChanged="OnSettingsTextChanged" />
+                                        </controls:Field>
+                                    </Grid>
+                                    <controls:Field x:Name="ClickSecretField" Label="Click Secret Key" HelperText="Yangi kalit kiritilmasa eskisi saqlanadi" Margin="0,0,0,14">
+                                        <TextBox x:Name="ClickSecretBox" TextChanged="OnSettingsTextChanged" />
+                                    </controls:Field>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <controls:Field Grid.Column="0" Label="Payme Merchant ID">
+                                            <TextBox x:Name="PaymeMerchantIdBox" TextChanged="OnSettingsTextChanged" />
+                                        </controls:Field>
+                                        <controls:Field x:Name="PaymeSecretField" Grid.Column="2" Label="Payme Secret Key">
+                                            <TextBox x:Name="PaymeSecretBox" TextChanged="OnSettingsTextChanged" />
+                                        </controls:Field>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
                         </StackPanel>

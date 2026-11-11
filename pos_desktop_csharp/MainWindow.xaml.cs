@@ -36,6 +36,7 @@ namespace DilkashPos
         private List<Category> _categories = new();
         private List<Product> _products = new();
         private List<RestaurantTable> _tables = new();
+        private List<StaffAccount> _staffAccounts = new();
         private PosSettings _settings = new();
         private List<Order> _onlineOrders = new();
         private ShiftReport _currentShift = new();
@@ -107,6 +108,7 @@ namespace DilkashPos
             StopListItemsControl.ItemsSource = _stopListVMs;
             OnlineOrdersItemsControl.ItemsSource = _onlineOrderVMs;
             PrintersItemsControl.ItemsSource = _printerCardVMs;
+            InitializeManagementLists();
 
             Dialogs.RegisterScrimHandler(visible => ModalScrim.Visibility = visible ? Visibility.Visible : Visibility.Collapsed);
             Toast.RegisterHost(MainToastHost);
@@ -261,7 +263,12 @@ namespace DilkashPos
             _isLoadingTables = true;
             UpdateTablesLoadingAndEmptyStates();
 
-            // 1. Saqlangan lokal sozlamalarni o'qish (Cloud URL & Kassir)
+            // 1. Saqlangan lokal sozlamalarni o'qish (Cloud URL, Kassir, Bot & Yetkazish)
+            var savedFullSettings = await _db.LoadFullSettingsLocalAsync();
+            if (savedFullSettings != null)
+            {
+                _settings = savedFullSettings;
+            }
             var savedServerUrl = await _db.GetSettingAsync("server_url", "https://dilkash-django-production.up.railway.app");
             if (!string.IsNullOrWhiteSpace(savedServerUrl))
             {
@@ -279,6 +286,7 @@ namespace DilkashPos
             var cachedProds = await _db.GetCachedProductsAsync();
             var cachedCats = await _db.GetCachedCategoriesAsync();
             var cachedTables = await _db.GetCachedTablesAsync();
+            var cachedStaff = await _db.GetCachedStaffAsync();
 
             if (cachedTables.Count == 0)
             {
@@ -297,6 +305,7 @@ namespace DilkashPos
                 _products = cachedProds;
                 _categories = cachedCats;
                 _tables = cachedTables;
+                _staffAccounts = cachedStaff;
             }
 
             _isLoadingTables = false;
@@ -304,6 +313,7 @@ namespace DilkashPos
             RenderCategories();
             RenderProducts();
             RenderStopList();
+            RenderManageTab();
             UpdateCartUI();
             UpdateShiftReportUI();
             ApplySettingsToUI();
@@ -335,6 +345,7 @@ namespace DilkashPos
                     if (bootstrap.Departments.Count > 0) _departments = bootstrap.Departments;
                     if (bootstrap.Categories.Count > 0) _categories = bootstrap.Categories;
                     if (bootstrap.Products.Count > 0) _products = bootstrap.Products;
+                    if (bootstrap.Staff.Count > 0) _staffAccounts = bootstrap.Staff;
 
                     AssignTableZones(bootstrap.Tables);
                     var existingByNum = _tables.ToDictionary(t => t.Number, t => t);
@@ -389,6 +400,14 @@ namespace DilkashPos
                 RenderCategories();
                 RenderProducts();
                 RenderStopList();
+                if (_activeTabTag == "manage")
+                {
+                    RenderManageTab();
+                }
+                if (!_settingsDirty && _activeTabTag != "settings")
+                {
+                    ApplySettingsToUI();
+                }
                 if (activeCartUpdatedFromServer)
                 {
                     SyncProductInCartQuantities();
@@ -521,6 +540,7 @@ namespace DilkashPos
             StopListTab.Visibility = tag == "stop_list" ? Visibility.Visible : Visibility.Collapsed;
             OnlineTab.Visibility = tag == "online" ? Visibility.Visible : Visibility.Collapsed;
             ShiftReportTab.Visibility = tag == "shift" ? Visibility.Visible : Visibility.Collapsed;
+            ManageTab.Visibility = tag == "manage" ? Visibility.Visible : Visibility.Collapsed;
             SettingsTab.Visibility = tag == "settings" ? Visibility.Visible : Visibility.Collapsed;
 
             NavTablesBtn.IsChecked = tag == "tables";
@@ -528,6 +548,7 @@ namespace DilkashPos
             NavStopListBtn.IsChecked = tag == "stop_list";
             NavOnlineBtn.IsChecked = tag == "online";
             NavShiftBtn.IsChecked = tag == "shift";
+            NavManageBtn.IsChecked = tag == "manage";
             NavSettingsBtn.IsChecked = tag == "settings";
 
             ScreenTitleText.Text = tag switch
@@ -537,9 +558,15 @@ namespace DilkashPos
                 "stop_list" => "Stop-list",
                 "online" => "Onlayn buyurtmalar",
                 "shift" => "Smena",
+                "manage" => "Boshqaruv",
                 "settings" => "Sozlamalar",
                 _ => "Dilkash POS"
             };
+
+            if (tag == "manage")
+            {
+                RenderManageTab();
+            }
 
             if (tag == "quick_pos" && _activeTableContext == null)
             {
@@ -852,7 +879,7 @@ namespace DilkashPos
             _categoryChips.Clear();
             _categoryChips.Add(new CategoryChipVM(0, "Barchasi", "all", _products.Count, _selectedCategory == null));
 
-            foreach (var cat in _categories)
+            foreach (var cat in _categories.Where(c => c.IsActive))
             {
                 int pCount = _products.Count(p => p.CategoryId == cat.Id);
                 _categoryChips.Add(new CategoryChipVM(cat.Id, cat.Name, cat.Department, pCount, _selectedCategory?.Id == cat.Id));
@@ -1669,6 +1696,21 @@ namespace DilkashPos
                 LockCashierNameText.Text = _settings.CashierName;
                 AutoPrintCheck.IsChecked = _settings.AutoPrintNetwork;
 
+                ServiceStartTimeBox.Text = string.IsNullOrWhiteSpace(_settings.ServiceStartTime) ? "10:00" : _settings.ServiceStartTime;
+                ServiceEndTimeBox.Text = string.IsNullOrWhiteSpace(_settings.ServiceEndTime) ? "22:00" : _settings.ServiceEndTime;
+                DeliveryBaseCostBox.Text = _settings.DeliveryBaseCost.ToString("0");
+                DeliveryExtraKmCostBox.Text = _settings.DeliveryCostPerExtraKmBlock.ToString("0");
+                DeliveryMaxRadiusBox.Text = _settings.DeliveryMaxRadiusKm.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+                BroadcastTextBox.Text = _settings.BroadcastMessageText ?? "";
+
+                ClickServiceIdBox.Text = _settings.ClickServiceId ?? "";
+                ClickMerchantIdBox.Text = _settings.ClickMerchantId ?? "";
+                ClickSecretBox.Text = "";
+                ClickSecretField.HelperText = _settings.HasClickSecret ? "Saqlangan (oʻzgartirish uchun yangi kalit kiriting)" : "Kalit hali kiritilmagan";
+                PaymeMerchantIdBox.Text = _settings.PaymeMerchantId ?? "";
+                PaymeSecretBox.Text = "";
+                PaymeSecretField.HelperText = _settings.HasPaymeSecret ? "Saqlangan" : "Kiritilmagan";
+
                 SetSettingsDirty(false);
                 UpdateSettingsVisualStates(isLoading: false);
             }
@@ -1754,13 +1796,50 @@ namespace DilkashPos
                 }
             }
 
+            _settings.ServiceStartTime = string.IsNullOrWhiteSpace(ServiceStartTimeBox.Text) ? "10:00" : ServiceStartTimeBox.Text.Trim();
+            _settings.ServiceEndTime = string.IsNullOrWhiteSpace(ServiceEndTimeBox.Text) ? "22:00" : ServiceEndTimeBox.Text.Trim();
+            if (decimal.TryParse(DeliveryBaseCostBox.Text.Trim(), out decimal baseCost)) _settings.DeliveryBaseCost = baseCost;
+            if (decimal.TryParse(DeliveryExtraKmCostBox.Text.Trim(), out decimal extraCost)) _settings.DeliveryCostPerExtraKmBlock = extraCost;
+            if (double.TryParse(DeliveryMaxRadiusBox.Text.Trim().Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double radius))
+                _settings.DeliveryMaxRadiusKm = radius;
+            _settings.BroadcastMessageText = BroadcastTextBox.Text.Trim();
+
+            _settings.ClickServiceId = ClickServiceIdBox.Text.Trim();
+            _settings.ClickMerchantId = ClickMerchantIdBox.Text.Trim();
+            _settings.ClickSecretKey = ClickSecretBox.Text.Trim();
+            _settings.PaymeMerchantId = PaymeMerchantIdBox.Text.Trim();
+            _settings.PaymeSecretKey = PaymeSecretBox.Text.Trim();
+
+            await _db.SaveFullSettingsLocalAsync(_settings);
+            var (netOk, ok, err) = await _api.SaveFullSettingsAsync(_settings);
+            if (!netOk)
+            {
+                await _db.EnqueueAdminActionAsync(
+                    "/api/pos/settings/save/",
+                    System.Text.Json.JsonSerializer.Serialize(Services.ApiService.BuildSettingsSavePayload(_settings))
+                );
+            }
+            else if (!ok)
+            {
+                Toast.Show(err, ToastTone.Warning);
+                return;
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(_settings.ClickSecretKey)) _settings.HasClickSecret = true;
+                if (!string.IsNullOrWhiteSpace(_settings.PaymeSecretKey)) _settings.HasPaymeSecret = true;
+                _settings.ClickSecretKey = "";
+                _settings.PaymeSecretKey = "";
+                ApplySettingsToUI();
+            }
+
             SidebarCashierNameText.Text = _settings.CashierName;
             LockCashierNameText.Text = _settings.CashierName;
             UpdateShiftReportUI();
             UpdateCartUI();
             SetSettingsDirty(false);
             _syncEngine.TriggerImmediateSync();
-            Toast.Show("Barcha sozlamalar saqlandi va sinxronlash boshlandi", ToastTone.Success);
+            Toast.Show(netOk ? "Barcha sozlamalar Django va POS ga saqlandi" : "Sozlamalar lokal saqlandi (internet qaytganda yuklanadi)", ToastTone.Success);
         }
         #endregion
 

@@ -325,6 +325,144 @@ namespace DilkashPos.Services
             }
             return syncedIds;
         }
+
+        public async Task<(bool NetworkOk, bool Success, JsonElement Doc, string Error)> PostAdminAsync(string path, object payload)
+        {
+            try
+            {
+                var json = System.Text.Json.JsonSerializer.Serialize(payload, _jsonOptions);
+                using var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                using var resp = await _http.PostAsync($"{_baseUrl}{path}", content);
+                var bodyText = await resp.Content.ReadAsStringAsync();
+                UpdateStatus(true);
+
+                JsonElement doc = default;
+                if (!string.IsNullOrWhiteSpace(bodyText))
+                {
+                    try { doc = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(bodyText); } catch { }
+                }
+
+                if (resp.IsSuccessStatusCode)
+                {
+                    return (true, true, doc, "");
+                }
+
+                string err = $"Server xatoligi ({(int)resp.StatusCode})";
+                if (doc.ValueKind == JsonValueKind.Object)
+                {
+                    if (doc.TryGetProperty("error", out var e1)) err = e1.GetString() ?? err;
+                    else if (doc.TryGetProperty("message", out var e2)) err = e2.GetString() ?? err;
+                }
+                return (true, false, doc, err);
+            }
+            catch
+            {
+                UpdateStatus(false);
+                return (false, false, default, "Internet / Server bilan aloqa yo'q");
+            }
+        }
+
+        public async Task<bool> ReplayPendingAdminActionAsync(string endpoint, string rawJson)
+        {
+            try
+            {
+                using var content = new StringContent(rawJson, System.Text.Encoding.UTF8, "application/json");
+                using var resp = await _http.PostAsync($"{_baseUrl}{endpoint}", content);
+                UpdateStatus(true);
+                return (int)resp.StatusCode < 500;
+            }
+            catch
+            {
+                UpdateStatus(false);
+                return false;
+            }
+        }
+
+        public async Task<(bool NetworkOk, bool Success, Category? Category, string Error)> SaveCategoryAsync(object payload)
+        {
+            var (net, ok, doc, err) = await PostAdminAsync("/api/pos/categories/save/", payload);
+            Category? cat = null;
+            if (ok && doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("category", out var el))
+            {
+                cat = System.Text.Json.JsonSerializer.Deserialize<Category>(el.GetRawText(), _jsonOptions);
+            }
+            return (net, ok, cat, err);
+        }
+
+        public Task<(bool NetworkOk, bool Success, JsonElement Doc, string Error)> DeleteCategoryAsync(int categoryId) =>
+            PostAdminAsync($"/api/pos/categories/{categoryId}/delete/", new { });
+
+        public async Task<(bool NetworkOk, bool Success, Product? Product, string Error)> SaveProductAsync(object payload)
+        {
+            var (net, ok, doc, err) = await PostAdminAsync("/api/pos/products/save/", payload);
+            Product? prod = null;
+            if (ok && doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("product", out var el))
+            {
+                prod = System.Text.Json.JsonSerializer.Deserialize<Product>(el.GetRawText(), _jsonOptions);
+            }
+            return (net, ok, prod, err);
+        }
+
+        public Task<(bool NetworkOk, bool Success, JsonElement Doc, string Error)> DeleteProductAsync(int productId) =>
+            PostAdminAsync($"/api/pos/products/{productId}/delete/", new { });
+
+        public async Task<(bool NetworkOk, bool Success, StaffAccount? Staff, string Error)> SaveStaffAsync(object payload)
+        {
+            var (net, ok, doc, err) = await PostAdminAsync("/api/pos/staff/save/", payload);
+            StaffAccount? st = null;
+            if (ok && doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("staff", out var el))
+            {
+                st = System.Text.Json.JsonSerializer.Deserialize<StaffAccount>(el.GetRawText(), _jsonOptions);
+            }
+            return (net, ok, st, err);
+        }
+
+        public Task<(bool NetworkOk, bool Success, JsonElement Doc, string Error)> ToggleStaffAsync(string role, int staffId) =>
+            PostAdminAsync($"/api/pos/staff/{role}/{staffId}/toggle/", new { });
+
+        public Task<(bool NetworkOk, bool Success, JsonElement Doc, string Error)> DeleteStaffAsync(string role, int staffId) =>
+            PostAdminAsync($"/api/pos/staff/{role}/{staffId}/delete/", new { });
+
+        public async Task<(bool NetworkOk, bool Success, RestaurantTable? Table, string Error)> SaveTableAsync(object payload)
+        {
+            var (net, ok, doc, err) = await PostAdminAsync("/api/pos/tables/save/", payload);
+            RestaurantTable? tbl = null;
+            if (ok && doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("table", out var el))
+            {
+                tbl = System.Text.Json.JsonSerializer.Deserialize<RestaurantTable>(el.GetRawText(), _jsonOptions);
+            }
+            return (net, ok, tbl, err);
+        }
+
+        public Task<(bool NetworkOk, bool Success, JsonElement Doc, string Error)> DeleteTableAsync(int tableId) =>
+            PostAdminAsync($"/api/pos/tables/{tableId}/delete/", new { });
+
+        public async Task<(bool NetworkOk, bool Success, string Error)> SaveFullSettingsAsync(PosSettings settings)
+        {
+            var payload = BuildSettingsSavePayload(settings);
+            var (net, ok, _, err) = await PostAdminAsync("/api/pos/settings/save/", payload);
+            return (net, ok, err);
+        }
+
+        public static object BuildSettingsSavePayload(PosSettings settings) => new
+        {
+            service_fee_type = settings.ServiceFeeType,
+            service_fee_percent = settings.ServiceFeePercent,
+            service_fee_per_person = settings.ServiceFeePerPerson,
+            auto_print_network = settings.AutoPrintNetwork,
+            service_start_time = settings.ServiceStartTime,
+            service_end_time = settings.ServiceEndTime,
+            delivery_base_cost = settings.DeliveryBaseCost,
+            delivery_cost_per_extra_km_block = settings.DeliveryCostPerExtraKmBlock,
+            delivery_max_radius_km = settings.DeliveryMaxRadiusKm,
+            broadcast_message_text = settings.BroadcastMessageText,
+            click_service_id = settings.ClickServiceId,
+            click_merchant_id = settings.ClickMerchantId,
+            click_secret_key = settings.ClickSecretKey,
+            payme_merchant_id = settings.PaymeMerchantId,
+            payme_secret_key = settings.PaymeSecretKey,
+            printers = settings.Printers,
+        };
     }
 }
 

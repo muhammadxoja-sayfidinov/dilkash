@@ -97,5 +97,15 @@ urlpatterns = [
     path('api/pos/online-orders/<int:order_id>/action/', pos_api.pos_online_order_action_api, name='pos_online_order_action_api'),
     path('api/pos/sync/push/', pos_api.pos_sync_push_api, name='pos_sync_push_api'),
     path('api/pos/waiter-calls/<int:call_id>/dismiss/', views.waiter_dismiss_call_api, name='pos_waiter_dismiss_call_api'),
+    path('api/pos/categories/save/', pos_api.pos_category_save_api, name='pos_category_save_api'),
+    path('api/pos/categories/<int:category_id>/delete/', pos_api.pos_category_delete_api, name='pos_category_delete_api'),
+    path('api/pos/products/save/', pos_api.pos_product_save_api, name='pos_product_save_api'),
+    path('api/pos/products/<int:product_id>/delete/', pos_api.pos_product_delete_api, name='pos_product_delete_api'),
+    path('api/pos/staff/save/', pos_api.pos_staff_save_api, name='pos_staff_save_api'),
+    path('api/pos/staff/<str:role>/<int:staff_id>/toggle/', pos_api.pos_staff_toggle_api, name='pos_staff_toggle_api'),
+    path('api/pos/staff/<str:role>/<int:staff_id>/delete/', pos_api.pos_staff_delete_api, name='pos_staff_delete_api'),
+    path('api/pos/tables/save/', pos_api.pos_table_save_api, name='pos_table_save_api'),
+    path('api/pos/tables/<int:table_id>/delete/', pos_api.pos_table_delete_api, name='pos_table_delete_api'),
+    path('api/pos/settings/save/', pos_api.pos_settings_save_api, name='pos_settings_save_api'),
 ]
 
