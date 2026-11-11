@@ -52,12 +52,6 @@ namespace DilkashPos.Services
             _http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
         }
 
-        public void UpdateBaseUrl(string baseUrl)
-        {
-            if (string.IsNullOrWhiteSpace(baseUrl)) return;
-            _baseUrl = baseUrl.Trim().TrimEnd('/');
-        }
-
         public async Task<SyncPushResponse?> PushSyncStateAsync(
             List<Order> orders,
             List<int>? dismissedCallIds = null,
@@ -295,35 +289,6 @@ namespace DilkashPos.Services
                 UpdateStatus(false);
             }
             return false;
-        }
-
-        public async Task<List<string>> PushOfflineOrdersAsync(List<Order> orders)
-        {
-            var syncedIds = new List<string>();
-            try
-            {
-                var url = $"{_baseUrl}/api/pos/sync/push/";
-                var payload = new { orders };
-                var res = await _http.PostAsJsonAsync(url, payload, _jsonOptions);
-                if (res.IsSuccessStatusCode)
-                {
-                    UpdateStatus(true);
-                    var doc = await res.Content.ReadFromJsonAsync<JsonElement>();
-                    if (doc.TryGetProperty("synced_ids", out var idsElem) && idsElem.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var el in idsElem.EnumerateArray())
-                        {
-                            var s = el.GetString();
-                            if (!string.IsNullOrEmpty(s)) syncedIds.Add(s);
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                UpdateStatus(false);
-            }
-            return syncedIds;
         }
 
         public async Task<(bool NetworkOk, bool Success, JsonElement Doc, string Error)> PostAdminAsync(string path, object payload)
