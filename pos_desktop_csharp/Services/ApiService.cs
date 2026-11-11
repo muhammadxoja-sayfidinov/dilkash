@@ -18,6 +18,17 @@ namespace DilkashPos.Services
         public List<Product> Products { get; set; } = new();
         public List<int> StopList { get; set; } = new();
         public List<RestaurantTable> Tables { get; set; } = new();
+        public List<WaiterCall> WaiterCalls { get; set; } = new();
+        public List<StaffAccount> Staff { get; set; } = new();
+    }
+
+    public class SyncPushResponse
+    {
+        public string Status { get; set; } = "";
+        public int SyncedCount { get; set; }
+        public List<string> SyncedIds { get; set; } = new();
+        public Dictionary<string, int> ServerIdMap { get; set; } = new();
+        public string ServerTime { get; set; } = "";
     }
 
     public class ApiService
@@ -32,12 +43,61 @@ namespace DilkashPos.Services
         private string _baseUrl;
 
         public bool IsOnline { get; private set; } = false;
+        public string BaseUrl => _baseUrl;
         public event EventHandler<bool>? ConnectivityChanged;
 
-        public ApiService(string baseUrl = "http://127.0.0.1:8000")
+        public ApiService(string baseUrl = "https://dilkash-django-production.up.railway.app")
         {
             _baseUrl = baseUrl.TrimEnd('/');
             _http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+        }
+
+        public void UpdateBaseUrl(string baseUrl)
+        {
+            if (string.IsNullOrWhiteSpace(baseUrl)) return;
+            _baseUrl = baseUrl.Trim().TrimEnd('/');
+        }
+
+        public async Task<SyncPushResponse?> PushSyncStateAsync(
+            List<Order> orders,
+            List<int>? dismissedCallIds = null,
+            List<string>? billRequestedTables = null)
+        {
+            try
+            {
+                var payload = new
+                {
+                    orders = orders,
+                    dismissed_call_ids = dismissedCallIds ?? new List<int>(),
+                    bill_requested_tables = billRequestedTables ?? new List<string>(),
+                };
+                var json = System.Text.Json.JsonSerializer.Serialize(payload, _jsonOptions);
+                using var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                using var resp = await _http.PostAsync($"{_baseUrl}/api/pos/sync/push/", content);
+                if (!resp.IsSuccessStatusCode) return null;
+                var body = await resp.Content.ReadAsStringAsync();
+                UpdateStatus(true);
+                return System.Text.Json.JsonSerializer.Deserialize<SyncPushResponse>(body, _jsonOptions);
+            }
+            catch
+            {
+                UpdateStatus(false);
+                return null;
+            }
+        }
+
+        public async Task<bool> DismissWaiterCallAsync(int callId)
+        {
+            try
+            {
+                using var content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json");
+                using var resp = await _http.PostAsync($"{_baseUrl}/api/pos/waiter-calls/{callId}/dismiss/", content);
+                return resp.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public void SetBaseUrl(string url)

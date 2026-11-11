@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/config/app_config.dart';
 import 'core/navigation/app_router.dart';
 import 'theme/staff_theme.dart';
 
 typedef CourierApp = StaffApp;
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppConfig.loadAll();
   runApp(const ProviderScope(child: StaffApp()));
 }
 

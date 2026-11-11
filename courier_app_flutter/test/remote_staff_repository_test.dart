@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:courier_app_flutter/core/config/app_config.dart';
 import 'package:courier_app_flutter/core/network/remote_staff_repository.dart';
 
 void main() {
@@ -192,6 +194,62 @@ void main() {
         'GET /api/waiter/floor-status/',
         'POST /api/waiter/order/99/close/',
       ]);
+    });
+
+    test('local_pos mode strictly routes Waiter to POS Wi-Fi Hub and blocks direct cloud calls', () async {
+      SharedPreferences.setMockInitialValues({});
+      await AppConfig.resetBaseUrl();
+      await AppConfig.setCloudBaseUrl('https://cloud.example.test');
+      await AppConfig.setConnectionMode(AppConfig.modeLocalPos);
+
+      final hitHosts = <String>[];
+      final client = MockClient((req) async {
+        hitHosts.add('${req.url.scheme}://${req.url.authority}${req.url.path}');
+        if (req.url.path == '/api/waiter/floor-status/') {
+          return http.Response(
+            jsonEncode({
+              'success': true,
+              'source': 'pos_local_hub',
+              'tables': [
+                {'number': 1, 'table_number': '1', 'name': 'Stol #1', 'is_occupied': false, 'stage': 'free'}
+              ],
+            }),
+            200,
+          );
+        }
+        if (req.url.path == '/api/waiter/call/42/dismiss/') {
+          return http.Response(jsonEncode({'success': true, 'call_id': 42}), 200);
+        }
+        if (req.url.path == '/api/mobile/courier/orders/') {
+          return http.Response(jsonEncode({'my_active_orders': [], 'available_orders': []}), 200);
+        }
+        return http.Response('Unexpected', 404);
+      });
+
+      final repo = RemoteStaffRepository(client: client);
+
+      // 1. When no POS Hub IP is set in local_pos mode, Waiter MUST NOT bypass to cloud
+      await expectLater(() => repo.fetchTables(), throwsException);
+      expect(hitHosts, isEmpty);
+
+      // 2. When POS Hub LAN URL is set, Waiter hits ONLY Local POS Hub while Courier hits Cloud
+      await AppConfig.setLocalPosBaseUrl('http://192.168.1.50:8088');
+      final tables = await repo.fetchTables();
+      expect(tables.length, 1);
+      expect(repo.isLocalPosConnected, isTrue);
+
+      final dismissed = await repo.dismissWaiterCall(42);
+      expect(dismissed, isTrue);
+
+      await repo.fetchCourierOrders();
+
+      expect(hitHosts, [
+        'http://192.168.1.50:8088/api/waiter/floor-status/',
+        'http://192.168.1.50:8088/api/waiter/call/42/dismiss/',
+        'https://cloud.example.test/api/mobile/courier/orders/',
+      ]);
+
+      await AppConfig.resetBaseUrl();
     });
   });
 }

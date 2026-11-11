@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:dilkash_design_system/dilkash_design_system.dart';
 import '../../../core/auth/auth_notifier.dart';
 import '../../../core/config/app_config.dart';
+import '../../../core/network/local_discovery_service.dart';
 
 class UnifiedLoginScreen extends ConsumerStatefulWidget {
   const UnifiedLoginScreen({super.key});
@@ -20,54 +21,154 @@ class _UnifiedLoginScreenState extends ConsumerState<UnifiedLoginScreen> {
   final _phoneController = TextEditingController(text: '+998 90 111 22 33');
   final _pinController = TextEditingController(text: '1234');
   bool _isLoading = false;
+  bool _isDiscovering = false;
 
   @override
   void initState() {
     super.initState();
-    AppConfig.loadSavedBaseUrl();
+    _initConnection();
+  }
+
+  Future<void> _initConnection() async {
+    await AppConfig.loadAll();
+    if (mounted) setState(() {});
+    if (AppConfig.isLocalPosMode) {
+      await _runDiscovery();
+    }
+  }
+
+  Future<String?> _runDiscovery() async {
+    if (mounted) setState(() => _isDiscovering = true);
+    final found = await LocalDiscoveryService.discoverPosHub(
+      savedUrl: AppConfig.posLocalBaseUrl,
+    );
+    if (found != null) {
+      await AppConfig.setLocalPosBaseUrl(found);
+    }
+    if (mounted) {
+      setState(() => _isDiscovering = false);
+    }
+    return found;
   }
 
   Future<void> _showServerSettingsDialog() async {
-    await AppConfig.loadSavedBaseUrl();
+    await AppConfig.loadAll();
     if (!mounted) return;
-    final urlCtrl = TextEditingController(text: AppConfig.baseUrl);
+    final posCtrl = TextEditingController(text: AppConfig.posLocalBaseUrl);
+    final cloudCtrl = TextEditingController(text: AppConfig.cloudBaseUrl);
+    String mode = AppConfig.connectionMode;
+    bool searching = false;
+
     await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Server manzili'),
-        content: TextField(
-          controller: urlCtrl,
-          keyboardType: TextInputType.url,
-          decoration: const InputDecoration(
-            labelText: 'Backend URL',
-            hintText: 'https://dilkash-django-production.up.railway.app',
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Ulanish rejimi'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: AppConfig.modeLocalPos,
+                      label: Text('Wi-Fi POS'),
+                      icon: Icon(Icons.wifi_rounded),
+                    ),
+                    ButtonSegment(
+                      value: AppConfig.modeCloud,
+                      label: Text('Cloud'),
+                      icon: Icon(Icons.cloud_outlined),
+                    ),
+                  ],
+                  selected: {mode},
+                  onSelectionChanged: (val) {
+                    setDialogState(() => mode = val.first);
+                  },
+                ),
+                const SizedBox(height: 16),
+                if (mode == AppConfig.modeLocalPos) ...[
+                  TextField(
+                    controller: posCtrl,
+                    keyboardType: TextInputType.url,
+                    decoration: const InputDecoration(
+                      labelText: 'Dilkash POS Hub (Lokal Wi-Fi)',
+                      hintText: 'http://192.168.1.105:8088',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: searching
+                        ? null
+                        : () async {
+                            setDialogState(() => searching = true);
+                            final found = await LocalDiscoveryService.discoverPosHub(
+                              savedUrl: posCtrl.text,
+                            );
+                            if (ctx.mounted) {
+                              setDialogState(() {
+                                searching = false;
+                                if (found != null) posCtrl.text = found;
+                              });
+                            }
+                          },
+                    icon: searching
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.radar_rounded),
+                    label: Text(searching ? 'Izlanmoqda...' : 'Wi-Fi dan POS topish'),
+                  ),
+                ] else ...[
+                  TextField(
+                    controller: cloudCtrl,
+                    keyboardType: TextInputType.url,
+                    decoration: const InputDecoration(
+                      labelText: 'Cloud Django URL (Kuryer)',
+                      hintText: 'https://dilkash-django-production.up.railway.app',
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await AppConfig.resetBaseUrl();
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  setState(() {});
+                  DilkashFeedback.showSuccess(context, 'Standart Wi-Fi POS rejimi tiklandi');
+                }
+              },
+              child: const Text('Standart'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await AppConfig.setConnectionMode(mode);
+                if (mode == AppConfig.modeLocalPos) {
+                  await AppConfig.setLocalPosBaseUrl(posCtrl.text);
+                } else {
+                  await AppConfig.setCloudBaseUrl(cloudCtrl.text);
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  setState(() {});
+                  DilkashFeedback.showSuccess(context, 'Tarmoq sozlamasi saqlandi');
+                }
+              },
+              child: const Text('Saqlash'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await AppConfig.resetBaseUrl();
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) {
-                DilkashFeedback.showSuccess(context, 'Standart server tiklandi');
-              }
-            },
-            child: const Text('Standart'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await AppConfig.setBaseUrl(urlCtrl.text);
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) {
-                DilkashFeedback.showSuccess(context, 'Server saqlandi');
-              }
-            },
-            child: const Text('Saqlash'),
-          ),
-        ],
       ),
     );
-    urlCtrl.dispose();
+    posCtrl.dispose();
+    cloudCtrl.dispose();
   }
 
   @override
@@ -133,16 +234,67 @@ class _UnifiedLoginScreenState extends ConsumerState<UnifiedLoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-              Align(
-                alignment: Alignment.topRight,
-                child: IconButton(
-                  tooltip: 'Server manzili',
-                  icon: const Icon(
-                    Icons.dns_outlined,
-                    color: DilkashColors.textMutedLight,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: _showServerSettingsDialog,
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppConfig.isLocalPosMode
+                              ? (AppConfig.hasLocalPos
+                                  ? const Color(0xFFDCFCE7)
+                                  : const Color(0xFFFEF3C7))
+                              : const Color(0xFFE0F2FE),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              AppConfig.isLocalPosMode ? Icons.wifi_rounded : Icons.cloud_outlined,
+                              size: 16,
+                              color: AppConfig.isLocalPosMode
+                                  ? (AppConfig.hasLocalPos
+                                      ? const Color(0xFF15803D)
+                                      : const Color(0xFFB45309))
+                                  : const Color(0xFF0369A1),
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                _isDiscovering
+                                    ? 'Wi-Fi POS izlanmoqda...'
+                                    : AppConfig.isLocalPosMode
+                                        ? (AppConfig.hasLocalPos
+                                            ? 'Wi-Fi POS: ${AppConfig.posLocalBaseUrl.replaceFirst('http://', '')}'
+                                            : 'Wi-Fi POS tanlanmagan (bosing)')
+                                        : 'Cloud Server (Kuryer)',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  onPressed: _showServerSettingsDialog,
-                ),
+                  IconButton(
+                    tooltip: 'Server manzili',
+                    icon: const Icon(
+                      Icons.dns_outlined,
+                      color: DilkashColors.textMutedLight,
+                    ),
+                    onPressed: _showServerSettingsDialog,
+                  ),
+                ],
               ),
               const Spacer(flex: 1),
               // Brand Header

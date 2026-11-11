@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../auth/staff_session.dart';
 import '../config/app_config.dart';
 import '../state_machine/order_state_machine.dart';
+import 'local_discovery_service.dart';
 import 'staff_repository.dart';
 
 class RemoteStaffRepository implements StaffRepository {
@@ -16,10 +18,29 @@ class RemoteStaffRepository implements StaffRepository {
   final http.Client _client;
   final String? _overrideBaseUrl;
   StaffSession? _session;
+  bool isLocalPosConnected = false;
 
-  static const Duration _timeout = Duration(seconds: 12);
+  static const Duration _timeout = Duration(seconds: 10);
 
-  String get _baseUrl => _overrideBaseUrl ?? AppConfig.baseUrl;
+  String get activeBaseUrlDisplay {
+    if (_overrideBaseUrl != null) return _overrideBaseUrl!;
+    final resolved = AppConfig.resolveBaseUrl(forCourier: false);
+    if (resolved.isEmpty && AppConfig.isLocalPosMode) {
+      return 'Wi-Fi POS topilmadi';
+    }
+    return resolved;
+  }
+
+  String _resolveUrl({required bool preferCourier}) {
+    if (_overrideBaseUrl != null) return _overrideBaseUrl!;
+    final url = AppConfig.resolveBaseUrl(forCourier: preferCourier);
+    if (!preferCourier && AppConfig.isLocalPosMode && url.isEmpty) {
+      throw Exception(
+        'Wi-Fi tarmoqda Dilkash POS Hub topilmadi. Avval POS manzilini izlang yoki kiriting.',
+      );
+    }
+    return url;
+  }
 
   void applySession(StaffSession? session) {
     _session = session;
@@ -72,13 +93,33 @@ class RemoteStaffRepository implements StaffRepository {
   }
 
   Future<Map<String, dynamic>> _get(String path, {bool preferCourier = false}) async {
+    final targetBase = _resolveUrl(preferCourier: preferCourier);
     try {
       final res = await _client
-          .get(Uri.parse('$_baseUrl$path'), headers: _headers(preferCourier: preferCourier))
+          .get(Uri.parse('$targetBase$path'), headers: _headers(preferCourier: preferCourier))
           .timeout(_timeout);
-      return _decodeJson(res);
+      final parsed = _decodeJson(res);
+      if (parsed['source'] == 'pos_local_hub' ||
+          (!preferCourier && AppConfig.isLocalPosMode && targetBase == AppConfig.posLocalBaseUrl)) {
+        isLocalPosConnected = true;
+      } else {
+        isLocalPosConnected = false;
+      }
+      return parsed;
     } on TimeoutException {
+      if (!preferCourier && AppConfig.isLocalPosMode) {
+        throw Exception(
+          'Dilkash POS ($targetBase) javob bermadi. Kompyuterdagi POS ochiqligini va bir xil Wi-Fi ga ulanganingizni tekshiring.',
+        );
+      }
       throw Exception('Server javob bermadi (vaqt tugadi). Internetni tekshiring.');
+    } on SocketException {
+      if (!preferCourier && AppConfig.isLocalPosMode) {
+        throw Exception(
+          'Dilkash POS ($targetBase) ga ulanib bo’lmadi. Wi-Fi tarmoqni va POS dasturini tekshiring.',
+        );
+      }
+      throw Exception('Serverga ulanib bo’lmadi. Tarmoqni tekshiring.');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Tarmoq xatoligi: $e');
@@ -90,17 +131,34 @@ class RemoteStaffRepository implements StaffRepository {
     Map<String, dynamic> body, {
     bool preferCourier = false,
   }) async {
+    final targetBase = _resolveUrl(preferCourier: preferCourier);
     try {
       final res = await _client
           .post(
-            Uri.parse('$_baseUrl$path'),
+            Uri.parse('$targetBase$path'),
             headers: _headers(preferCourier: preferCourier),
             body: jsonEncode(body),
           )
           .timeout(_timeout);
-      return _decodeJson(res);
+      final parsed = _decodeJson(res);
+      if (!preferCourier && AppConfig.isLocalPosMode && targetBase == AppConfig.posLocalBaseUrl) {
+        isLocalPosConnected = true;
+      }
+      return parsed;
     } on TimeoutException {
+      if (!preferCourier && AppConfig.isLocalPosMode) {
+        throw Exception(
+          'Dilkash POS ($targetBase) javob bermadi. Kompyuterdagi POS ochiqligini va bir xil Wi-Fi ga ulanganingizni tekshiring.',
+        );
+      }
       throw Exception('Server javob bermadi (vaqt tugadi). Internetni tekshiring.');
+    } on SocketException {
+      if (!preferCourier && AppConfig.isLocalPosMode) {
+        throw Exception(
+          'Dilkash POS ($targetBase) ga ulanib bo’lmadi. Wi-Fi tarmoqni va POS dasturini tekshiring.',
+        );
+      }
+      throw Exception('Serverga ulanib bo’lmadi. Tarmoqni tekshiring.');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Tarmoq xatoligi: $e');
@@ -112,6 +170,13 @@ class RemoteStaffRepository implements StaffRepository {
     required String phone,
     required String pin,
   }) async {
+    if (_overrideBaseUrl == null && AppConfig.isLocalPosMode && !AppConfig.hasLocalPos) {
+      final discovered = await LocalDiscoveryService.discoverPosHub();
+      if (discovered != null) {
+        await AppConfig.setLocalPosBaseUrl(discovered);
+      }
+    }
+
     final res = await _post('/api/mobile/staff/login/', {
       'role': 'auto',
       'phone': phone.trim(),

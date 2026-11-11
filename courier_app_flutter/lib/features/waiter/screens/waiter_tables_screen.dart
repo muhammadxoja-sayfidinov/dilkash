@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:dilkash_design_system/dilkash_design_system.dart';
 import '../../../core/auth/auth_notifier.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/state_machine/order_state_machine.dart';
 
 class WaiterTablesScreen extends ConsumerStatefulWidget {
@@ -29,13 +30,14 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
   String? _error;
   List<Map<String, dynamic>> _tables = [];
   final Map<String, String> _previousStages = {};
+  final Set<int> _seenCallIds = {};
   Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     _fetchTables();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted) _fetchTables(silent: true);
     });
   }
@@ -58,6 +60,9 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
       final repo = ref.read(staffRepositoryProvider);
       final list = await repo.fetchTables();
       final newlyReadyTables = <String>[];
+      final activeCallIdsNow = <int>{};
+      Map<String, dynamic>? newlyArrivedCall;
+
       for (final t in list) {
         final key = (t['table_number'] ?? '').toString();
         final nextStage = (t['status'] ?? 'free').toString();
@@ -66,7 +71,22 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
           newlyReadyTables.add((t['name'] ?? 'Stol #$key').toString());
         }
         _previousStages[key] = nextStage;
+
+        final call = t['call'] as Map<String, dynamic>?;
+        final callId = (call?['id'] as num?)?.toInt();
+        if (call != null && callId != null) {
+          activeCallIdsNow.add(callId);
+          if (!_seenCallIds.contains(callId)) {
+            _seenCallIds.add(callId);
+            newlyArrivedCall = {
+              'id': callId,
+              'table_name': (t['name'] ?? 'Stol #$key').toString(),
+              'reason': (call['reason'] ?? 'Ofitsiant chaqirildi').toString(),
+            };
+          }
+        }
       }
+      _seenCallIds.retainAll(activeCallIdsNow);
 
       if (mounted) {
         setState(() {
@@ -75,6 +95,12 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
         });
         if (newlyReadyTables.isNotEmpty) {
           _showKitchenReadyAlert(newlyReadyTables.join(', '));
+        } else if (newlyArrivedCall != null) {
+          _showWaiterCallAlert(
+            callId: newlyArrivedCall['id'] as int,
+            tableLabel: newlyArrivedCall['table_name'] as String,
+            reason: newlyArrivedCall['reason'] as String,
+          );
         }
       }
     } catch (e) {
@@ -83,6 +109,62 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
           _error = e.toString().replaceAll('Exception: ', '');
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  void _showWaiterCallAlert({
+    required int callId,
+    required String tableLabel,
+    required String reason,
+  }) {
+    HapticFeedback.heavyImpact();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFFB45309),
+        duration: const Duration(seconds: 7),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'QR Chaqiruv: $tableLabel',
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                fontSize: 15,
+              ),
+            ),
+            Text(
+              reason,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: 'Qabul qildim',
+          textColor: Colors.white,
+          onPressed: () => _dismissCall(callId),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _dismissCall(int callId) async {
+    try {
+      await ref.read(staffRepositoryProvider).dismissWaiterCall(callId);
+      if (mounted) {
+        DilkashFeedback.showSuccess(context, 'Chaqiruv qabul qilindi');
+        _fetchTables(silent: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        DilkashFeedback.showError(
+          context,
+          e.toString().replaceAll('Exception: ', ''),
+        );
       }
     }
   }
@@ -256,6 +338,41 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
               ),
             ),
             const Divider(height: 1),
+            Container(
+              width: double.infinity,
+              color: AppConfig.isLocalPosMode
+                  ? const Color(0xFFECFDF5)
+                  : const Color(0xFFF0F9FF),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              child: Row(
+                children: [
+                  Icon(
+                    AppConfig.isLocalPosMode ? Icons.wifi_rounded : Icons.cloud_done_outlined,
+                    size: 15,
+                    color: AppConfig.isLocalPosMode
+                        ? const Color(0xFF047857)
+                        : const Color(0xFF0369A1),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      AppConfig.isLocalPosMode
+                          ? 'Wi-Fi POS: ${AppConfig.posLocalBaseUrl.replaceFirst('http://', '')}'
+                          : 'Cloud: ${AppConfig.cloudBaseUrl}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppConfig.isLocalPosMode
+                            ? const Color(0xFF065F46)
+                            : const Color(0xFF0C4A6E),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
             // Grid of Tables
             Expanded(
@@ -375,19 +492,42 @@ class _WaiterTablesScreenState extends ConsumerState<WaiterTablesScreen> {
                                     ),
                                   ),
                                   if (callInfo != null)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFFEE2E2),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Icon(
-                                        Icons.notifications_active_rounded,
-                                        size: 14,
-                                        color: DilkashColors.error,
+                                    InkWell(
+                                      onTap: () {
+                                        final cid = (callInfo['id'] as num?)?.toInt();
+                                        if (cid != null) {
+                                          _dismissCall(cid);
+                                        }
+                                      },
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFEE2E2),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.notifications_active_rounded,
+                                              size: 14,
+                                              color: DilkashColors.error,
+                                            ),
+                                            SizedBox(width: 3),
+                                            Text(
+                                              'OK',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w800,
+                                                color: DilkashColors.error,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                 ],

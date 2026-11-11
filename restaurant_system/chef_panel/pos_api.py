@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import uuid
@@ -11,7 +12,7 @@ from django.db.models import Sum, Count, Q
 
 from .models import (
     Category, Product, Order, OrderItem, Customer,
-    RestaurantTable, WaiterProfile, CourierProfile, BotSettings
+    RestaurantTable, WaiterProfile, CourierProfile, BotSettings, WaiterCall
 )
 from .printer_service import (
     DEPARTMENT_CONFIG, categorize_order_items, 
@@ -48,6 +49,57 @@ def _get_or_create_pos_customer(phone, full_name):
     raise RuntimeError("Noyob Telegram ID yaratib bo'lmadi")
 
 
+def _norm_table_num(raw):
+    s = str(raw or '').strip().upper()
+    if s.startswith('T-'):
+        s = s[2:]
+    s = s.lstrip('#').strip()
+    if s.isdigit():
+        return str(int(s))
+    return s or ''
+
+
+def _serialize_waiter_calls():
+    """Hali hal qilinmagan QR/ofitsiant chaqiruvlari."""
+    calls = []
+    for c in WaiterCall.objects.filter(is_resolved=False).order_by('-created_at'):
+        calls.append({
+            'id': c.id,
+            'table_number': _norm_table_num(c.table_number) or str(c.table_number),
+            'reason': c.reason,
+            'created_at': c.created_at.strftime('%H:%M'),
+        })
+    return calls
+
+
+def _serialize_staff_accounts():
+    """Offline Wi-Fi avtorizatsiyasi uchun xodimlar ro'yxati (PIN faqat SHA-256 xesh ko'rinishda)."""
+    staff = []
+    for w in WaiterProfile.objects.filter(is_active=True).order_by('id'):
+        staff.append({
+            'id': w.id,
+            'role': 'waiter',
+            'name': w.name,
+            'phone': w.phone or '',
+            'pin_hash': hashlib.sha256((w.pin_code or '1234').encode('utf-8')).hexdigest(),
+            'staff_code': f"DIL-{w.id}",
+            'token': w.auth_token or f"wait_{w.id}",
+            'vehicle_info': '',
+        })
+    for c in CourierProfile.objects.filter(is_active=True).order_by('id'):
+        staff.append({
+            'id': c.id,
+            'role': 'courier',
+            'name': c.name,
+            'phone': c.phone or '',
+            'pin_hash': hashlib.sha256((c.pin_code or '1234').encode('utf-8')).hexdigest(),
+            'staff_code': f"DIL-{c.id}",
+            'token': c.auth_token or f"cour_{c.id}",
+            'vehicle_info': c.vehicle_info or '',
+        })
+    return staff
+
+
 def _serialize_tables():
     """Faol restoran stollari va joriy band buyurtmalarni JSON ko'rinishda qaytarish."""
     tables_qs = RestaurantTable.objects.filter(is_active=True).order_by('number')
@@ -55,12 +107,26 @@ def _serialize_tables():
         service_type='dine_in',
         is_paid=False
     ).exclude(status='bekor_qilingan').prefetch_related('items', 'items__product', 'items__product__category')
-    order_by_table = {str(o.table_number): o for o in active_orders if o.table_number}
+    order_by_table = {_norm_table_num(o.table_number): o for o in active_orders if o.table_number}
+
+    calls_list = _serialize_waiter_calls()
+    calls_by_table = {}
+    for c in calls_list:
+        if c['table_number'] not in calls_by_table:
+            calls_by_table[c['table_number']] = c
 
     tables = []
     for tbl in tables_qs:
-        active_order = order_by_table.get(str(tbl.number))
+        t_key = str(tbl.number)
+        active_order = order_by_table.get(t_key)
+        active_call = calls_by_table.get(t_key)
         is_occupied = active_order is not None
+        status = 'empty'
+        if active_call and ('hisob' in active_call['reason'].lower() or 'chek' in active_call['reason'].lower()):
+            status = 'bill_printed'
+        elif is_occupied:
+            status = 'occupied'
+
         tables.append({
             'id': tbl.id,
             'number': tbl.number,
@@ -69,10 +135,12 @@ def _serialize_tables():
             'capacity': tbl.capacity,
             'guests_count': active_order.guests_count if active_order else tbl.guests_count,
             'is_occupied': is_occupied,
-            'status': 'occupied' if is_occupied else 'empty',
+            'status': status,
+            'order_status': active_order.status if active_order else None,
             'opened_at': (active_order.created_at.isoformat() if active_order else (tbl.opened_at.isoformat() if tbl.opened_at else None)),
-            'assigned_waiter': tbl.assigned_waiter.name if tbl.assigned_waiter else None,
+            'assigned_waiter': tbl.assigned_waiter.name if tbl.assigned_waiter else (active_order.waiter_name if active_order else None),
             'active_order': _serialize_order(active_order) if active_order else None,
+            'active_call': active_call,
         })
     return tables
 
@@ -241,6 +309,8 @@ def pos_bootstrap_api(request):
         'products': products,
         'stop_list': stop_list_ids,
         'tables': tables,
+        'waiter_calls': _serialize_waiter_calls(),
+        'staff': _serialize_staff_accounts(),
     })
 
 
@@ -504,6 +574,28 @@ def pos_orders_api(request):
                 order.status = 'olib_ketildi'
                 order.picked_up_at = timezone.now()
                 order.save()
+            elif service_type == 'dine_in':
+                norm_t = _norm_table_num(table_number)
+                tbl = RestaurantTable.objects.filter(number=int(norm_t) if norm_t.isdigit() else 0).first()
+                if is_paid:
+                    order.status = 'yetkazildi'
+                    order.delivered_at = timezone.now()
+                    order.save()
+                    if tbl:
+                        tbl.guests_count = 0
+                        tbl.opened_at = None
+                        tbl.assigned_waiter = None
+                        tbl.save()
+                    WaiterCall.objects.filter(table_number=norm_t, is_resolved=False).update(
+                        is_resolved=True, resolved_at=timezone.now()
+                    )
+                elif tbl:
+                    if not tbl.opened_at:
+                        tbl.opened_at = timezone.now()
+                    tbl.guests_count = guests_count
+                    if waiter_name and not tbl.assigned_waiter:
+                        tbl.assigned_waiter = WaiterProfile.objects.filter(name__iexact=waiter_name).first()
+                    tbl.save()
 
         # 4. Tarmoq printerlariga avtomatik yuborish (agar so'ralgan yoki yoqilgan bo'lsa)
         print_to_network = data.get('print_to_network', settings.auto_print_network)
@@ -695,9 +787,10 @@ def pos_online_order_action_api(request, order_id):
 @csrf_exempt
 def pos_sync_push_api(request):
     """
-    Offline-First Sinxronizatsiya:
-    Internet uzilgan vaqtda C# kassa ilovasida yaratilgan va yopilgan buyurtmalarni
-    serverga ommaviy yuklash (Batch sync).
+    Offline-First Sinxronizatsiya (POS Hub <-> Cloud Django):
+    - Internet uzilgan vaqtda C# POS / Ofitsiant Wi-Fi Hub da yaratilgan,
+      o'zgartirilgan yoki yopilgan buyurtmalarni serverga ommaviy sinxronlash.
+    - Hal qilingan QR chaqiruvlar (dismissed_call_ids) va hisob so'rovlarini ham sinxronlaydi.
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'Faqat POST qabul qilinadi'}, status=405)
@@ -708,67 +801,161 @@ def pos_sync_push_api(request):
         return JsonResponse({'error': 'Noto\'g\'ri JSON format'}, status=400)
 
     orders_batch = data.get('orders', [])
+    dismissed_call_ids = data.get('dismissed_call_ids', [])
+    bill_requested_tables = data.get('bill_requested_tables', [])
     synced_ids = []
+    server_id_map = {}
+
+    if dismissed_call_ids:
+        valid_ids = [int(cid) for cid in dismissed_call_ids if str(cid).isdigit()]
+        if valid_ids:
+            WaiterCall.objects.filter(id__in=valid_ids, is_resolved=False).update(
+                is_resolved=True,
+                resolved_at=timezone.now(),
+            )
+
+    for tbl_raw in bill_requested_tables:
+        norm_t = _norm_table_num(tbl_raw)
+        if norm_t and not WaiterCall.objects.filter(table_number=norm_t, is_resolved=False, reason__icontains='Hisob').exists():
+            WaiterCall.objects.create(table_number=norm_t, reason="Hisob (Pre-chek) so'raldi", is_resolved=False)
 
     for o_data in orders_batch:
         offline_id = o_data.get('offline_id')
-        if not offline_id:
-            continue
-
-        existing = Order.objects.filter(offline_id=offline_id).first()
-        if existing:
-            synced_ids.append(offline_id)
+        server_id = o_data.get('id')
+        if not offline_id and not server_id:
             continue
 
         service_type = o_data.get('service_type', 'pickup')
-        table_number = o_data.get('table_number')
-        guests_count = int(o_data.get('guests_count', 1))
+        table_number = _norm_table_num(o_data.get('table_number')) if service_type == 'dine_in' else o_data.get('table_number')
+        guests_count = int(o_data.get('guests_count', 1) or 1)
         customer_phone = o_data.get('customer_phone', '+998000000000')
         customer_name = o_data.get('customer_name', 'Kassa (Offline)')
+        is_paid = bool(o_data.get('is_paid', True))
+        waiter_name = o_data.get('waiter_name')
+        payment_method = o_data.get('payment_method', 'naqd')
 
-        customer = _get_or_create_pos_customer(customer_phone, customer_name)
+        existing = None
+        if offline_id:
+            existing = Order.objects.filter(offline_id=offline_id).first()
+        if not existing and server_id:
+            existing = Order.objects.filter(id=server_id).first()
+        if not existing and service_type == 'dine_in' and table_number and not is_paid:
+            existing = Order.objects.filter(
+                table_number=table_number,
+                service_type='dine_in',
+                is_paid=False,
+            ).exclude(status='bekor_qilingan').order_by('-created_at').first()
 
         with transaction.atomic():
-            order = Order.objects.create(
-                customer=customer,
-                offline_id=offline_id,
-                service_type=service_type,
-                table_number=table_number,
-                guests_count=guests_count,
-                waiter_name=o_data.get('waiter_name'),
-                status=o_data.get('status', 'olib_ketildi'),
-                payment_method=o_data.get('payment_method', 'naqd'),
-                is_paid=o_data.get('is_paid', True),
-                notes=o_data.get('notes', 'Offline kassa orqali yopilgan'),
-                products_total=Decimal(str(o_data.get('products_total', 0))),
-                service_fee_amount=Decimal(str(o_data.get('service_fee_amount', 0))),
-                discount_percent=Decimal(str(o_data.get('discount_percent', 0) or 0)),
-                discount_amount=Decimal(str(o_data.get('discount_amount', 0) or 0)),
-                total_amount=Decimal(str(o_data.get('total_amount', 0))),
-                delivery_cost=0,
-                is_synced=True
-            )
+            if existing:
+                order = existing
+                if offline_id and not order.offline_id:
+                    order.offline_id = offline_id
+                order.guests_count = guests_count
+                if waiter_name:
+                    order.waiter_name = waiter_name
+                if o_data.get('notes'):
+                    order.notes = o_data.get('notes')
+                order.payment_method = payment_method
+                if is_paid:
+                    order.is_paid = True
+                    order.status = 'yetkazildi' if service_type == 'dine_in' else 'olib_ketildi'
+                    if service_type == 'dine_in':
+                        order.delivered_at = order.delivered_at or timezone.now()
+                    else:
+                        order.picked_up_at = order.picked_up_at or timezone.now()
+                elif o_data.get('status'):
+                    order.status = o_data.get('status')
+                order.products_total = Decimal(str(o_data.get('products_total', order.products_total or 0)))
+                order.service_fee_amount = Decimal(str(o_data.get('service_fee_amount', order.service_fee_amount or 0)))
+                order.discount_percent = Decimal(str(o_data.get('discount_percent', order.discount_percent or 0) or 0))
+                order.discount_amount = Decimal(str(o_data.get('discount_amount', order.discount_amount or 0) or 0))
+                order.total_amount = Decimal(str(o_data.get('total_amount', order.total_amount or 0)))
+                order.is_synced = True
+                order.save()
 
-            for item_d in o_data.get('items', []):
-                prod_id = item_d.get('product_id')
-                qty = int(item_d.get('quantity', 1))
-                price = Decimal(str(item_d.get('price', 0)))
-                prod = Product.objects.filter(id=prod_id).first()
-                if prod:
-                    OrderItem.objects.create(
-                        order=order,
-                        product=prod,
-                        quantity=qty,
-                        price=price,
-                        total=price * qty
-                    )
+                items_in = o_data.get('items', [])
+                if items_in:
+                    order.items.all().delete()
+                    for item_d in items_in:
+                        prod_id = item_d.get('product_id')
+                        qty = int(item_d.get('quantity', 1))
+                        price = Decimal(str(item_d.get('price', 0)))
+                        prod = Product.objects.filter(id=prod_id).first()
+                        if prod and qty > 0:
+                            OrderItem.objects.create(
+                                order=order,
+                                product=prod,
+                                quantity=qty,
+                                price=price,
+                                total=price * qty,
+                            )
+            else:
+                customer = _get_or_create_pos_customer(customer_phone, customer_name)
+                default_status = ('yetkazildi' if service_type == 'dine_in' else 'olib_ketildi') if is_paid else 'yangi'
+                order = Order.objects.create(
+                    customer=customer,
+                    offline_id=offline_id,
+                    service_type=service_type,
+                    table_number=table_number,
+                    guests_count=guests_count,
+                    waiter_name=waiter_name,
+                    status=o_data.get('status') or default_status,
+                    payment_method=payment_method,
+                    is_paid=is_paid,
+                    notes=o_data.get('notes', 'Offline kassa orqali yopilgan'),
+                    products_total=Decimal(str(o_data.get('products_total', 0))),
+                    service_fee_amount=Decimal(str(o_data.get('service_fee_amount', 0))),
+                    discount_percent=Decimal(str(o_data.get('discount_percent', 0) or 0)),
+                    discount_amount=Decimal(str(o_data.get('discount_amount', 0) or 0)),
+                    total_amount=Decimal(str(o_data.get('total_amount', 0))),
+                    delivery_cost=0,
+                    is_synced=True,
+                )
 
-            synced_ids.append(offline_id)
+                for item_d in o_data.get('items', []):
+                    prod_id = item_d.get('product_id')
+                    qty = int(item_d.get('quantity', 1))
+                    price = Decimal(str(item_d.get('price', 0)))
+                    prod = Product.objects.filter(id=prod_id).first()
+                    if prod and qty > 0:
+                        OrderItem.objects.create(
+                            order=order,
+                            product=prod,
+                            quantity=qty,
+                            price=price,
+                            total=price * qty
+                        )
+
+            if service_type == 'dine_in' and table_number:
+                t_int = int(table_number) if str(table_number).isdigit() else 0
+                tbl = RestaurantTable.objects.filter(number=t_int).first()
+                if tbl:
+                    if is_paid or order.status == 'bekor_qilingan':
+                        tbl.guests_count = 0
+                        tbl.opened_at = None
+                        tbl.assigned_waiter = None
+                        tbl.save()
+                        WaiterCall.objects.filter(table_number=str(table_number), is_resolved=False).update(
+                            is_resolved=True, resolved_at=timezone.now()
+                        )
+                    else:
+                        tbl.guests_count = guests_count
+                        if not tbl.opened_at:
+                            tbl.opened_at = timezone.now()
+                        if waiter_name and not tbl.assigned_waiter:
+                            tbl.assigned_waiter = WaiterProfile.objects.filter(name__iexact=waiter_name).first()
+                        tbl.save()
+
+            if offline_id:
+                synced_ids.append(offline_id)
+                server_id_map[offline_id] = order.id
 
     return JsonResponse({
         'status': 'ok',
         'synced_count': len(synced_ids),
         'synced_ids': synced_ids,
+        'server_id_map': server_id_map,
         'server_time': timezone.now().isoformat(),
     })
 

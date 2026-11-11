@@ -186,6 +186,30 @@
 
                             <!-- StatusPill per state (icon + text, never color-only) -->
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- Active QR / Waiter Call Badge -->
+                                <Border CornerRadius="{StaticResource RadiusXs}"
+                                        Background="{DynamicResource BrushAmberTint}"
+                                        BorderBrush="{DynamicResource BrushAmber}"
+                                        BorderThickness="1"
+                                        Padding="6,2"
+                                        Margin="0,0,6,0"
+                                        VerticalAlignment="Center">
+                                    <Border.Style>
+                                        <Style TargetType="{x:Type Border}">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasActiveCall}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <TextBlock Text="QR CHAQIRUV"
+                                               FontSize="10"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource BrushAmber}" />
+                                </Border>
+
                                 <!-- Single pulse dot on BillPrinted -->
                                 <Ellipse x:Name="BillPulseDot"
                                          Width="8" Height="8"

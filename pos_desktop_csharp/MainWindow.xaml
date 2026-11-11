@@ -1466,8 +1466,12 @@
                                     CornerRadius="{StaticResource RadiusMd}"
                                     Padding="20">
                                 <StackPanel>
-                                    <controls:Field Label="Server manzili" HelperText="Lokal tarmoq yoki asosiy server manzili" Margin="0,0,0,16">
-                                        <TextBox x:Name="ServerUrlBox" Text="http://127.0.0.1:8000" TextChanged="OnSettingsTextChanged" />
+                                    <controls:Field Label="Cloud Django Server manzili" HelperText="Internet boʻlganda markaziy server bilan sinxronlash uchun" Margin="0,0,0,16">
+                                        <TextBox x:Name="ServerUrlBox" Text="https://dilkash-django-production.up.railway.app" TextChanged="OnSettingsTextChanged" />
+                                    </controls:Field>
+
+                                    <controls:Field Label="Ofitsiantlar uchun Wi-Fi Hub manzili" HelperText="Lokal tarmoqdagi ofitsiant ilovalari shu manzilga ulanadi (avtomatik Wi-Fi qidiruv faol)" Margin="0,0,0,16">
+                                        <TextBox x:Name="LocalHubInfoBox" IsReadOnly="True" Text="http://127.0.0.1:8088" />
                                     </controls:Field>
 
                                     <controls:Field Label="Xizmat haqi turi" Margin="0,0,0,16">

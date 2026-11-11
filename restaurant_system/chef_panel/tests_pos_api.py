@@ -288,5 +288,97 @@ class PosApiTests(TestCase):
         t1_free = next(t for t in floor3['tables'] if t['table_number'] == '1')
         self.assertEqual(t1_free['stage'], 'free')
 
+    def test_09_bootstrap_staff_calls_and_bidirectional_sync_push(self):
+        """Bootstrap staff/waiter_calls hamda POS Hub ikki tomonlama sync/push sinovi"""
+        waiter = WaiterProfile.objects.create(
+            name='Sardor Alimov',
+            phone='+998902223344',
+            pin_code='2345',
+            is_active=True,
+        )
+        qr_call = WaiterCall.objects.create(
+            table_number='2',
+            reason="QR orqali ofitsiant chaqirildi",
+            is_resolved=False,
+        )
+
+        # 1. Bootstrap xodimlar (faqat pin_hash) va QR chaqiruvlarni qaytarishi kerak
+        boot = self.client.get('/api/pos/bootstrap/')
+        self.assertEqual(boot.status_code, 200)
+        b_data = boot.json()
+        self.assertIn('staff', b_data)
+        self.assertIn('waiter_calls', b_data)
+        self.assertTrue(any(s['name'] == 'Sardor Alimov' and 'pin_hash' in s and 'pin_code' not in s for s in b_data['staff']))
+        self.assertTrue(any(c['id'] == qr_call.id and c['table_number'] == '2' for c in b_data['waiter_calls']))
+        t2_boot = next(t for t in b_data['tables'] if t['number'] == 2)
+        self.assertIsNotNone(t2_boot['active_call'])
+        self.assertEqual(t2_boot['active_call']['id'], qr_call.id)
+
+        # 2. POS / Ofitsiant offline rejimda 1-stolda to'lanmagan buyurtma ochadi va sync/push qiladi
+        push1 = self.client.post('/api/pos/sync/push/', data=json.dumps({
+            'orders': [{
+                'offline_id': 'off-t1-001',
+                'service_type': 'dine_in',
+                'table_number': '1',
+                'guests_count': 3,
+                'waiter_name': waiter.name,
+                'is_paid': False,
+                'status': 'yangi',
+                'products_total': 45000,
+                'service_fee_amount': 4500,
+                'total_amount': 49500,
+                'items': [{'product_id': self.p_osh.id, 'quantity': 1, 'price': 45000}],
+            }]
+        }), content_type='application/json')
+        self.assertEqual(push1.status_code, 200)
+        p1_data = push1.json()
+        self.assertIn('off-t1-001', p1_data['synced_ids'])
+        server_order_id = p1_data['server_id_map']['off-t1-001']
+
+        order = Order.objects.get(id=server_order_id)
+        self.assertFalse(order.is_paid)
+        self.assertEqual(order.table_number, '1')
+        self.table1.refresh_from_db()
+        self.assertEqual(self.table1.guests_count, 3)
+
+        # 3. Yangi taom qo'shilib karta bilan yopilganda + QR chaqiruv hal qilinganda sync/push yangilashi kerak
+        push2 = self.client.post('/api/pos/sync/push/', data=json.dumps({
+            'dismissed_call_ids': [qr_call.id],
+            'orders': [{
+                'offline_id': 'off-t1-001',
+                'service_type': 'dine_in',
+                'table_number': '1',
+                'guests_count': 3,
+                'waiter_name': waiter.name,
+                'is_paid': True,
+                'payment_method': 'karta',
+                'products_total': 57000,
+                'service_fee_amount': 5700,
+                'total_amount': 62700,
+                'items': [
+                    {'product_id': self.p_osh.id, 'quantity': 1, 'price': 45000},
+                    {'product_id': self.p_somsa.id, 'quantity': 1, 'price': 12000},
+                ],
+            }]
+        }), content_type='application/json')
+        self.assertEqual(push2.status_code, 200)
+        order.refresh_from_db()
+        qr_call.refresh_from_db()
+        self.table1.refresh_from_db()
+        self.assertTrue(order.is_paid)
+        self.assertEqual(order.payment_method, 'karta')
+        self.assertEqual(float(order.total_amount), 62700.0)
+        self.assertEqual(order.items.count(), 2)
+        self.assertTrue(qr_call.is_resolved)
+        self.assertEqual(self.table1.guests_count, 0)
+
+        # 4. Alohida POS call dismiss endpointi ham ishlashi kerak
+        qr_call2 = WaiterCall.objects.create(table_number='2', reason='Chaqiruv 2', is_resolved=False)
+        dismiss_res = self.client.post(f'/api/pos/waiter-calls/{qr_call2.id}/dismiss/')
+        self.assertEqual(dismiss_res.status_code, 200)
+        qr_call2.refresh_from_db()
+        self.assertTrue(qr_call2.is_resolved)
+
+
 
 

@@ -66,6 +66,7 @@ urlpatterns = [
     path('api/pos/online-orders/', pos_api.pos_online_orders_api),
     path('api/pos/online-orders/<int:order_id>/action/', pos_api.pos_online_order_action_api),
     path('api/pos/sync/push/', pos_api.pos_sync_push_api),
+    path('api/pos/waiter-calls/<int:call_id>/dismiss/', chef_views.waiter_dismiss_call_api),
 ]
 
 

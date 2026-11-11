@@ -82,6 +82,7 @@ namespace DilkashPos.Models
         private bool _isOccupied;
         private int _guestsCount;
         private Order? _activeOrder;
+        private WaiterCall? _activeCall;
         private string _status = "empty"; // 'empty', 'occupied', 'bill_printed', 'reserved'
 
         public int Id { get; set; }
@@ -91,6 +92,20 @@ namespace DilkashPos.Models
         public int Capacity { get; set; } = 4;
         public string? AssignedWaiter { get; set; }
         public string? OpenedAt { get; set; }
+        public string? OrderStatus { get; set; }
+
+        public WaiterCall? ActiveCall
+        {
+            get => _activeCall;
+            set
+            {
+                _activeCall = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(HasActiveCall));
+            }
+        }
+
+        public bool HasActiveCall => ActiveCall != null && !ActiveCall.IsResolved;
 
         public string Status
         {
@@ -196,6 +211,7 @@ namespace DilkashPos.Models
     {
         private decimal _discountPercent;
         private decimal _discountAmount;
+        private List<OrderItem> _items = new();
 
         public int Id { get; set; }
         public string OrderNumber { get; set; } = "";
@@ -218,19 +234,40 @@ namespace DilkashPos.Models
         public decimal DiscountPercent
         {
             get => _discountPercent;
-            set { _discountPercent = value; OnPropertyChanged(); RecalculateTotals(); }
+            set
+            {
+                if (_discountPercent == value) return;
+                _discountPercent = value;
+                OnPropertyChanged();
+                if (_items.Count > 0) RecalculateTotals();
+            }
         }
 
         public decimal DiscountAmount
         {
             get => _discountAmount;
-            set { _discountAmount = value; OnPropertyChanged(); RecalculateTotals(); }
+            set
+            {
+                if (_discountAmount == value) return;
+                _discountAmount = value;
+                OnPropertyChanged();
+                if (_items.Count > 0) RecalculateTotals();
+            }
         }
 
         public decimal TotalAmount { get; set; }
         public string? CreatedAt { get; set; }
         public int ElapsedMinutes { get; set; }
-        public List<OrderItem> Items { get; set; } = new();
+
+        public List<OrderItem> Items
+        {
+            get => _items;
+            set
+            {
+                _items = value ?? new();
+                if (ProductsTotal == 0 && _items.Count > 0) RecalculateTotals();
+            }
+        }
 
         public int ItemsCount => Items.Sum(i => i.Quantity);
         public string FormattedTotal => $"{TotalAmount:N0} so'm";
@@ -270,6 +307,27 @@ namespace DilkashPos.Models
         public decimal DiscountsGiven { get; set; }
     }
 
+    public class WaiterCall
+    {
+        public int Id { get; set; }
+        public string TableNumber { get; set; } = "";
+        public string Reason { get; set; } = "";
+        public string CreatedAt { get; set; } = "";
+        public bool IsResolved { get; set; }
+    }
+
+    public class StaffAccount
+    {
+        public int Id { get; set; }
+        public string Role { get; set; } = "waiter"; // 'waiter' | 'courier'
+        public string Name { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public string PinHash { get; set; } = "";
+        public string StaffCode { get; set; } = "";
+        public string Token { get; set; } = "";
+        public string VehicleInfo { get; set; } = "";
+    }
+
     public class PosSettings
     {
         public string ServiceFeeType { get; set; } = "percent"; // 'percent', 'per_person', 'none'
@@ -278,7 +336,7 @@ namespace DilkashPos.Models
         public bool AutoPrintNetwork { get; set; } = true;
         public decimal DeliveryBaseCost { get; set; } = 5000.0m;
         public Dictionary<string, string> Printers { get; set; } = new();
-        public string ServerUrl { get; set; } = "http://127.0.0.1:8000";
+        public string ServerUrl { get; set; } = "https://dilkash-django-production.up.railway.app";
         public string CashierName { get; set; } = "Jasur Rahimov";
         public bool KioskMode { get; set; } = true;
     }
