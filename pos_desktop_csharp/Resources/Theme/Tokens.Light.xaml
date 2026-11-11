@@ -1,0 +1,119 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:po="http://schemas.microsoft.com/winfx/2006/xaml/presentation/options"
+                    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                    mc:Ignorable="po">
+
+    <!-- ========================================================= -->
+    <!-- DILKASH DAYLIGHT PALETTE (DEFAULT — CALM & NON-FATIGUING) -->
+    <!-- ========================================================= -->
+
+    <!-- Surfaces & Borders -->
+    <Color x:Key="ColorBg">#F4F5F7</Color>
+    <Color x:Key="ColorSurface">#FFFFFF</Color>
+    <Color x:Key="ColorSurfaceElevated">#EDF0F5</Color>
+    <Color x:Key="ColorInput">#FFFFFF</Color>
+    <Color x:Key="ColorBorder">#D8DFE7</Color>
+    <Color x:Key="ColorBorderSubtle">#E7ECF1</Color>
+    <Color x:Key="ColorBorderHover">#B3BECB</Color>
+
+    <!-- Ink & On-Fill Text -->
+    <Color x:Key="ColorTextPrimary">#161E27</Color>
+    <Color x:Key="ColorTextSecondary">#475569</Color>
+    <Color x:Key="ColorTextMuted">#5A6878</Color>
+    <Color x:Key="ColorTextOnPrimary">#FFFFFF</Color>
+    <Color x:Key="ColorTextOnAmber">#FFFFFF</Color>
+    <Color x:Key="ColorTextOnError">#FFFFFF</Color>
+
+    <!-- Calm Brand Emerald -->
+    <Color x:Key="ColorPrimary">#0E7C5B</Color>
+    <Color x:Key="ColorPrimaryBright">#0A664A</Color>
+    <Color x:Key="ColorPrimaryPressed">#095D44</Color>
+    <Color x:Key="ColorPrimaryTint">#E7F5EF</Color>
+
+    <!-- Warm Ochre / Amber -->
+    <Color x:Key="ColorAmber">#B45309</Color>
+    <Color x:Key="ColorAmberBright">#9A4806</Color>
+    <Color x:Key="ColorAmberTint">#FDE68A</Color>
+    <Color x:Key="ColorAmberTintSoft">#FEF6E6</Color>
+    <Color x:Key="ColorBrandDot">#F59E0B</Color>
+
+    <!-- Semantic States -->
+    <Color x:Key="ColorSuccess">#0E7C5B</Color>
+    <Color x:Key="ColorError">#DC2626</Color>
+    <Color x:Key="ColorErrorBright">#B91C1C</Color>
+    <Color x:Key="ColorErrorTintSoft">#FDECEC</Color>
+    <Color x:Key="ColorInfo">#2563EB</Color>
+    <Color x:Key="ColorReserved">#7C3AED</Color>
+    <Color x:Key="ColorReservedTint">#F4EEFF</Color>
+    <Color x:Key="ColorReservedText">#5B21B6</Color>
+    <Color x:Key="ColorShadow">#0F172A</Color>
+
+    <!-- Frozen SolidColorBrushes -->
+    <SolidColorBrush x:Key="BrushBg" Color="{StaticResource ColorBg}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushSurface" Color="{StaticResource ColorSurface}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushSurfaceElevated" Color="{StaticResource ColorSurfaceElevated}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushInput" Color="{StaticResource ColorInput}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushBorder" Color="{StaticResource ColorBorder}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushBorderSubtle" Color="{StaticResource ColorBorderSubtle}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushBorderHover" Color="{StaticResource ColorBorderHover}" po:Freeze="True" />
+
+    <SolidColorBrush x:Key="BrushTextPrimary" Color="{StaticResource ColorTextPrimary}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushTextSecondary" Color="{StaticResource ColorTextSecondary}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushTextMuted" Color="{StaticResource ColorTextMuted}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushTextOnPrimary" Color="{StaticResource ColorTextOnPrimary}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushTextOnAmber" Color="{StaticResource ColorTextOnAmber}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushTextOnError" Color="{StaticResource ColorTextOnError}" po:Freeze="True" />
+
+    <SolidColorBrush x:Key="BrushPrimary" Color="{StaticResource ColorPrimary}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushPrimaryBright" Color="{StaticResource ColorPrimaryBright}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushPrimaryPressed" Color="{StaticResource ColorPrimaryPressed}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushPrimaryTint" Color="{StaticResource ColorPrimaryTint}" po:Freeze="True" />
+
+    <SolidColorBrush x:Key="BrushAmber" Color="{StaticResource ColorAmber}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushAmberBright" Color="{StaticResource ColorAmberBright}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushAmberTint" Color="{StaticResource ColorAmberTint}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushAmberTintSoft" Color="{StaticResource ColorAmberTintSoft}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushBrandDot" Color="{StaticResource ColorBrandDot}" po:Freeze="True" />
+
+    <SolidColorBrush x:Key="BrushSuccess" Color="{StaticResource ColorSuccess}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushError" Color="{StaticResource ColorError}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushErrorBright" Color="{StaticResource ColorErrorBright}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushErrorTintSoft" Color="{StaticResource ColorErrorTintSoft}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushInfo" Color="{StaticResource ColorInfo}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushReserved" Color="{StaticResource ColorReserved}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushReservedTint" Color="{StaticResource ColorReservedTint}" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushReservedText" Color="{StaticResource ColorReservedText}" po:Freeze="True" />
+
+    <SolidColorBrush x:Key="BrushFocusRing" Color="#D97706" po:Freeze="True" />
+    <SolidColorBrush x:Key="BrushScrim" Color="#590F172A" po:Freeze="True" />
+
+    <!-- Subtle Brand Girih Lattice Motif -->
+    <DrawingBrush x:Key="BrushGirihLattice" TileMode="Tile" Viewport="0,0,64,64" ViewportUnits="Absolute" Opacity="0.04" po:Freeze="True">
+        <DrawingBrush.Drawing>
+            <DrawingGroup>
+                <GeometryDrawing Brush="Transparent">
+                    <GeometryDrawing.Geometry>
+                        <RectangleGeometry Rect="0,0,64,64" />
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+                <GeometryDrawing>
+                    <GeometryDrawing.Pen>
+                        <Pen Brush="{StaticResource BrushPrimary}" Thickness="1" />
+                    </GeometryDrawing.Pen>
+                    <GeometryDrawing.Geometry>
+                        <GeometryGroup>
+                            <LineGeometry StartPoint="0,0" EndPoint="64,64" />
+                            <LineGeometry StartPoint="64,0" EndPoint="0,64" />
+                            <LineGeometry StartPoint="32,0" EndPoint="64,32" />
+                            <LineGeometry StartPoint="64,32" EndPoint="32,64" />
+                            <LineGeometry StartPoint="32,64" EndPoint="0,32" />
+                            <LineGeometry StartPoint="0,32" EndPoint="32,0" />
+                        </GeometryGroup>
+                    </GeometryDrawing.Geometry>
+                </GeometryDrawing>
+            </DrawingGroup>
+        </DrawingBrush.Drawing>
+    </DrawingBrush>
+
+</ResourceDictionary>

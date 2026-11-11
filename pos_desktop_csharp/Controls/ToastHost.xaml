@@ -19,7 +19,7 @@
                 <TranslateTransform x:Name="ToastSlide" Y="12" />
             </Border.RenderTransform>
             <Border.Effect>
-                <DropShadowEffect Color="{StaticResource ColorShadow}" BlurRadius="24" ShadowDepth="6" Opacity="0.5" />
+                <DropShadowEffect Color="{StaticResource ColorShadow}" BlurRadius="20" ShadowDepth="4" Opacity="0.22" />
             </Border.Effect>
 
             <Grid>

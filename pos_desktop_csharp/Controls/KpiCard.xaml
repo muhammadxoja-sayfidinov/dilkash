@@ -7,23 +7,23 @@
             BorderBrush="{DynamicResource BrushBorder}"
             BorderThickness="1"
             CornerRadius="{StaticResource RadiusMd}"
-            Padding="20,18">
+            Padding="16,14">
         <StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,10" VerticalAlignment="Center">
-                <Border Width="34" Height="34"
-                        CornerRadius="10"
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8" VerticalAlignment="Center">
+                <Border Width="32" Height="32"
+                        CornerRadius="9"
                         Background="{DynamicResource BrushSurfaceElevated}"
                         BorderBrush="{DynamicResource BrushBorderSubtle}"
                         BorderThickness="1"
                         Margin="0,0,10,0">
-                    <local:Icon x:Name="CardIcon" Size="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <local:Icon x:Name="CardIcon" Size="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
                 <TextBlock x:Name="LabelBlock" Style="{StaticResource TextLabel}" VerticalAlignment="Center" />
             </StackPanel>
 
             <TextBlock x:Name="ValueBlock"
                        Style="{StaticResource TextKpi}"
-                       FontSize="28"
+                       FontSize="24"
                        Margin="0,0,0,4" />
 
             <TextBlock x:Name="SubtitleBlock"

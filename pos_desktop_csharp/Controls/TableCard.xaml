@@ -3,8 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:DilkashPos.Controls"
              xmlns:vm="clr-namespace:DilkashPos.ViewModels"
-             MinWidth="260"
-             Height="160">
+             MinWidth="240"
+             Height="146">
     <Grid>
         <!-- Card Surface + Visual States -->
         <Border x:Name="CardBorder"
@@ -14,11 +14,11 @@
             <Border.Style>
                 <Style TargetType="{x:Type Border}">
                     <Setter Property="Background" Value="{DynamicResource BrushSurface}" />
-                    <Setter Property="BorderBrush" Value="{DynamicResource BrushBorderSubtle}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding VisualState}" Value="{x:Static vm:TableVisualState.Occupied}">
-                            <Setter Property="Background" Value="{DynamicResource BrushSurfaceElevated}" />
-                            <Setter Property="BorderBrush" Value="{DynamicResource BrushBorder}" />
+                            <Setter Property="Background" Value="{DynamicResource BrushSurface}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource BrushPrimary}" />
                         </DataTrigger>
                         <DataTrigger Binding="{Binding VisualState}" Value="{x:Static vm:TableVisualState.BillPrinted}">
                             <Setter Property="Background" Value="{DynamicResource BrushAmberTintSoft}" />
@@ -74,8 +74,8 @@
                 <!-- Full-Card Interactive Button (Focus, Touch, Press Scale, Opens Table/Order) -->
                 <Button x:Name="CardBodyButton"
                         Click="OnCardBodyClick"
-                        Padding="14,12"
-                        MinHeight="152"
+                        Padding="12,10"
+                        MinHeight="138"
                         HorizontalContentAlignment="Stretch"
                         VerticalContentAlignment="Stretch"
                         FocusVisualStyle="{x:Null}"
@@ -327,8 +327,8 @@
                             </Grid>
                         </Grid>
 
-                        <!-- Row 2: Footer (Free = quiet Ochish affordance; Occupied = Saffron Amount + spacer for buttons) -->
-                        <Grid Grid.Row="2" MinHeight="48">
+                        <!-- Row 2: Footer (Free = quiet Ochish affordance; Occupied = Warm Amount + spacer for buttons) -->
+                        <Grid Grid.Row="2" MinHeight="44">
                             <!-- Free / Reserved Footer -->
                             <Grid>
                                 <Grid.Style>
@@ -399,25 +399,25 @@
                     </StackPanel.Style>
 
                     <Button Style="{StaticResource GhostButton}"
-                            MinHeight="48"
-                            Height="48"
-                            Padding="12,8"
-                            Margin="0,0,8,0"
+                            MinHeight="44"
+                            Height="44"
+                            Padding="10,6"
+                            Margin="0,0,6,0"
                             Click="OnPreChekClick">
                         <StackPanel Orientation="Horizontal">
-                            <local:Icon Data="{StaticResource IconReceipt}" Size="16" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                            <local:Icon Data="{StaticResource IconReceipt}" Size="15" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,0,5,0" VerticalAlignment="Center" />
                             <TextBlock Text="Hisob" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
 
                     <Button Style="{StaticResource PrimaryButton}"
-                            MinHeight="48"
-                            Height="48"
-                            Padding="14,8"
+                            MinHeight="44"
+                            Height="44"
+                            Padding="12,6"
                             Click="OnPayClick">
                         <StackPanel Orientation="Horizontal">
-                            <local:Icon Data="{StaticResource IconCash}" Size="16" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,6,0" VerticalAlignment="Center" />
-                            <TextBlock Text="Toʻlov" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                            <local:Icon Data="{StaticResource IconCash}" Size="15" Foreground="{DynamicResource BrushTextOnPrimary}" Margin="0,0,5,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Toʻlov" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextOnPrimary}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>

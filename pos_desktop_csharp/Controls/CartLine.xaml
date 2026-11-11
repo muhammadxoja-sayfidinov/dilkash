@@ -2,12 +2,12 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:DilkashPos.Controls"
-             MinHeight="72">
+             MinHeight="64">
     <Border Background="{DynamicResource BrushBg}"
             BorderBrush="{DynamicResource BrushBorderSubtle}"
             BorderThickness="1"
             CornerRadius="{StaticResource RadiusSm}"
-            Padding="12,10">
+            Padding="10,8">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -31,7 +31,7 @@
                 <TextBlock Grid.Column="1"
                            Text="{Binding LineTotalFormatted}"
                            Style="{StaticResource TextAmount}"
-                           FontSize="16"
+                           FontSize="14"
                            Foreground="{DynamicResource BrushTextPrimary}"
                            VerticalAlignment="Center" />
             </Grid>
@@ -50,15 +50,15 @@
                 </StackPanel.Style>
                 <local:Icon Data="{StaticResource IconEdit}" Size="13" Foreground="{DynamicResource BrushAmberBright}" Margin="0,0,5,0" VerticalAlignment="Center" />
                 <TextBlock Text="{Binding Notes}"
-                           FontSize="13"
+                           FontSize="12"
                            FontWeight="Medium"
                            Foreground="{DynamicResource BrushAmberBright}"
                            TextWrapping="Wrap"
                            VerticalAlignment="Center" />
             </StackPanel>
 
-            <!-- Row 2: Unit Price + Note IconButton + Stepper (48px targets) -->
-            <Grid Grid.Row="2" Margin="0,8,0,0">
+            <!-- Row 2: Unit Price + Note IconButton + Stepper (44px compact touch targets) -->
+            <Grid Grid.Row="2" Margin="0,6,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -72,11 +72,11 @@
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Style="{StaticResource IconButton}"
-                            Width="48" Height="48"
-                            Margin="0,0,8,0"
+                            Width="44" Height="44" MinWidth="44" MinHeight="44"
+                            Margin="0,0,6,0"
                             ToolTip="Izoh qoʻshish"
                             Click="OnEditNoteClick">
-                        <local:Icon Data="{StaticResource IconEdit}" Size="18" Foreground="{DynamicResource BrushTextSecondary}" />
+                        <local:Icon Data="{StaticResource IconEdit}" Size="16" Foreground="{DynamicResource BrushTextSecondary}" />
                     </Button>
 
                     <local:Stepper x:Name="LineStepper"

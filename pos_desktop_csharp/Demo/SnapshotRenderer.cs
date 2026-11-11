@@ -22,6 +22,7 @@ namespace DilkashPos.Demo
         public static async Task CaptureAllAsync(string outputDir)
         {
             Application.Current.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            DilkashPos.Utils.ThemeManager.ApplyTheme(false);
             DilkashPos.Controls.DialogChrome.DisableAnimationsForTests = true;
             Directory.CreateDirectory(outputDir);
             Console.WriteLine($"[SnapshotRenderer] Capturing snapshots to {outputDir}...");
@@ -299,6 +300,17 @@ namespace DilkashPos.Demo
 
                         win.SwitchToTabPublic("tables");
 
+                        // Calm Slate Dark Mode Checks (tables, quick_pos, settings) - captured before Toast overlay
+                        win.SetDemoTheme(true);
+                        win.SwitchToTabPublic("tables");
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "tables_dark.png"));
+                        win.SwitchToTabPublic("quick_pos");
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "quick_pos_dark.png"));
+                        win.SwitchToTabPublic("settings");
+                        RenderWindowToPng(win, width, height, Path.Combine(resDir, "settings_dark.png"));
+                        win.SetDemoTheme(false);
+                        win.SwitchToTabPublic("tables");
+
                         // Toast
                         win.ShowDemoToast("Toʻlov qabul qilindi va kassa cheki chop etildi", Utils.ToastTone.Success, "Qaytarish");
                         RenderWindowToPng(win, width, height, Path.Combine(resDir, "shell_toast.png"));
@@ -306,6 +318,7 @@ namespace DilkashPos.Demo
                         // Lock overlay
                         win.SetLockedState(true);
                         RenderWindowToPng(win, width, height, Path.Combine(resDir, "shell_locked.png"));
+                        win.SetLockedState(false);
 
                         win.Close();
                     });

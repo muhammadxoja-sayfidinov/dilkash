@@ -40,6 +40,8 @@
     <StreamGeometry x:Key="IconFullscreen">M8 3H5a2 2 0 0 0-2 2v3 M21 8V5a2 2 0 0 0-2-2h-3 M3 16v3a2 2 0 0 0 2 2h3 M16 21h3a2 2 0 0 0 2-2v-3</StreamGeometry>
     <StreamGeometry x:Key="IconChevronDown">M6 9l6 6 6-6</StreamGeometry>
     <StreamGeometry x:Key="IconChevronRight">M9 18l6-6-6-6</StreamGeometry>
+    <StreamGeometry x:Key="IconSun">M12 1v2 M12 21v2 M4.22 4.22l1.42 1.42 M18.36 18.36l1.42 1.42 M1 12h2 M21 12h2 M4.22 19.78l1.42-1.42 M18.36 5.64l1.42-1.42 M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z</StreamGeometry>
+    <StreamGeometry x:Key="IconMoon">M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z</StreamGeometry>
 
     <!-- Food Departments -->
     <StreamGeometry x:Key="IconGrill">M3 11h18 M4 11l2 10 M20 11l-2 10 M7 11V6 M12 11V4 M17 11V6 M7 15h10</StreamGeometry>
@@ -66,13 +68,13 @@
             </GeometryDrawing.Geometry>
         </GeometryDrawing>
         <!-- Geometric Letter D -->
-        <GeometryDrawing Brush="{DynamicResource BrushTextPrimary}">
+        <GeometryDrawing Brush="{DynamicResource BrushTextOnPrimary}">
             <GeometryDrawing.Geometry>
                 <PathGeometry Figures="M14 12 h8 a12 12 0 0 1 0 24 h-8 z M18 16 v16 h4 a8 8 0 0 0 0-16 z" FillRule="Nonzero" />
             </GeometryDrawing.Geometry>
         </GeometryDrawing>
         <!-- Saffron Attention Dot -->
-        <GeometryDrawing Brush="{DynamicResource BrushAmberBright}">
+        <GeometryDrawing Brush="{DynamicResource BrushBrandDot}">
             <GeometryDrawing.Geometry>
                 <EllipseGeometry Center="36,12" RadiusX="3.5" RadiusY="3.5" />
             </GeometryDrawing.Geometry>
