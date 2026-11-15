@@ -7,7 +7,7 @@ from django.utils import timezone
 from .models import (
     Category, Product, Order, OrderItem, Customer,
     RestaurantTable, BotSettings, WaiterProfile, CourierProfile, WaiterCall,
-    Hall, PrinterDevice, CashierProfile
+    Hall, PrinterDevice, CashierProfile, WaiterFeedback, DishFeedback
 )
 
 class PosApiTests(TestCase):
@@ -774,6 +774,103 @@ class PosApiTests(TestCase):
         courier.refresh_from_db()
         self.assertEqual(courier.current_lat, 41.2900)
         self.assertEqual(courier.current_lng, 69.2200)
+
+    def test_14_table_feedback_submission_and_confidentiality(self):
+        """QR kod orqali ofitsiant va taomlarni baholash, maxfiylik va POS monitoring testi"""
+        # 1. Ofitsiant va stol buyurtmasini yaratamiz
+        waiter = WaiterProfile.objects.create(
+            name="Bobur Mirzo",
+            phone="+998901234567"
+        )
+        customer = Customer.objects.create(
+            telegram_id=888999,
+            full_name="Mehmon",
+            phone_number="+998901112233"
+        )
+        order = Order.objects.create(
+            customer=customer,
+            table_number="1",
+            waiter=waiter,
+            waiter_name=waiter.name,
+            service_type='dine_in',
+            status='ochiq',
+            products_total=Decimal('62000.0'),
+            total_amount=Decimal('68200.0')
+        )
+        OrderItem.objects.create(order=order, product=self.p_shashlik, quantity=2, price=25000, total=50000)
+        OrderItem.objects.create(order=order, product=self.p_somsa, quantity=1, price=12000, total=12000)
+
+        # 2. QR orqali mijoz baholash so'rovini yuboradi
+        feedback_payload = {
+            'order_id': order.id,
+            'table_number': '1',
+            'waiter_id': waiter.id,
+            'waiter_rating': 5,
+            'waiter_comment': "Xizmat a'lo darajada, ofitsiant juda muloyim!",
+            'dish_ratings': [
+                {
+                    'product_id': self.p_shashlik.id,
+                    'rating': 5,
+                    'comment': "Kabob shirali va juda mazali pishgan!"
+                },
+                {
+                    'product_id': self.p_somsa.id,
+                    'rating': 4,
+                    'comment': "Somsa issiq, xamiri qarsildoq"
+                }
+            ]
+        }
+        res = self.client.post('/api/table/feedback/submit/', data=json.dumps(feedback_payload), content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+        res_data = res.json()
+        self.assertTrue(res_data['success'])
+
+        # 3. Bazada saqlanganligini tekshiramiz
+        w_fb = WaiterFeedback.objects.filter(waiter=waiter, order=order).first()
+        self.assertIsNotNone(w_fb)
+        self.assertEqual(w_fb.rating, 5)
+        self.assertEqual(w_fb.waiter_name, "Bobur Mirzo")
+        self.assertEqual(w_fb.comment, "Xizmat a'lo darajada, ofitsiant juda muloyim!")
+
+        d_fbs = DishFeedback.objects.filter(order=order).order_by('id')
+        self.assertEqual(d_fbs.count(), 2)
+        self.assertEqual(d_fbs[0].product_name, "Qo'y go'shti kabob")
+        self.assertEqual(d_fbs[0].rating, 5)
+        self.assertEqual(d_fbs[1].product_name, "Tandir Somsa")
+        self.assertEqual(d_fbs[1].rating, 4)
+
+        # 4. Maxfiylik kafolati: Ofitsiant API'larida ushbu baholar UMUMAN ko'rsatilmasligi kerak
+        # Ofitsiant o'z faol buyurtmalarini ko'rganda reytinglar berilmaydi
+        w_orders_res = self.client.get(f'/api/waiter/orders/?waiter_id={waiter.id}')
+        if w_orders_res.status_code == 200:
+            content_str = w_orders_res.content.decode('utf-8')
+            self.assertNotIn("waiter_comment", content_str)
+            self.assertNotIn("Xizmat a'lo darajada", content_str)
+
+        # 5. POS API orqali kassa/rahbariyat barchasini ko'ra oladi
+        pos_res = self.client.get('/api/pos/feedback/')
+        self.assertEqual(pos_res.status_code, 200)
+        pos_data = pos_res.json()
+        self.assertEqual(pos_data['status'], 'ok')
+        self.assertEqual(pos_data['stats']['total_waiter_reviews'], 1)
+        self.assertEqual(pos_data['stats']['avg_waiter_rating'], 5.0)
+        self.assertEqual(pos_data['stats']['total_dish_reviews'], 2)
+        self.assertEqual(pos_data['stats']['avg_dish_rating'], 4.5)
+
+        # Ofitsiantlar reyting jadvali
+        self.assertGreaterEqual(len(pos_data['waiters_summary']), 1)
+        w_sum = [w for w in pos_data['waiters_summary'] if w['waiter_id'] == waiter.id][0]
+        self.assertEqual(w_sum['name'], "Bobur Mirzo")
+        self.assertEqual(w_sum['avg_rating'], 5.0)
+        self.assertEqual(w_sum['reviews_count'], 1)
+
+        # Qidiruv filteri tekshiruvi: Kabob bo'yicha filter
+        pos_search = self.client.get('/api/pos/feedback/?q=kabob')
+        self.assertEqual(pos_search.status_code, 200)
+        search_data = pos_search.json()
+        self.assertEqual(len(search_data['dish_feedbacks']), 1)
+        self.assertEqual(search_data['dish_feedbacks'][0]['product_name'], "Qo'y go'shti kabob")
+
 
 
 

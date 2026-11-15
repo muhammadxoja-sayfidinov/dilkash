@@ -48,6 +48,8 @@
     <StreamGeometry x:Key="IconLayers">M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5</StreamGeometry>
     <StreamGeometry x:Key="IconSun">M12 1v2 M12 21v2 M4.22 4.22l1.42 1.42 M18.36 18.36l1.42 1.42 M1 12h2 M21 12h2 M4.22 19.78l1.42-1.42 M18.36 5.64l1.42-1.42 M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z</StreamGeometry>
     <StreamGeometry x:Key="IconMoon">M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z</StreamGeometry>
+    <StreamGeometry x:Key="IconStar">M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z</StreamGeometry>
+    <StreamGeometry x:Key="IconMessage">M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z</StreamGeometry>
 
     <!-- Food Departments -->
     <StreamGeometry x:Key="IconGrill">M3 11h18 M4 11l2 10 M20 11l-2 10 M7 11V6 M12 11V4 M17 11V6 M7 15h10</StreamGeometry>

@@ -7,7 +7,8 @@ from .models import (
     Category, Product, Customer, Order, OrderItem, OrderStatusHistory,
     BotSettings, RestaurantTable, PaymentTransaction, WaiterCall, WaiterProfile,
     Hall, PrinterDevice, CashierProfile,
-    Ingredient, Supplier, StockSupply, StockSupplyItem, StockWriteOff, StockWriteOffItem, RecipeItem, StockMovementLog
+    Ingredient, Supplier, StockSupply, StockSupplyItem, StockWriteOff, StockWriteOffItem, RecipeItem, StockMovementLog,
+    WaiterFeedback, DishFeedback
 )
 from .utils import send_telegram_message
 import logging
@@ -404,6 +405,23 @@ class StockMovementLogAdmin(admin.ModelAdmin):
     list_filter = ['movement_type', 'created_at']
     search_fields = ['ingredient__name', 'notes', 'related_order__order_number']
     readonly_fields = ['created_at', 'ingredient', 'movement_type', 'quantity_delta', 'stock_before', 'stock_after', 'unit_cost', 'related_order', 'related_supply', 'related_write_off', 'notes']
+
+
+@admin.register(WaiterFeedback)
+class WaiterFeedbackAdmin(admin.ModelAdmin):
+    list_display = ['created_at', 'waiter_name', 'table_number', 'rating', 'comment', 'order']
+    list_filter = ['rating', 'created_at', 'waiter']
+    search_fields = ['waiter_name', 'table_number', 'comment']
+    readonly_fields = ['created_at']
+
+
+@admin.register(DishFeedback)
+class DishFeedbackAdmin(admin.ModelAdmin):
+    list_display = ['created_at', 'product_name', 'table_number', 'rating', 'comment', 'order']
+    list_filter = ['rating', 'created_at', 'product']
+    search_fields = ['product_name', 'table_number', 'comment']
+    readonly_fields = ['created_at']
+
 
 
 

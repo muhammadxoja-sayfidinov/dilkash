@@ -52,6 +52,7 @@ api_urlpatterns = [
     path('api/products/<int:product_id>/toggle-availability/', views.toggle_product_availability, name='toggle_product_availability'),
     path('api/table/<str:table_number>/status/', views.table_order_status_api, name='table_order_status_api'),
     path('api/table/order/item/<int:item_id>/update/', views.table_item_update_api, name='table_item_update_api'),
+    path('api/table/feedback/submit/', views.table_feedback_submit_api, name='table_feedback_submit_api'),
 
     # To'lov tizimlari (Click & Payme)
     path('api/payments/click/', payments.click_webhook, name='click_webhook'),
@@ -134,6 +135,7 @@ api_urlpatterns = [
     path('api/pos/inventory/recipes/', pos_api.pos_inventory_recipes_api, name='pos_inventory_recipes_api'),
     path('api/pos/inventory/recipes/<int:product_id>/save/', pos_api.pos_inventory_recipe_save_api, name='pos_inventory_recipe_save_api'),
     path('api/pos/inventory/movements/', pos_api.pos_inventory_movements_api, name='pos_inventory_movements_api'),
+    path('api/pos/feedback/', pos_api.pos_feedbacks_api, name='pos_feedbacks_api'),
 ]
 
 urlpatterns = page_urlpatterns + api_urlpatterns

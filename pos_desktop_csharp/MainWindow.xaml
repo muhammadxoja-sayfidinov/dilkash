@@ -1499,6 +1499,12 @@
                                          Style="{StaticResource SegmentedItem}"
                                          Tag="halls"
                                          Click="OnManageSubTabClick" />
+                            <RadioButton x:Name="ManageSubFeedbackBtn"
+                                         GroupName="ManageSubTabs"
+                                         Content="Sharhlar &amp; Baholar"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Tag="feedback"
+                                         Click="OnManageSubTabClick" />
                         </StackPanel>
                     </Border>
 
@@ -1741,6 +1747,229 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+
+                        <!-- 6. Sharhlar va Baholar (Ofitsiant & Taomlar) -->
+                        <Grid x:Name="ManageFeedbackContainer" Visibility="Collapsed">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <!-- KPI Summary Cards -->
+                            <UniformGrid Grid.Row="0" Columns="4" Margin="0,0,0,16">
+                                <!-- KPI 1: O'rtacha xizmat bahosi -->
+                                <Border Background="{DynamicResource BrushSurface}"
+                                        BorderBrush="{DynamicResource BrushBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        Padding="16,14"
+                                        Margin="0,0,10,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Oʻrtacha xizmat bahosi" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                        <TextBlock x:Name="FeedbackKpiAvgWaiterRatingText" Text="5.0 ★" Style="{StaticResource TextTitle}" Foreground="{DynamicResource BrushWarning}" Typography.NumeralAlignment="Tabular" Margin="0,4,0,0" />
+                                        <TextBlock Text="Ofitsiantlar boʻyicha baho" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- KPI 2: Jami ofitsiant sharhlari -->
+                                <Border Background="{DynamicResource BrushSurface}"
+                                        BorderBrush="{DynamicResource BrushBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        Padding="16,14"
+                                        Margin="0,0,10,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Xizmat sharhlari soni" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                        <TextBlock x:Name="FeedbackKpiTotalWaiterReviewsText" Text="0 ta" Style="{StaticResource TextTitle}" Typography.NumeralAlignment="Tabular" Margin="0,4,0,0" />
+                                        <TextBlock Text="QR kod orqali qoldirilgan" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- KPI 3: O'rtacha taomlar bahosi -->
+                                <Border Background="{DynamicResource BrushSurface}"
+                                        BorderBrush="{DynamicResource BrushBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        Padding="16,14"
+                                        Margin="0,0,10,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Oʻrtacha taomlar bahosi" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                        <TextBlock x:Name="FeedbackKpiAvgDishRatingText" Text="5.0 ★" Style="{StaticResource TextTitle}" Foreground="{DynamicResource BrushWarning}" Typography.NumeralAlignment="Tabular" Margin="0,4,0,0" />
+                                        <TextBlock Text="Taomlar sifati va mazasi" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- KPI 4: Jami taom sharhlari -->
+                                <Border Background="{DynamicResource BrushSurface}"
+                                        BorderBrush="{DynamicResource BrushBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        Padding="16,14">
+                                    <StackPanel>
+                                        <TextBlock Text="Taomlar sharhlari soni" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                        <TextBlock x:Name="FeedbackKpiTotalDishReviewsText" Text="0 ta" Style="{StaticResource TextTitle}" Typography.NumeralAlignment="Tabular" Margin="0,4,0,0" />
+                                        <TextBlock Text="Mijozlar bahosi" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+
+                            <!-- Confidentiality Notice Bar -->
+                            <Border Grid.Row="1"
+                                    Background="{DynamicResource BrushSurfaceVariant}"
+                                    BorderBrush="{DynamicResource BrushPrimary}"
+                                    BorderThickness="2,0,0,0"
+                                    CornerRadius="{StaticResource RadiusSm}"
+                                    Padding="14,10"
+                                    Margin="0,0,0,16">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <controls:Icon Data="{StaticResource IconLock}" Size="16" Foreground="{DynamicResource BrushPrimary}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Maxfiylik nazorati: Ushbu baholar ofitsiantlarning oʻz ilovasida KOʻRSATILMAYDI. Faqat kassa va boshqaruv uchun maxfiy tahliliy maʼlumot hisoblanadi."
+                                               FontSize="12"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource BrushTextPrimary}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Sub-views: Waiter Feedbacks vs Dish Feedbacks -->
+                            <Grid Grid.Row="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Left Column: Ofitsiantlar baholari -->
+                                <Border Grid.Column="0"
+                                        Background="{DynamicResource BrushSurface}"
+                                        BorderBrush="{DynamicResource BrushBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        Padding="16"
+                                        Margin="0,0,8,0">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+
+                                        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                                            <TextBlock Text="Ofitsiantlar xizmat bahosi" Style="{StaticResource TextSection}" FontSize="15" />
+                                            <TextBlock Text="Stollardan kelgan anonim mijoz baholari" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                                        </StackPanel>
+
+                                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                            <ItemsControl x:Name="ManageWaiterFeedbacksItemsControl">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="{DynamicResource BrushSurfaceVariant}"
+                                                                BorderBrush="{DynamicResource BrushBorder}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="{StaticResource RadiusSm}"
+                                                                Padding="12,10"
+                                                                Margin="0,0,0,8">
+                                                            <Grid>
+                                                                <Grid.RowDefinitions>
+                                                                    <RowDefinition Height="Auto" />
+                                                                    <RowDefinition Height="Auto" />
+                                                                </Grid.RowDefinitions>
+                                                                <Grid Grid.Row="0">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                                        <TextBlock Text="{Binding WaiterName}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource BrushTextPrimary}" />
+                                                                        <TextBlock Text=" • Stol #" FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Margin="4,0,0,0" />
+                                                                        <TextBlock Text="{Binding TableNumber}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource BrushPrimary}" />
+                                                                    </StackPanel>
+                                                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                        <TextBlock Text="{Binding StarsDisplay}" Foreground="{DynamicResource BrushWarning}" FontWeight="Bold" FontSize="14" />
+                                                                        <TextBlock Text="{Binding CreatedAt}" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                                                    </StackPanel>
+                                                                </Grid>
+                                                                <TextBlock Grid.Row="1"
+                                                                           Text="{Binding Comment}"
+                                                                           FontSize="12"
+                                                                           FontStyle="Italic"
+                                                                           Foreground="{DynamicResource BrushTextSecondary}"
+                                                                           TextWrapping="Wrap"
+                                                                           Margin="0,6,0,0" />
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Right Column: Taomlar baholari -->
+                                <Border Grid.Column="1"
+                                        Background="{DynamicResource BrushSurface}"
+                                        BorderBrush="{DynamicResource BrushBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        Padding="16"
+                                        Margin="8,0,0,0">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+
+                                        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                                            <TextBlock Text="Taomlar mazasi va bahosi" Style="{StaticResource TextSection}" FontSize="15" />
+                                            <TextBlock Text="Mijozlar buyurtma qilgan taomlar reytingi" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                                        </StackPanel>
+
+                                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                            <ItemsControl x:Name="ManageDishFeedbacksItemsControl">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="{DynamicResource BrushSurfaceVariant}"
+                                                                BorderBrush="{DynamicResource BrushBorder}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="{StaticResource RadiusSm}"
+                                                                Padding="12,10"
+                                                                Margin="0,0,0,8">
+                                                            <Grid>
+                                                                <Grid.RowDefinitions>
+                                                                    <RowDefinition Height="Auto" />
+                                                                    <RowDefinition Height="Auto" />
+                                                                </Grid.RowDefinitions>
+                                                                <Grid Grid.Row="0">
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                                                        <TextBlock Text="{Binding ProductName}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource BrushTextPrimary}" />
+                                                                        <TextBlock Text=" • Stol #" FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Margin="4,0,0,0" />
+                                                                        <TextBlock Text="{Binding TableNumber}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource BrushPrimary}" />
+                                                                    </StackPanel>
+                                                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                        <TextBlock Text="{Binding StarsDisplay}" Foreground="{DynamicResource BrushWarning}" FontWeight="Bold" FontSize="14" />
+                                                                        <TextBlock Text="{Binding CreatedAt}" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                                                    </StackPanel>
+                                                                </Grid>
+                                                                <TextBlock Grid.Row="1"
+                                                                           Text="{Binding Comment}"
+                                                                           FontSize="12"
+                                                                           FontStyle="Italic"
+                                                                           Foreground="{DynamicResource BrushTextSecondary}"
+                                                                           TextWrapping="Wrap"
+                                                                           Margin="0,6,0,0" />
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Grid>
                     </Grid>
                 </ScrollViewer>
             </Grid>

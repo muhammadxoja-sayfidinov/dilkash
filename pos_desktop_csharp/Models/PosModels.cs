@@ -695,4 +695,48 @@ namespace DilkashPos.Models
         public string FormattedDelta => $"{(QuantityDelta > 0 ? "+" : "")}{QuantityDelta:0.###} {IngredientUnit}";
         public string DeltaColor => QuantityDelta > 0 ? "#10B981" : "#EF4444";
     }
+
+    public class WaiterFeedbackItem : BaseModel
+    {
+        public int Id { get; set; }
+        public int WaiterId { get; set; }
+        public string WaiterName { get; set; } = "";
+        public string TableNumber { get; set; } = "";
+        public int Rating { get; set; } = 5;
+        public string StarsDisplay { get; set; } = "★★★★★";
+        public string Comment { get; set; } = "";
+        public string CreatedAt { get; set; } = "";
+    }
+
+    public class DishFeedbackItem : BaseModel
+    {
+        public int Id { get; set; }
+        public int ProductId { get; set; }
+        public string ProductName { get; set; } = "";
+        public string TableNumber { get; set; } = "";
+        public int Rating { get; set; } = 5;
+        public string StarsDisplay { get; set; } = "★★★★★";
+        public string Comment { get; set; } = "";
+        public string CreatedAt { get; set; } = "";
+    }
+
+    public class WaiterRatingSummary : BaseModel
+    {
+        public int WaiterId { get; set; }
+        public string Name { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public double AvgRating { get; set; } = 5.0;
+        public int ReviewsCount { get; set; }
+        public string StarsDisplay { get; set; } = "★★★★★";
+    }
+
+    public class DishRatingSummary : BaseModel
+    {
+        public int ProductId { get; set; }
+        public string Name { get; set; } = "";
+        public string Category { get; set; } = "";
+        public double AvgRating { get; set; } = 5.0;
+        public int ReviewsCount { get; set; }
+        public string StarsDisplay { get; set; } = "★★★★★";
+    }
 }
