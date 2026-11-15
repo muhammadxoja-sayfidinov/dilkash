@@ -8,9 +8,12 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using DilkashPos.Data;
 using DilkashPos.Models;
+using DilkashPos.Services;
 using DilkashPos.Utils;
+using DilkashPos.ViewModels;
 using DilkashPos.Views;
 
 namespace DilkashPos
@@ -23,6 +26,7 @@ namespace DilkashPos
         public string CategoryAndDept => $"{(string.IsNullOrWhiteSpace(Model.CategoryName) ? "Umumiy" : Model.CategoryName)} · {GetDeptDisplay(Model.Department)}";
         public string PriceFormatted => Model.FormattedPrice;
         public string StatusText => Model.IsAvailable ? "Mavjud" : "Stop-list";
+        public BitmapImage? Thumbnail => ImageCacheService.LoadBitmap(Model.ImageLocalPath, Model.ImageUrl, ImageCacheService.ActiveBaseUrl);
         public Brush StatusBg => Model.IsAvailable ? new SolidColorBrush(Color.FromRgb(220, 252, 231)) : new SolidColorBrush(Color.FromRgb(254, 226, 226));
         public Brush StatusFg => Model.IsAvailable ? new SolidColorBrush(Color.FromRgb(21, 128, 61)) : new SolidColorBrush(Color.FromRgb(185, 28, 28));
 
@@ -40,10 +44,22 @@ namespace DilkashPos
     public class ManageCategoryRow
     {
         public Category Model { get; init; } = new();
+        public string ParentName { get; init; } = "";
         public string Name => Model.Name;
+        public string DisplayTitle => string.IsNullOrWhiteSpace(ParentName) ? Model.Name : $"{ParentName} › {Model.Name}";
         public string Description => string.IsNullOrWhiteSpace(Model.Description) ? "Taomlar guruhi" : Model.Description;
         public string DepartmentLabel => ManageProductRow.GetDeptDisplay(Model.Department);
         public string ProductsCountText => $"{Model.ProductsCount} ta taom";
+        public string StatusText => Model.IsActive ? "Faol" : "Nofaol";
+    }
+
+    public class ManageHallRow
+    {
+        public Hall Model { get; init; } = new();
+        public string Name => Model.Name;
+        public string Description => string.IsNullOrWhiteSpace(Model.Description) ? "Restoran zali" : Model.Description;
+        public string TablesCountText => $"{Model.TablesCount} ta stol";
+        public string SortOrderText => $"Tartib: #{Model.SortOrder}";
         public string StatusText => Model.IsActive ? "Faol" : "Nofaol";
     }
 
@@ -83,6 +99,8 @@ namespace DilkashPos
         private readonly ObservableCollection<ManageCategoryRow> _manageCategories = new();
         private readonly ObservableCollection<ManageStaffRow> _manageStaff = new();
         private readonly ObservableCollection<ManageTableRow> _manageTables = new();
+        private readonly ObservableCollection<ManageHallRow> _manageHalls = new();
+        private readonly ObservableCollection<ManageHallRow> _settingsHalls = new();
 
         private void InitializeManagementLists()
         {
@@ -90,6 +108,8 @@ namespace DilkashPos
             ManageCategoriesItemsControl.ItemsSource = _manageCategories;
             ManageStaffItemsControl.ItemsSource = _manageStaff;
             ManageTablesItemsControl.ItemsSource = _manageTables;
+            ManageHallsItemsControl.ItemsSource = _manageHalls;
+            SettingsHallsItemsControl.ItemsSource = _settingsHalls;
         }
 
         private void OnManageSubTabClick(object sender, RoutedEventArgs e)
@@ -114,12 +134,14 @@ namespace DilkashPos
             ManageCategoriesItemsControl.Visibility = _activeManageSubTab == "categories" ? Visibility.Visible : Visibility.Collapsed;
             ManageStaffItemsControl.Visibility = _activeManageSubTab == "staff" ? Visibility.Visible : Visibility.Collapsed;
             ManageTablesItemsControl.Visibility = _activeManageSubTab == "tables" ? Visibility.Visible : Visibility.Collapsed;
+            ManageHallsItemsControl.Visibility = _activeManageSubTab == "halls" ? Visibility.Visible : Visibility.Collapsed;
 
             ManageAddBtnText.Text = _activeManageSubTab switch
             {
                 "categories" => "Guruh qoʻshish",
                 "staff" => "Xodim qoʻshish",
                 "tables" => "Stol qoʻshish",
+                "halls" => "Zal qoʻshish",
                 _ => "Taom qoʻshish"
             };
 
@@ -149,12 +171,14 @@ namespace DilkashPos
                     catSnap = _categories.ToList();
                     prodSnap = _products.ToList();
                 }
+                var byId = catSnap.ToDictionary(x => x.Id, x => x.Name);
                 foreach (var c in catSnap)
                 {
                     if (!string.IsNullOrEmpty(q) && !c.Name.Contains(q, StringComparison.OrdinalIgnoreCase))
                         continue;
                     c.ProductsCount = prodSnap.Count(p => p.CategoryId == c.Id || string.Equals(p.CategoryName, c.Name, StringComparison.OrdinalIgnoreCase));
-                    _manageCategories.Add(new ManageCategoryRow { Model = c });
+                    string parentName = (c.ParentId.HasValue && byId.TryGetValue(c.ParentId.Value, out var pn)) ? pn : "";
+                    _manageCategories.Add(new ManageCategoryRow { Model = c, ParentName = parentName });
                 }
             }
             else if (_activeManageSubTab == "staff")
@@ -181,10 +205,48 @@ namespace DilkashPos
                 {
                     if (!string.IsNullOrEmpty(q) &&
                         !t.Name.Contains(q, StringComparison.OrdinalIgnoreCase) &&
+                        !t.Zone.Contains(q, StringComparison.OrdinalIgnoreCase) &&
                         !t.Number.ToString().Contains(q, StringComparison.OrdinalIgnoreCase))
                         continue;
                     _manageTables.Add(new ManageTableRow { Model = t });
                 }
+            }
+            else if (_activeManageSubTab == "halls")
+            {
+                _manageHalls.Clear();
+                List<Hall> hSnap;
+                List<RestaurantTable> tSnap;
+                lock (_stateLock)
+                {
+                    hSnap = _halls.OrderBy(h => h.SortOrder).ThenBy(h => h.Id).ToList();
+                    tSnap = _tables.ToList();
+                }
+                foreach (var h in hSnap)
+                {
+                    if (!string.IsNullOrEmpty(q) && !h.Name.Contains(q, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    h.TablesCount = tSnap.Count(t => t.HallId == h.Id || string.Equals(t.Zone, h.Name, StringComparison.OrdinalIgnoreCase));
+                    _manageHalls.Add(new ManageHallRow { Model = h });
+                }
+            }
+            RenderSettingsHallsList();
+        }
+
+        private void RenderSettingsHallsList()
+        {
+            if (SettingsHallsItemsControl == null) return;
+            _settingsHalls.Clear();
+            List<Hall> hSnap;
+            List<RestaurantTable> tSnap;
+            lock (_stateLock)
+            {
+                hSnap = _halls.OrderBy(h => h.SortOrder).ThenBy(h => h.Id).ToList();
+                tSnap = _tables.ToList();
+            }
+            foreach (var h in hSnap)
+            {
+                h.TablesCount = tSnap.Count(t => t.HallId == h.Id || string.Equals(t.Zone, h.Name, StringComparison.OrdinalIgnoreCase));
+                _settingsHalls.Add(new ManageHallRow { Model = h });
             }
         }
 
@@ -200,6 +262,9 @@ namespace DilkashPos
                     break;
                 case "tables":
                     await OpenAndSaveTableDialogAsync(null);
+                    break;
+                case "halls":
+                    await OpenAndSaveHallDialogAsync(null);
                     break;
                 default:
                     await OpenAndSaveProductDialogAsync(null);
@@ -372,13 +437,16 @@ namespace DilkashPos
 
         private async Task OpenAndSaveCategoryDialogAsync(Category? existing)
         {
-            var dlg = new CategoryEditDialog(existing);
+            List<Category> catsSnap;
+            lock (_stateLock) catsSnap = _categories.ToList();
+            var dlg = new CategoryEditDialog(existing, catsSnap);
             if (Dialogs.ShowModal(dlg, this) != true) return;
 
             var payload = new
             {
                 id = dlg.CategoryId > 0 ? (int?)dlg.CategoryId : null,
                 name = dlg.CategoryName,
+                parent_id = dlg.SelectedParentId,
                 department = dlg.SelectedDepartment,
                 description = dlg.CategoryDescription,
                 is_active = dlg.IsCategoryActive,
@@ -394,6 +462,7 @@ namespace DilkashPos
             var saved = serverCat ?? new Category
             {
                 Id = dlg.CategoryId,
+                ParentId = dlg.SelectedParentId,
                 Name = dlg.CategoryName,
                 Department = dlg.SelectedDepartment,
                 Description = dlg.CategoryDescription,
@@ -443,6 +512,7 @@ namespace DilkashPos
                 is_available = dlg.IsProductAvailable,
                 image_base64 = dlg.SelectedImageBase64,
                 image_filename = dlg.SelectedImageFilename,
+                remove_image = dlg.RemoveImage,
             };
 
             var (netOk, ok, serverProd, err) = await _api.SaveProductAsync(payload);
@@ -462,7 +532,9 @@ namespace DilkashPos
                 Department = cat.Department,
                 Description = dlg.ProductDescription,
                 IsAvailable = dlg.IsProductAvailable,
-                ImageUrl = existing?.ImageUrl,
+                ImageUrl = dlg.RemoveImage ? null : existing?.ImageUrl,
+                ImageLocalPath = dlg.RemoveImage ? null : existing?.ImageLocalPath,
+                ImageHash = dlg.RemoveImage ? null : existing?.ImageHash,
             };
 
             if (!netOk)
@@ -470,7 +542,24 @@ namespace DilkashPos
                 await _db.EnqueueAdminActionAsync("/api/pos/products/save/", JsonSerializer.Serialize(payload));
             }
 
-            await _db.UpsertLocalProductAsync(saved);
+            int localId = await _db.UpsertLocalProductAsync(saved, dlg.SelectedImageBytes);
+            saved.Id = localId;
+
+            if (dlg.SelectedImageBytes != null && dlg.SelectedImageBytes.Length > 0)
+            {
+                var (locPath, imgHash) = ImageCacheService.SaveBytesToCache(saved.Id, dlg.SelectedImageBytes, saved.ImageHash);
+                saved.ImageLocalPath = locPath;
+                if (string.IsNullOrWhiteSpace(saved.ImageHash)) saved.ImageHash = imgHash;
+                await _db.UpdateProductImageCacheAsync(saved.Id, locPath, saved.ImageHash, dlg.SelectedImageBytes);
+            }
+            else if (dlg.RemoveImage)
+            {
+                saved.ImageUrl = null;
+                saved.ImageLocalPath = null;
+                saved.ImageHash = null;
+                await _db.UpdateProductImageCacheAsync(saved.Id, null, null, null);
+            }
+
             lock (_stateLock)
             {
                 var idx = _products.FindIndex(x => (saved.Id != 0 && x.Id == saved.Id) || string.Equals(x.Name, saved.Name, StringComparison.OrdinalIgnoreCase));
@@ -539,19 +628,25 @@ namespace DilkashPos
         private async Task OpenAndSaveTableDialogAsync(RestaurantTable? existing)
         {
             int nextNum = 13;
+            List<Hall> hallsSnap;
             lock (_stateLock)
             {
                 if (_tables.Count > 0) nextNum = _tables.Max(t => t.Number) + 1;
+                hallsSnap = _halls.OrderBy(h => h.SortOrder).ThenBy(h => h.Id).ToList();
             }
-            var dlg = new TableEditDialog(existing, nextNum);
+            var dlg = new TableEditDialog(existing, nextNum, hallsSnap);
             if (Dialogs.ShowModal(dlg, this) != true) return;
 
+            var chosenHall = dlg.SelectedHall;
+            string zoneName = chosenHall?.Name ?? (existing?.Zone ?? "Zal");
             var payload = new
             {
                 id = dlg.TableId > 0 ? (int?)dlg.TableId : null,
                 number = dlg.TableNumber,
                 name = dlg.TableName,
                 capacity = dlg.TableCapacity,
+                hall_id = chosenHall?.Id > 0 ? (int?)chosenHall.Id : null,
+                zone = zoneName,
                 is_active = dlg.IsTableActive,
             };
 
@@ -568,6 +663,8 @@ namespace DilkashPos
                 Number = dlg.TableNumber,
                 Name = dlg.TableName,
                 Capacity = dlg.TableCapacity,
+                HallId = chosenHall?.Id,
+                Zone = zoneName,
                 IsActive = dlg.IsTableActive,
                 Status = "empty",
             };
@@ -603,10 +700,202 @@ namespace DilkashPos
             Toast.Show($"Stol #{saved.Number} ({saved.Name}) saqlandi", ToastTone.Success);
         }
 
+        private async void OnAddHallClick(object sender, RoutedEventArgs e)
+        {
+            await OpenAndSaveHallDialogAsync(null);
+        }
+
+        private async void OnManageEditHallClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is Hall h)
+                await OpenAndSaveHallDialogAsync(h);
+        }
+
+        private async void OnManageDeleteHallClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn || btn.Tag is not Hall h) return;
+            bool hasTables;
+            lock (_stateLock) hasTables = _tables.Any(t => t.HallId == h.Id || string.Equals(t.Zone, h.Name, StringComparison.OrdinalIgnoreCase));
+            if (hasTables)
+            {
+                Toast.Show($"'{h.Name}' zalida stollar mavjud. Avval stollarni boshqa zalga oʻtkazing.", ToastTone.Warning);
+                return;
+            }
+
+            var (proceed, _) = await TryConfirmAndDeleteAsync(
+                "Zalni oʻchirish",
+                $"'{h.Name}' zalini oʻchirasizmi?",
+                h.Id,
+                () => _api.DeleteHallAsync(h.Id),
+                $"/api/pos/halls/{h.Id}/delete/");
+            if (!proceed) return;
+
+            lock (_stateLock) _halls.RemoveAll(x => x.Id == h.Id);
+            await _db.DeleteLocalHallAsync(h.Id);
+            RenderTables();
+            RenderManageTab();
+            Toast.Show($"'{h.Name}' zali oʻchirildi", ToastTone.Success);
+        }
+
+        private async Task OpenAndSaveHallDialogAsync(Hall? existing)
+        {
+            int nextOrder = 1;
+            lock (_stateLock)
+            {
+                if (_halls.Count > 0) nextOrder = _halls.Max(h => h.SortOrder) + 1;
+            }
+            var dlg = new HallEditDialog(existing, nextOrder);
+            if (Dialogs.ShowModal(dlg, this) != true) return;
+
+            var payload = new
+            {
+                id = dlg.HallId > 0 ? (int?)dlg.HallId : null,
+                name = dlg.HallName,
+                description = dlg.HallDescription,
+                sort_order = dlg.HallSortOrder,
+                is_active = dlg.IsHallActive,
+            };
+
+            var (netOk, ok, serverHall, err) = await _api.SaveHallAsync(payload);
+            if (netOk && !ok)
+            {
+                Toast.Show(err, ToastTone.Warning);
+                return;
+            }
+
+            var saved = serverHall ?? new Hall
+            {
+                Id = dlg.HallId,
+                Name = dlg.HallName,
+                Description = dlg.HallDescription,
+                SortOrder = dlg.HallSortOrder,
+                IsActive = dlg.IsHallActive,
+            };
+
+            if (!netOk)
+            {
+                await _db.EnqueueAdminActionAsync("/api/pos/halls/save/", JsonSerializer.Serialize(payload));
+            }
+
+            saved.Id = await _db.UpsertLocalHallAsync(saved);
+            lock (_stateLock)
+            {
+                if (existing != null && !string.Equals(existing.Name, saved.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    foreach (var tbl in _tables.Where(t => t.HallId == saved.Id || string.Equals(t.Zone, existing.Name, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        tbl.Zone = saved.Name;
+                        tbl.HallId = saved.Id;
+                    }
+                }
+                var idx = _halls.FindIndex(x => (saved.Id != 0 && x.Id == saved.Id) || string.Equals(x.Name, saved.Name, StringComparison.OrdinalIgnoreCase));
+                if (idx >= 0) _halls[idx] = saved;
+                else _halls.Add(saved);
+                _halls = _halls.OrderBy(h => h.SortOrder).ThenBy(h => h.Id).ToList();
+            }
+
+            RenderTables();
+            RenderManageTab();
+            if (netOk) _syncEngine.TriggerImmediateSync();
+            Toast.Show($"'{saved.Name}' zali saqlandi", ToastTone.Success);
+        }
+
+        private async void OnAddPrinterClick(object sender, RoutedEventArgs e)
+        {
+            await OpenAndSavePrinterDialogAsync(null);
+        }
+
+        private async void OnPrinterCardEditClick(object? sender, PrinterCardVM vm)
+        {
+            await OpenAndSavePrinterDialogAsync(vm.Model);
+        }
+
+        private async void OnPrinterCardDeleteClick(object? sender, PrinterCardVM vm)
+        {
+            var pr = vm.Model;
+            var (proceed, _) = await TryConfirmAndDeleteAsync(
+                "Printerni oʻchirish",
+                $"'{pr.Name}' printerini oʻchirasizmi?",
+                pr.Id,
+                () => _api.DeletePrinterAsync(pr.Id),
+                $"/api/pos/printers/{pr.Id}/delete/");
+            if (!proceed) return;
+
+            lock (_stateLock) _printers.RemoveAll(x => x.Id == pr.Id && string.Equals(x.Name, pr.Name, StringComparison.OrdinalIgnoreCase));
+            if (pr.Id > 0) await _db.DeleteLocalPrinterAsync(pr.Id);
+            SyncPrintersToSettingsDict();
+            RebuildPrinterCards();
+            if (_api.IsOnline) _syncEngine.TriggerImmediateSync();
+            Toast.Show($"'{pr.Name}' printeri oʻchirildi", ToastTone.Success);
+        }
+
+        private async Task OpenAndSavePrinterDialogAsync(PosPrinter? existing)
+        {
+            int nextOrder = 1;
+            lock (_stateLock)
+            {
+                if (_printers.Count > 0) nextOrder = _printers.Max(p => p.SortOrder) + 1;
+            }
+            var dlg = new PrinterEditDialog(existing, nextOrder);
+            if (Dialogs.ShowModal(dlg, this) != true) return;
+
+            var payload = new
+            {
+                id = dlg.PrinterId > 0 ? (int?)dlg.PrinterId : null,
+                name = dlg.PrinterName,
+                department = dlg.SelectedDepartment,
+                ip_address = dlg.IpAddress,
+                port = dlg.Port,
+                paper_width = dlg.PaperWidth,
+                subtitle = dlg.PrinterSubtitle,
+                is_active = dlg.IsPrinterActive,
+                sort_order = dlg.SortOrder,
+            };
+
+            var (netOk, ok, serverPrinter, err) = await _api.SavePrinterAsync(payload);
+            if (netOk && !ok)
+            {
+                Toast.Show(err, ToastTone.Warning);
+                return;
+            }
+
+            var saved = serverPrinter ?? new PosPrinter
+            {
+                Id = dlg.PrinterId,
+                Name = dlg.PrinterName,
+                Department = dlg.SelectedDepartment,
+                IpAddress = dlg.IpAddress,
+                Port = dlg.Port,
+                PaperWidth = dlg.PaperWidth,
+                Subtitle = dlg.PrinterSubtitle,
+                IsActive = dlg.IsPrinterActive,
+                SortOrder = dlg.SortOrder,
+            };
+
+            if (!netOk)
+            {
+                await _db.EnqueueAdminActionAsync("/api/pos/printers/save/", JsonSerializer.Serialize(payload));
+            }
+
+            saved.Id = await _db.UpsertLocalPrinterAsync(saved);
+            lock (_stateLock)
+            {
+                var idx = _printers.FindIndex(x => (saved.Id != 0 && x.Id == saved.Id) || (existing != null && ReferenceEquals(x, existing)));
+                if (idx >= 0) _printers[idx] = saved;
+                else _printers.Add(saved);
+                _printers = _printers.OrderBy(p => p.SortOrder).ThenBy(p => p.Id).ToList();
+            }
+
+            SyncPrintersToSettingsDict();
+            await _db.SaveFullSettingsLocalAsync(_settings);
+            RebuildPrinterCards();
+            if (netOk) _syncEngine.TriggerImmediateSync();
+            Toast.Show($"'{saved.Name}' printeri saqlandi", ToastTone.Success);
+        }
+
         private void RefreshAllProductViews()
         {
-            RenderCategories();
-            RenderProducts(ProductSearchBox?.Text);
+            RenderQuickPosLevel();
             RenderStopList(StopListSearchBox?.Text);
             RenderManageTab();
         }

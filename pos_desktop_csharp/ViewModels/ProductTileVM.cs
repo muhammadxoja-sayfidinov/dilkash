@@ -23,7 +23,8 @@ namespace DilkashPos.ViewModels
         public string CategoryName => _product.CategoryName;
         public string Department => _product.Department;
         public string? ImageUrl => _product.ImageUrl;
-        public bool HasImage => !string.IsNullOrWhiteSpace(_product.ImageUrl);
+        public string? ImageLocalPath => _product.ImageLocalPath;
+        public bool HasImage => !string.IsNullOrWhiteSpace(_product.ImageLocalPath) || !string.IsNullOrWhiteSpace(_product.ImageUrl);
         public string PriceFormatted => MoneyFormatter.Format(_product.Price);
 
         public bool IsAvailable
@@ -68,6 +69,24 @@ namespace DilkashPos.ViewModels
         public void SyncAvailabilityFromModel()
         {
             IsAvailable = _product.IsAvailable;
+        }
+
+        public void NotifyImageChanged()
+        {
+            OnPropertyChanged(nameof(ImageUrl));
+            OnPropertyChanged(nameof(ImageLocalPath));
+            OnPropertyChanged(nameof(HasImage));
+        }
+
+        public void RefreshFromModel()
+        {
+            IsAvailable = _product.IsAvailable;
+            OnPropertyChanged(nameof(Name));
+            OnPropertyChanged(nameof(CategoryId));
+            OnPropertyChanged(nameof(CategoryName));
+            OnPropertyChanged(nameof(Department));
+            OnPropertyChanged(nameof(PriceFormatted));
+            NotifyImageChanged();
         }
     }
 }

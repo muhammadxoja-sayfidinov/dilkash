@@ -1,0 +1,1084 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Omborxona va Kalkulyatsiya - Dilkash{% endblock %}
+
+{% block extra_css %}
+<style>
+    .kpi-stat-card {
+        background: #111827;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 1.25rem 1.5rem;
+        transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .kpi-stat-card:hover {
+        border-color: rgba(16, 185, 129, 0.4);
+        transform: translateY(-2px);
+    }
+    .kpi-icon-bubble {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+    .nav-inventory-pills .nav-link {
+        color: #9ca3af;
+        border-radius: 10px;
+        padding: 0.65rem 1.2rem;
+        font-weight: 600;
+        border: 1px solid transparent;
+        transition: all 0.15s;
+    }
+    .nav-inventory-pills .nav-link:hover {
+        color: #f3f4f6;
+        background: rgba(255, 255, 255, 0.04);
+    }
+    .nav-inventory-pills .nav-link.active {
+        color: #10b981;
+        background: rgba(16, 185, 129, 0.12);
+        border-color: rgba(16, 185, 129, 0.3);
+    }
+    .card-inventory-table {
+        background: #111827;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        overflow: hidden;
+    }
+    .table-dark-custom {
+        --bs-table-bg: transparent;
+        color: #e5e7eb;
+        margin-bottom: 0;
+    }
+    .table-dark-custom th {
+        background: rgba(255, 255, 255, 0.04);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        color: #9ca3af;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 0.85rem 1rem;
+    }
+    .table-dark-custom td {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 0.85rem 1rem;
+        vertical-align: middle;
+    }
+    .badge-low-stock {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        font-weight: 600;
+        padding: 0.35rem 0.65rem;
+        border-radius: 8px;
+    }
+    .badge-ok-stock {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        font-weight: 600;
+        padding: 0.35rem 0.65rem;
+        border-radius: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 px-4">
+    <!-- Header -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold mb-1 text-white"><i class="fas fa-boxes-stacked text-success me-2"></i>Omborxona va Kalkulyatsiya</h2>
+            <p class="text-secondary mb-0">Xomashyolar, kirim-chiqim, taʼminotchilar va taomlar texnologik xaritasi</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-success" onclick="openIngredientModal()"><i class="fas fa-plus me-1"></i> Yangi xomashyo</button>
+            <button class="btn btn-success" onclick="showTab('tab-supply')"><i class="fas fa-dolly me-1"></i> Kirim qilish (Приход)</button>
+            <button class="btn btn-outline-danger" onclick="showTab('tab-writeoff')"><i class="fas fa-trash-can me-1"></i> Chiqim (Списание)</button>
+        </div>
+    </div>
+
+    <!-- KPI Cards Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="kpi-stat-card d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-secondary d-block small mb-1">Jami xomashyolar</span>
+                    <h3 class="fw-bold text-white mb-0">{{ kpi.total_ingredients }} <small class="fs-6 text-secondary font-monospace">tur</small></h3>
+                </div>
+                <div class="kpi-icon-bubble bg-primary bg-opacity-10 text-primary">
+                    <i class="fas fa-cubes"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="kpi-stat-card d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-secondary d-block small mb-1">Ombor umumiy qiymati</span>
+                    <h3 class="fw-bold text-white mb-0">{{ kpi.total_valuation|floatformat:0 }} <small class="fs-6 text-secondary font-monospace">soʻm</small></h3>
+                </div>
+                <div class="kpi-icon-bubble bg-success bg-opacity-10 text-success">
+                    <i class="fas fa-vault"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="kpi-stat-card d-flex align-items-center justify-content-between" style="border-color: {% if kpi.low_stock_count > 0 %}rgba(239, 68, 68, 0.4){% else %}rgba(255, 255, 255, 0.08){% endif %};">
+                <div>
+                    <span class="text-secondary d-block small mb-1">Kam qolgan xomashyolar</span>
+                    <h3 class="fw-bold mb-0 {% if kpi.low_stock_count > 0 %}text-danger{% else %}text-white{% endif %}">{{ kpi.low_stock_count }} <small class="fs-6 text-secondary font-monospace">ta kritik</small></h3>
+                </div>
+                <div class="kpi-icon-bubble bg-danger bg-opacity-10 text-danger">
+                    <i class="fas fa-triangle-exclamation"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="kpi-stat-card d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-secondary d-block small mb-1">Bugungi kirim</span>
+                    <h3 class="fw-bold text-white mb-0">{{ kpi.today_supplies_total|floatformat:0 }} <small class="fs-6 text-secondary font-monospace">soʻm</small></h3>
+                </div>
+                <div class="kpi-icon-bubble bg-info bg-opacity-10 text-info">
+                    <i class="fas fa-arrow-down-long"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-inventory-pills gap-2 mb-4 p-2 bg-dark rounded-3 border border-secondary border-opacity-25" id="inventoryNavTabs">
+        <li class="nav-item">
+            <button class="nav-link active" onclick="showTab('tab-stock')"><i class="fas fa-clipboard-list me-2"></i>Qoldiqlar & Xomashyolar</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="showTab('tab-supply')"><i class="fas fa-dolly me-2"></i>Kirim qilish (Приход)</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="showTab('tab-writeoff')"><i class="fas fa-trash-can me-2"></i>Chiqim (Списание)</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="showTab('tab-recipes')"><i class="fas fa-utensils me-2"></i>Tex-karta (Kalkulyatsiya)</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="showTab('tab-suppliers')"><i class="fas fa-truck-field me-2"></i>Taʼminotchilar ({{ suppliers|length }})</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="showTab('tab-history')"><i class="fas fa-timeline me-2"></i>Harakatlar jurnali</button>
+        </li>
+    </ul>
+
+    <!-- Tab 1: Qoldiqlar va xomashyolar -->
+    <div id="tab-stock" class="inventory-tab-pane">
+        <div class="card-inventory-table p-3 mb-4">
+            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+                <div class="d-flex gap-2 align-items-center flex-grow-1" style="max-width: 480px;">
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary border-opacity-25 text-secondary"><i class="fas fa-search"></i></span>
+                        <input type="text" id="stockSearchInput" class="form-control bg-dark border-secondary border-opacity-25 text-white" placeholder="Xomashyo nomi boʻyicha qidirish..." oninput="filterStockTable()">
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <select id="stockCategoryFilter" class="form-select bg-dark border-secondary border-opacity-25 text-white" style="width: auto;" onchange="filterStockTable()">
+                        <option value="">Barcha toifalar</option>
+                        {% for code, label in category_choices %}
+                        <option value="{{ code }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn btn-outline-danger" id="filterLowStockBtn" onclick="toggleLowStockFilter()"><i class="fas fa-filter me-1"></i> Faqat kam qolganlar</button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-dark-custom align-middle" id="stockTable">
+                    <thead>
+                        <tr>
+                            <th>Nomi</th>
+                            <th>Toifasi</th>
+                            <th>Joriy Qoldiq</th>
+                            <th>Min. Chegara</th>
+                            <th>Birlik narxi</th>
+                            <th>Umumiy qiymati</th>
+                            <th>Holati</th>
+                            <th class="text-end">Amallar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ing in ingredients %}
+                        <tr class="stock-row" data-name="{{ ing.name|lower }}" data-category="{{ ing.category }}" data-low="{% if ing.is_low_stock %}1{% else %}0{% endif %}">
+                            <td>
+                                <strong class="text-white">{{ ing.name }}</strong>
+                                {% if ing.description %}<div class="small text-secondary">{{ ing.description }}</div>{% endif %}
+                            </td>
+                            <td><span class="badge bg-secondary bg-opacity-25 text-light">{{ ing.get_category_display }}</span></td>
+                            <td><span class="fs-6 fw-bold {% if ing.is_low_stock %}text-danger{% else %}text-success{% endif %}">{{ ing.current_stock|floatformat:3 }}</span> <small class="text-secondary">{{ ing.get_unit_display }}</small></td>
+                            <td>{{ ing.min_stock_alert|floatformat:3 }} <small class="text-secondary">{{ ing.unit }}</small></td>
+                            <td>{{ ing.cost_price|floatformat:0 }} soʻm</td>
+                            <td><strong>{{ ing.total_valuation|floatformat:0 }} soʻm</strong></td>
+                            <td>
+                                {% if ing.is_low_stock %}
+                                <span class="badge-low-stock"><i class="fas fa-circle-exclamation me-1"></i>Kam qolgan</span>
+                                {% else %}
+                                <span class="badge-ok-stock"><i class="fas fa-circle-check me-1"></i>Yetarli</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="editIngredient({{ ing.id }}, '{{ ing.name|escapejs }}', '{{ ing.category }}', '{{ ing.unit }}', {{ ing.current_stock }}, {{ ing.min_stock_alert }}, {{ ing.cost_price }}, '{{ ing.description|escapejs }}')"><i class="fas fa-edit"></i></button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 2: Kirim qilish (Приход) -->
+    <div id="tab-supply" class="inventory-tab-pane d-none">
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="card-inventory-table p-4">
+                    <h4 class="fw-bold text-white mb-3"><i class="fas fa-cart-flatbed text-success me-2"></i>Yangi Kirim Hujjati (Приход)</h4>
+                    <form id="newSupplyForm" onsubmit="submitNewSupply(event)">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small">Taʼminotchi</label>
+                                <select id="supplySupplierSelect" class="form-select bg-dark border-secondary border-opacity-25 text-white" required>
+                                    <option value="">Taʼminotchini tanlang...</option>
+                                    {% for sup in suppliers %}
+                                    <option value="{{ sup.id }}">{{ sup.name }} ({{ sup.phone }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label text-secondary small">Toʻlov holati</label>
+                                <select id="supplyPaymentStatus" class="form-select bg-dark border-secondary border-opacity-25 text-white">
+                                    <option value="paid">Toʻlangan</option>
+                                    <option value="debt">Nasiya / Qarz</option>
+                                    <option value="partial">Qisman</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label text-secondary small">Toʻlangan summa (soʻm)</label>
+                                <input type="number" id="supplyPaidAmount" class="form-control bg-dark border-secondary border-opacity-25 text-white" value="0">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">Kirim qilinadigan tovarlar / xomashyolar</label>
+                            <div id="supplyItemsRows" class="d-flex flex-column gap-2 mb-2">
+                                <!-- Dynamic rows -->
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-success" onclick="addSupplyItemRow()"><i class="fas fa-plus me-1"></i> Qator qoʻshish</button>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">Qoʻshimcha izoh</label>
+                            <input type="text" id="supplyNotes" class="form-control bg-dark border-secondary border-opacity-25 text-white" placeholder="Hujjat raqami, partiya yoki yuk xati izohi">
+                        </div>
+
+                        <div class="p-3 bg-dark rounded-3 border border-secondary border-opacity-25 d-flex justify-content-between align-items-center mb-3">
+                            <span class="text-secondary">Jami hisoblangan kirim summasi:</span>
+                            <h4 class="fw-bold text-success mb-0" id="supplyTotalDisplay">0 soʻm</h4>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 py-2 fw-bold"><i class="fas fa-check-circle me-1"></i> Kirimni tasdiqlash va omborga kiritish</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Recent Supplies List -->
+            <div class="col-lg-5">
+                <div class="card-inventory-table p-4">
+                    <h5 class="fw-bold text-white mb-3"><i class="fas fa-history text-secondary me-2"></i>Oxirgi kirim hujjatlari</h5>
+                    <div class="d-flex flex-column gap-2">
+                        {% for s in recent_supplies %}
+                        <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <strong class="text-white">{{ s.doc_number }}</strong>
+                                <span class="badge bg-success bg-opacity-25 text-success">{{ s.total_cost|floatformat:0 }} soʻm</span>
+                            </div>
+                            <div class="small text-secondary mb-1"><i class="fas fa-truck-field me-1"></i>{{ s.supplier.name|default:"Nomaʼlum" }} &bull; {{ s.date|date:"d.m.Y H:i" }}</div>
+                            <div class="small text-light">{{ s.items.count }} ta mahsulot: {% for it in s.items.all|slice:":3" %}{{ it.ingredient.name }} ({{ it.quantity|floatformat:2 }} {{ it.ingredient.unit }}){% if not forloop.last %}, {% endif %}{% endfor %}{% if s.items.count > 3 %}...{% endif %}</div>
+                        </div>
+                        {% empty %}
+                        <div class="text-secondary small">Hozircha kirim hujjatlari yoʻq</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 3: Chiqim qilish (Списание) -->
+    <div id="tab-writeoff" class="inventory-tab-pane d-none">
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="card-inventory-table p-4">
+                    <h4 class="fw-bold text-white mb-3"><i class="fas fa-trash-can text-danger me-2"></i>Hisobdan chiqarish / Chiqim (Списание)</h4>
+                    <form id="newWriteOffForm" onsubmit="submitNewWriteOff(event)">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small">Chiqim sababi</label>
+                                <select id="writeOffReason" class="form-select bg-dark border-secondary border-opacity-25 text-white" required>
+                                    {% for code, label in reason_choices %}
+                                    <option value="{{ code }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-secondary small">Masʼul xodim</label>
+                                <input type="text" id="writeOffCreatedBy" class="form-control bg-dark border-secondary border-opacity-25 text-white" value="Bosh oshpaz">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">Chiqim qilinadigan xomashyolar</label>
+                            <div id="writeOffItemsRows" class="d-flex flex-column gap-2 mb-2">
+                                <!-- Dynamic rows -->
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="addWriteOffItemRow()"><i class="fas fa-plus me-1"></i> Mahsulot qoʻshish</button>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small">Chiqim sababi va tafsiloti</label>
+                            <textarea id="writeOffNotes" class="form-control bg-dark border-secondary border-opacity-25 text-white" rows="2" placeholder="Masalan: muzlatgich o'chib qolishi oqibatida aynigan"></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-danger w-100 py-2 fw-bold"><i class="fas fa-check-circle me-1"></i> Chiqimni tasdiqlash va ombordan chiqarish</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Recent Write-Offs List -->
+            <div class="col-lg-5">
+                <div class="card-inventory-table p-4">
+                    <h5 class="fw-bold text-white mb-3"><i class="fas fa-history text-secondary me-2"></i>Oxirgi chiqim hujjatlari</h5>
+                    <div class="d-flex flex-column gap-2">
+                        {% for w in recent_write_offs %}
+                        <div class="p-3 rounded-3 bg-dark border border-secondary border-opacity-25">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <strong class="text-white">{{ w.doc_number }}</strong>
+                                <span class="badge bg-danger bg-opacity-25 text-danger">{{ w.total_cost|floatformat:0 }} soʻm</span>
+                            </div>
+                            <div class="small text-secondary mb-1"><span class="text-warning">{{ w.get_reason_display }}</span> &bull; {{ w.date|date:"d.m.Y H:i" }}</div>
+                            <div class="small text-light">{% for it in w.items.all %}{{ it.ingredient.name }}: {{ it.quantity|floatformat:2 }} {{ it.ingredient.unit }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+                        </div>
+                        {% empty %}
+                        <div class="text-secondary small">Hozircha chiqim hujjatlari yoʻq</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 4: Kalkulyatsiya / Tex-karta -->
+    <div id="tab-recipes" class="inventory-tab-pane d-none">
+        <div class="card-inventory-table p-4 mb-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+                <div>
+                    <h4 class="fw-bold text-white mb-1"><i class="fas fa-utensils text-warning me-2"></i>Taomlar Kalkulyatsiyasi va Texnologik Xaritasi</h4>
+                    <p class="text-secondary mb-0">Har bir taom uchun sarflanadigan xomashyolar, tannarx va restoran marjasi</p>
+                </div>
+                <div class="d-flex gap-2 align-items-center" style="min-width: 320px;">
+                    <label class="text-secondary small mb-0 text-nowrap">Taomni tanlang:</label>
+                    <select id="recipeProductSelect" class="form-select bg-dark border-secondary border-opacity-25 text-white" onchange="loadProductRecipe()">
+                        <option value="">-- Taomni tanlang --</option>
+                        {% for prod in products %}
+                        <option value="{{ prod.id }}" data-price="{{ prod.price }}">{{ prod.name }} ({{ prod.price|floatformat:0 }} soʻm)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div id="recipeEditorContainer" class="d-none">
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="p-3 bg-dark rounded-3 border border-secondary border-opacity-25">
+                            <span class="text-secondary small d-block">Sotuv narxi</span>
+                            <h4 class="fw-bold text-white mb-0" id="recipeProductPrice">0 soʻm</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-dark rounded-3 border border-secondary border-opacity-25">
+                            <span class="text-secondary small d-block">Hisoblangan xomashyo tannarxi</span>
+                            <h4 class="fw-bold text-warning mb-0" id="recipeCostPrice">0 soʻm</h4>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-dark rounded-3 border border-secondary border-opacity-25">
+                            <span class="text-secondary small d-block">Restoran foyda marjasi</span>
+                            <h4 class="fw-bold text-success mb-0" id="recipeProfitMargin">0 soʻm (0%)</h4>
+                        </div>
+                    </div>
+                </div>
+
+                <h5 class="fw-bold text-white mb-3">1 porsiya taomga ketadigan xomashyolar (Retsept tarkibi)</h5>
+                <div id="recipeRowsContainer" class="d-flex flex-column gap-2 mb-3">
+                    <!-- Dynamic recipe rows -->
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <button class="btn btn-outline-success btn-sm" onclick="addRecipeItemRow()"><i class="fas fa-plus me-1"></i> Xomashyo qoʻshish</button>
+                    <button class="btn btn-success py-2 px-4 fw-bold" onclick="saveCurrentRecipe()"><i class="fas fa-floppy-disk me-1"></i> Tex-kartani saqlash</button>
+                </div>
+            </div>
+            <div id="recipePlaceholder" class="text-center py-5 text-secondary">
+                <i class="fas fa-bowl-food fs-1 mb-3 opacity-25"></i>
+                <p>Tarkibini koʻrish yoki yangi tex-karta tuzish uchun yuqoridagi roʻyxatdan taomni tanlang.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 5: Taʼminotchilar -->
+    <div id="tab-suppliers" class="inventory-tab-pane d-none">
+        <div class="card-inventory-table p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold text-white mb-0"><i class="fas fa-truck-field text-primary me-2"></i>Doimiy yetkazib beruvchilar</h5>
+                <button class="btn btn-outline-success btn-sm" onclick="openSupplierModal()"><i class="fas fa-plus me-1"></i> Yangi taʼminotchi</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark-custom align-middle">
+                    <thead>
+                        <tr>
+                            <th>Nomi</th>
+                            <th>Masʼul shaxs</th>
+                            <th>Telefon raqami</th>
+                            <th>Manzil</th>
+                            <th>Balans / Qarz</th>
+                            <th class="text-end">Amallar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sup in suppliers %}
+                        <tr>
+                            <td><strong class="text-white">{{ sup.name }}</strong></td>
+                            <td>{{ sup.contact_person|default:"-" }}</td>
+                            <td><a href="tel:{{ sup.phone }}" class="text-info text-decoration-none">{{ sup.phone|default:"-" }}</a></td>
+                            <td class="text-secondary small">{{ sup.address|default:"-" }}</td>
+                            <td>
+                                {% if sup.balance > 0 %}
+                                <span class="badge bg-danger bg-opacity-25 text-danger">{{ sup.balance|floatformat:0 }} soʻm (qarzimiz)</span>
+                                {% else %}
+                                <span class="badge bg-success bg-opacity-25 text-success">0 soʻm</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="editSupplier({{ sup.id }}, '{{ sup.name|escapejs }}', '{{ sup.phone|escapejs }}', '{{ sup.contact_person|escapejs }}', '{{ sup.address|escapejs }}', {{ sup.balance }}, '{{ sup.notes|escapejs }}')"><i class="fas fa-edit"></i></button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 6: Harakatlar jurnali -->
+    <div id="tab-history" class="inventory-tab-pane d-none">
+        <div class="card-inventory-table p-3">
+            <h5 class="fw-bold text-white mb-3"><i class="fas fa-timeline text-info me-2"></i>Ombor harakatlari jurnali (Audit trail)</h5>
+            <div class="table-responsive">
+                <table class="table table-dark-custom align-middle">
+                    <thead>
+                        <tr>
+                            <th>Vaqt</th>
+                            <th>Xomashyo</th>
+                            <th>Harakat turi</th>
+                            <th>Oʻzgarish miqdori</th>
+                            <th>Oldingi qoldiq</th>
+                            <th>Keyingi qoldiq</th>
+                            <th>Birlik tannarxi</th>
+                            <th>Tafsilot</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in recent_movements %}
+                        <tr>
+                            <td class="small text-secondary">{{ m.created_at|date:"Y-m-d H:i" }}</td>
+                            <td><strong class="text-white">{{ m.ingredient.name }}</strong></td>
+                            <td>
+                                {% if m.movement_type == 'supply' %}
+                                <span class="badge bg-success bg-opacity-25 text-success"><i class="fas fa-arrow-down me-1"></i>Kirim</span>
+                                {% elif m.movement_type == 'sale_deduction' %}
+                                <span class="badge bg-primary bg-opacity-25 text-primary"><i class="fas fa-cash-register me-1"></i>Sotuv (Retsept)</span>
+                                {% elif m.movement_type == 'write_off' %}
+                                <span class="badge bg-danger bg-opacity-25 text-danger"><i class="fas fa-trash me-1"></i>Chiqim</span>
+                                {% else %}
+                                <span class="badge bg-secondary bg-opacity-25 text-light">Qayta hisob</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong class="{% if m.quantity_delta > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ m.quantity_delta|floatformat:3 }} {{ m.ingredient.unit }}
+                                </strong>
+                            </td>
+                            <td>{{ m.stock_before|floatformat:3 }} {{ m.ingredient.unit }}</td>
+                            <td>{{ m.stock_after|floatformat:3 }} {{ m.ingredient.unit }}</td>
+                            <td>{{ m.unit_cost|floatformat:0 }} soʻm</td>
+                            <td class="small text-secondary">{{ m.notes }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center text-secondary py-4">Hozircha ombor harakatlari qayd etilmagan</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Ingredient Edit / Create -->
+<div class="modal fade" id="ingredientModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark border border-secondary text-white">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold" id="ingredientModalTitle">Yangi xomashyo qoʻshish</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="modalIngId" value="">
+                <div class="mb-3">
+                    <label class="form-label text-secondary small">Xomashyo nomi</label>
+                    <input type="text" id="modalIngName" class="form-control bg-dark border-secondary border-opacity-25 text-white" placeholder="Masalan: Mol goʻshti lahm" required>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label text-secondary small">Toifasi</label>
+                        <select id="modalIngCategory" class="form-select bg-dark border-secondary border-opacity-25 text-white">
+                            {% for code, label in category_choices %}
+                            <option value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-secondary small">Oʻlchov birligi</label>
+                        <select id="modalIngUnit" class="form-select bg-dark border-secondary border-opacity-25 text-white">
+                            {% for code, label in unit_choices %}
+                            <option value="{{ code }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label text-secondary small">Dastlabki qoldiq</label>
+                        <input type="number" step="0.001" id="modalIngStock" class="form-control bg-dark border-secondary border-opacity-25 text-white" value="0">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-secondary small">Kritik ogohlantirish chegarasi</label>
+                        <input type="number" step="0.001" id="modalIngAlert" class="form-control bg-dark border-secondary border-opacity-25 text-white" value="5">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-secondary small">1 birlik tannarxi (soʻm)</label>
+                    <input type="number" id="modalIngCost" class="form-control bg-dark border-secondary border-opacity-25 text-white" value="0">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-secondary small">Qoʻshimcha tavsif</label>
+                    <textarea id="modalIngDesc" class="form-control bg-dark border-secondary border-opacity-25 text-white" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary border-opacity-25">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bekor qilish</button>
+                <button type="button" class="btn btn-success fw-bold" onclick="saveIngredientModal()">Saqlash</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Supplier Edit / Create -->
+<div class="modal fade" id="supplierModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark border border-secondary text-white">
+            <div class="modal-header border-secondary border-opacity-25">
+                <h5 class="modal-title fw-bold" id="supplierModalTitle">Yangi taʼminotchi</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="modalSupId" value="">
+                <div class="mb-3">
+                    <label class="form-label text-secondary small">Taʼminotchi / Korxona nomi</label>
+                    <input type="text" id="modalSupName" class="form-control bg-dark border-secondary border-opacity-25 text-white" placeholder="Masalan: Chorsu Go'sht Bazasi" required>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label text-secondary small">Telefon raqami</label>
+                        <input type="text" id="modalSupPhone" class="form-control bg-dark border-secondary border-opacity-25 text-white" placeholder="+998901234567">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label text-secondary small">Masʼul shaxs</label>
+                        <input type="text" id="modalSupContact" class="form-control bg-dark border-secondary border-opacity-25 text-white" placeholder="Masalan: Akrom aka">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-secondary small">Manzil</label>
+                    <input type="text" id="modalSupAddress" class="form-control bg-dark border-secondary border-opacity-25 text-white" placeholder="Bozor yoki do'kon manzili">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-secondary small">Dastlabki qarz / balans (soʻm)</label>
+                    <input type="number" id="modalSupBalance" class="form-control bg-dark border-secondary border-opacity-25 text-white" value="0">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-secondary small">Izohlar</label>
+                    <textarea id="modalSupNotes" class="form-control bg-dark border-secondary border-opacity-25 text-white" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary border-opacity-25">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Bekor qilish</button>
+                <button type="button" class="btn btn-success fw-bold" onclick="saveSupplierModal()">Saqlash</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Global data references from Django
+    const ALL_INGREDIENTS = [
+        {% for ing in ingredients %}
+        { id: {{ ing.id }}, name: "{{ ing.name|escapejs }}", unit: "{{ ing.unit }}", cost: {{ ing.cost_price }} },
+        {% endfor %}
+    ];
+
+    function showTab(tabId) {
+        document.querySelectorAll('.inventory-tab-pane').forEach(el => el.classList.add('d-none'));
+        const target = document.getElementById(tabId);
+        if (target) target.classList.remove('d-none');
+
+        document.querySelectorAll('#inventoryNavTabs .nav-link').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = Array.from(document.querySelectorAll('#inventoryNavTabs .nav-link')).find(btn => btn.getAttribute('onclick')?.includes(tabId));
+        if (activeBtn) activeBtn.classList.add('active');
+
+        if (tabId === 'tab-supply' && document.getElementById('supplyItemsRows').children.length === 0) {
+            addSupplyItemRow();
+        }
+        if (tabId === 'tab-writeoff' && document.getElementById('writeOffItemsRows').children.length === 0) {
+            addWriteOffItemRow();
+        }
+    }
+
+    let onlyLowStockActive = false;
+    function toggleLowStockFilter() {
+        onlyLowStockActive = !onlyLowStockActive;
+        const btn = document.getElementById('filterLowStockBtn');
+        if (onlyLowStockActive) {
+            btn.classList.remove('btn-outline-danger');
+            btn.classList.add('btn-danger');
+        } else {
+            btn.classList.remove('btn-danger');
+            btn.classList.add('btn-outline-danger');
+        }
+        filterStockTable();
+    }
+
+    function filterStockTable() {
+        const query = (document.getElementById('stockSearchInput')?.value || '').toLowerCase().trim();
+        const cat = document.getElementById('stockCategoryFilter')?.value || '';
+
+        document.querySelectorAll('.stock-row').forEach(row => {
+            const name = row.dataset.name || '';
+            const rowCat = row.dataset.category || '';
+            const isLow = row.dataset.low === '1';
+
+            const matchQuery = !query || name.includes(query);
+            const matchCat = !cat || rowCat === cat;
+            const matchLow = !onlyLowStockActive || isLow;
+
+            if (matchQuery && matchCat && matchLow) {
+                row.classList.remove('d-none');
+            } else {
+                row.classList.add('d-none');
+            }
+        });
+    }
+
+    // Ingredient Modal
+    let ingredientBsModal = null;
+    function openIngredientModal() {
+        document.getElementById('modalIngId').value = '';
+        document.getElementById('modalIngName').value = '';
+        document.getElementById('modalIngStock').value = '0';
+        document.getElementById('modalIngAlert').value = '5';
+        document.getElementById('modalIngCost').value = '0';
+        document.getElementById('modalIngDesc').value = '';
+        document.getElementById('ingredientModalTitle').innerText = 'Yangi xomashyo qoʻshish';
+        if (!ingredientBsModal) ingredientBsModal = new bootstrap.Modal(document.getElementById('ingredientModal'));
+        ingredientBsModal.show();
+    }
+
+    function editIngredient(id, name, cat, unit, stock, alert, cost, desc) {
+        document.getElementById('modalIngId').value = id;
+        document.getElementById('modalIngName').value = name;
+        document.getElementById('modalIngCategory').value = cat;
+        document.getElementById('modalIngUnit').value = unit;
+        document.getElementById('modalIngStock').value = stock;
+        document.getElementById('modalIngAlert').value = alert;
+        document.getElementById('modalIngCost').value = cost;
+        document.getElementById('modalIngDesc').value = desc;
+        document.getElementById('ingredientModalTitle').innerText = 'Xomashyoni tahrirlash';
+        if (!ingredientBsModal) ingredientBsModal = new bootstrap.Modal(document.getElementById('ingredientModal'));
+        ingredientBsModal.show();
+    }
+
+    async function saveIngredientModal() {
+        const payload = {
+            id: document.getElementById('modalIngId').value || null,
+            name: document.getElementById('modalIngName').value.trim(),
+            category: document.getElementById('modalIngCategory').value,
+            unit: document.getElementById('modalIngUnit').value,
+            current_stock: parseFloat(document.getElementById('modalIngStock').value) || 0,
+            min_stock_alert: parseFloat(document.getElementById('modalIngAlert').value) || 5,
+            cost_price: parseFloat(document.getElementById('modalIngCost').value) || 0,
+            description: document.getElementById('modalIngDesc').value.trim(),
+        };
+        if (!payload.name) {
+            alert('Iltimos xomashyo nomini kiriting!');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/pos/inventory/ingredients/save/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                location.reload();
+            } else {
+                alert(data.error || 'Xatolik yuz berdi');
+            }
+        } catch (e) {
+            alert('Tarmoq xatosi: ' + e);
+        }
+    }
+
+    // Dynamic Supply Item Row
+    function addSupplyItemRow() {
+        const container = document.getElementById('supplyItemsRows');
+        const row = document.createElement('div');
+        row.className = 'd-flex gap-2 align-items-center supply-item-row';
+
+        let options = ALL_INGREDIENTS.map(i => `<option value="${i.id}" data-cost="${i.cost}">${i.name} (${i.unit})</option>`).join('');
+
+        row.innerHTML = `
+            <select class="form-select bg-dark border-secondary border-opacity-25 text-white supply-ing-select" style="flex: 2;" onchange="onSupplyIngChanged(this)" required>
+                <option value="">-- Xomashyoni tanlang --</option>
+                ${options}
+            </select>
+            <input type="number" step="0.001" class="form-control bg-dark border-secondary border-opacity-25 text-white supply-qty-input" style="flex: 1;" placeholder="Miqdor" required oninput="calcSupplyTotal()">
+            <input type="number" class="form-control bg-dark border-secondary border-opacity-25 text-white supply-price-input" style="flex: 1.2;" placeholder="1 birlik narxi" required oninput="calcSupplyTotal()">
+            <span class="text-success font-monospace fw-bold supply-row-total text-end" style="flex: 1.5;">0 soʻm</span>
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove(); calcSupplyTotal();"><i class="fas fa-trash"></i></button>
+        `;
+        container.appendChild(row);
+    }
+
+    function onSupplyIngChanged(selectEl) {
+        const opt = selectEl.selectedOptions[0];
+        if (opt && opt.dataset.cost) {
+            const row = selectEl.closest('.supply-item-row');
+            const priceInput = row.querySelector('.supply-price-input');
+            if (priceInput && (!priceInput.value || priceInput.value === '0')) {
+                priceInput.value = opt.dataset.cost;
+            }
+        }
+        calcSupplyTotal();
+    }
+
+    function calcSupplyTotal() {
+        let total = 0;
+        document.querySelectorAll('.supply-item-row').forEach(row => {
+            const qty = parseFloat(row.querySelector('.supply-qty-input')?.value) || 0;
+            const price = parseFloat(row.querySelector('.supply-price-input')?.value) || 0;
+            const rowTot = qty * price;
+            total += rowTot;
+            const disp = row.querySelector('.supply-row-total');
+            if (disp) disp.innerText = rowTot.toLocaleString() + ' soʻm';
+        });
+        document.getElementById('supplyTotalDisplay').innerText = total.toLocaleString() + ' soʻm';
+        const paidInput = document.getElementById('supplyPaidAmount');
+        if (document.getElementById('supplyPaymentStatus').value === 'paid') {
+            paidInput.value = total;
+        }
+    }
+
+    async function submitNewSupply(e) {
+        e.preventDefault();
+        const items = [];
+        document.querySelectorAll('.supply-item-row').forEach(row => {
+            const ingId = parseInt(row.querySelector('.supply-ing-select').value);
+            const qty = parseFloat(row.querySelector('.supply-qty-input').value);
+            const price = parseFloat(row.querySelector('.supply-price-input').value);
+            if (ingId && qty > 0) {
+                items.push({ ingredient_id: ingId, quantity: qty, unit_price: price });
+            }
+        });
+        if (items.length === 0) {
+            alert('Kamida 1 ta mahsulot kiriting!');
+            return;
+        }
+
+        const payload = {
+            supplier_id: document.getElementById('supplySupplierSelect').value || null,
+            payment_status: document.getElementById('supplyPaymentStatus').value,
+            paid_amount: parseFloat(document.getElementById('supplyPaidAmount').value) || 0,
+            notes: document.getElementById('supplyNotes').value.trim(),
+            items: items,
+        };
+
+        try {
+            const res = await fetch('/api/pos/inventory/supplies/create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                alert(`Kirim muvaffaqiyatli saqlandi! Hujjat: ${data.supply.doc_number}`);
+                location.reload();
+            } else {
+                alert(data.error || 'Xatolik yuz berdi');
+            }
+        } catch (err) {
+            alert('Tarmoq xatosi: ' + err);
+        }
+    }
+
+    // Dynamic Write-off Item Row
+    function addWriteOffItemRow() {
+        const container = document.getElementById('writeOffItemsRows');
+        const row = document.createElement('div');
+        row.className = 'd-flex gap-2 align-items-center writeoff-item-row';
+        let options = ALL_INGREDIENTS.map(i => `<option value="${i.id}">${i.name} (${i.unit})</option>`).join('');
+
+        row.innerHTML = `
+            <select class="form-select bg-dark border-secondary border-opacity-25 text-white writeoff-ing-select" style="flex: 2;" required>
+                <option value="">-- Xomashyoni tanlang --</option>
+                ${options}
+            </select>
+            <input type="number" step="0.001" class="form-control bg-dark border-secondary border-opacity-25 text-white writeoff-qty-input" style="flex: 1;" placeholder="Chiqim miqdori" required>
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()"><i class="fas fa-trash"></i></button>
+        `;
+        container.appendChild(row);
+    }
+
+    async function submitNewWriteOff(e) {
+        e.preventDefault();
+        const items = [];
+        document.querySelectorAll('.writeoff-item-row').forEach(row => {
+            const ingId = parseInt(row.querySelector('.writeoff-ing-select').value);
+            const qty = parseFloat(row.querySelector('.writeoff-qty-input').value);
+            if (ingId && qty > 0) {
+                items.push({ ingredient_id: ingId, quantity: qty });
+            }
+        });
+        if (items.length === 0) {
+            alert('Kamida 1 ta chiqim qilinadigan mahsulot kiriting!');
+            return;
+        }
+
+        const payload = {
+            reason: document.getElementById('writeOffReason').value,
+            created_by: document.getElementById('writeOffCreatedBy').value.trim(),
+            notes: document.getElementById('writeOffNotes').value.trim(),
+            items: items,
+        };
+
+        try {
+            const res = await fetch('/api/pos/inventory/write-offs/create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                alert(`Chiqim muvaffaqiyatli amalga oshirildi! Hujjat: ${data.write_off.doc_number}`);
+                location.reload();
+            } else {
+                alert(data.error || 'Xatolik yuz berdi');
+            }
+        } catch (err) {
+            alert('Tarmoq xatosi: ' + err);
+        }
+    }
+
+    // Recipe Management
+    let currentSelectedProduct = null;
+    async function loadProductRecipe() {
+        const prodId = document.getElementById('recipeProductSelect').value;
+        const editor = document.getElementById('recipeEditorContainer');
+        const placeholder = document.getElementById('recipePlaceholder');
+        if (!prodId) {
+            editor.classList.add('d-none');
+            placeholder.classList.remove('d-none');
+            return;
+        }
+
+        const opt = document.getElementById('recipeProductSelect').selectedOptions[0];
+        const price = parseFloat(opt.dataset.price) || 0;
+        document.getElementById('recipeProductPrice').innerText = price.toLocaleString() + ' soʻm';
+
+        try {
+            const res = await fetch(`/api/pos/inventory/recipes/?product_id=${prodId}`);
+            const data = await res.json();
+            editor.classList.remove('d-none');
+            placeholder.classList.add('d-none');
+
+            const container = document.getElementById('recipeRowsContainer');
+            container.innerHTML = '';
+
+            let totalCost = 0;
+            if (data.recipes && data.recipes.length > 0) {
+                data.recipes.forEach(r => {
+                    totalCost += r.cost;
+                    addRecipeRowWithData(r.ingredient_id, r.quantity, r.unit, r.notes, r.cost);
+                });
+            } else {
+                addRecipeItemRow();
+            }
+
+            updateRecipeKPIs(price, totalCost);
+        } catch (e) {
+            alert('Retseptni yuklashda xatolik: ' + e);
+        }
+    }
+
+    function updateRecipeKPIs(price, cost) {
+        document.getElementById('recipeCostPrice').innerText = cost.toLocaleString() + ' soʻm';
+        const margin = Math.max(0, price - cost);
+        const marginPct = price > 0 ? ((margin / price) * 100).toFixed(1) : 0;
+        document.getElementById('recipeProfitMargin').innerText = `${margin.toLocaleString()} soʻm (${marginPct}%)`;
+    }
+
+    function addRecipeRowWithData(ingId, qty, unit, notes, cost) {
+        const container = document.getElementById('recipeRowsContainer');
+        const row = document.createElement('div');
+        row.className = 'd-flex gap-2 align-items-center recipe-item-row p-2 bg-dark rounded border border-secondary border-opacity-25';
+
+        let options = ALL_INGREDIENTS.map(i => `<option value="${i.id}" ${i.id === ingId ? 'selected' : ''}>${i.name}</option>`).join('');
+
+        row.innerHTML = `
+            <select class="form-select bg-dark border-secondary border-opacity-25 text-white recipe-ing-select" style="flex: 2;" required>
+                ${options}
+            </select>
+            <input type="number" step="0.001" class="form-control bg-dark border-secondary border-opacity-25 text-white recipe-qty-input" style="flex: 1;" placeholder="Miqdori" value="${qty}" required>
+            <select class="form-select bg-dark border-secondary border-opacity-25 text-white recipe-unit-select" style="flex: 1;">
+                <option value="kg" ${unit === 'kg' ? 'selected' : ''}>kg</option>
+                <option value="g" ${unit === 'g' ? 'selected' : ''}>g</option>
+                <option value="l" ${unit === 'l' ? 'selected' : ''}>l</option>
+                <option value="ml" ${unit === 'ml' ? 'selected' : ''}>ml</option>
+                <option value="pcs" ${unit === 'pcs' ? 'selected' : ''}>dona</option>
+            </select>
+            <input type="text" class="form-control bg-dark border-secondary border-opacity-25 text-white recipe-notes-input" style="flex: 1.5;" placeholder="Izoh (masalan: 1 porsiya uchun)" value="${notes || ''}">
+            <span class="text-warning font-monospace small text-end" style="flex: 1;">${cost ? cost.toLocaleString() + ' soʻm' : ''}</span>
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()"><i class="fas fa-trash"></i></button>
+        `;
+        container.appendChild(row);
+    }
+
+    function addRecipeItemRow() {
+        addRecipeRowWithData(ALL_INGREDIENTS[0]?.id || 0, 0.1, 'kg', '', 0);
+    }
+
+    async function saveCurrentRecipe() {
+        const prodId = document.getElementById('recipeProductSelect').value;
+        if (!prodId) return;
+
+        const items = [];
+        document.querySelectorAll('.recipe-item-row').forEach(row => {
+            const ingId = parseInt(row.querySelector('.recipe-ing-select').value);
+            const qty = parseFloat(row.querySelector('.recipe-qty-input').value);
+            const unit = row.querySelector('.recipe-unit-select').value;
+            const notes = row.querySelector('.recipe-notes-input').value.trim();
+            if (ingId && qty > 0) {
+                items.push({ ingredient_id: ingId, quantity: qty, unit: unit, notes: notes });
+            }
+        });
+
+        try {
+            const res = await fetch(`/api/pos/inventory/recipes/${prodId}/save/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: items })
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                alert(`'${data.product_name}' uchun tex-karta saqlandi! Hisoblangan tannarx: ${data.calculated_cost.toLocaleString()} soʻm (Marja: ${data.margin_percent}%)`);
+                loadProductRecipe();
+            } else {
+                alert(data.error || 'Xatolik yuz berdi');
+            }
+        } catch (e) {
+            alert('Tarmoq xatosi: ' + e);
+        }
+    }
+
+    // Supplier Modal
+    let supplierBsModal = null;
+    function openSupplierModal() {
+        document.getElementById('modalSupId').value = '';
+        document.getElementById('modalSupName').value = '';
+        document.getElementById('modalSupPhone').value = '';
+        document.getElementById('modalSupContact').value = '';
+        document.getElementById('modalSupAddress').value = '';
+        document.getElementById('modalSupBalance').value = '0';
+        document.getElementById('modalSupNotes').value = '';
+        document.getElementById('supplierModalTitle').innerText = 'Yangi taʼminotchi qoʻshish';
+        if (!supplierBsModal) supplierBsModal = new bootstrap.Modal(document.getElementById('supplierModal'));
+        supplierBsModal.show();
+    }
+
+    function editSupplier(id, name, phone, contact, address, balance, notes) {
+        document.getElementById('modalSupId').value = id;
+        document.getElementById('modalSupName').value = name;
+        document.getElementById('modalSupPhone').value = phone;
+        document.getElementById('modalSupContact').value = contact;
+        document.getElementById('modalSupAddress').value = address;
+        document.getElementById('modalSupBalance').value = balance;
+        document.getElementById('modalSupNotes').value = notes;
+        document.getElementById('supplierModalTitle').innerText = 'Taʼminotchi maʼlumotlarini tahrirlash';
+        if (!supplierBsModal) supplierBsModal = new bootstrap.Modal(document.getElementById('supplierModal'));
+        supplierBsModal.show();
+    }
+
+    async function saveSupplierModal() {
+        const payload = {
+            id: document.getElementById('modalSupId').value || null,
+            name: document.getElementById('modalSupName').value.trim(),
+            phone: document.getElementById('modalSupPhone').value.trim(),
+            contact_person: document.getElementById('modalSupContact').value.trim(),
+            address: document.getElementById('modalSupAddress').value.trim(),
+            balance: parseFloat(document.getElementById('modalSupBalance').value) || 0,
+            notes: document.getElementById('modalSupNotes').value.trim(),
+        };
+        if (!payload.name) {
+            alert('Iltimos taʼminotchi nomini kiriting!');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/pos/inventory/suppliers/save/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.status === 'ok') {
+                location.reload();
+            } else {
+                alert(data.error || 'Xatolik yuz berdi');
+            }
+        } catch (e) {
+            alert('Tarmoq xatosi: ' + e);
+        }
+    }
+</script>
+{% endblock %}

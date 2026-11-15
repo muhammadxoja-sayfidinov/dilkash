@@ -125,7 +125,7 @@ class _AuthScreenState extends State<AuthScreen> {
             TextField(
               controller: controller,
               decoration: const InputDecoration(
-                hintText: 'http://10.40.4.94:8000',
+                hintText: 'https://dilkash-django-production.up.railway.app',
                 labelText: 'Server Base URL',
               ),
             ),
@@ -134,18 +134,25 @@ class _AuthScreenState extends State<AuthScreen> {
               'Tezkor tanlov:',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 6,
               children: [
                 ActionChip(
-                  label: const Text('10.40.4.94:8000 (Wi-Fi)'),
-                  onPressed: () => controller.text = 'http://10.40.4.94:8000',
+                  avatar: const Icon(Icons.cloud_done_rounded, size: 16, color: Color(0xFF10B981)),
+                  label: const Text('Railway Cloud'),
+                  onPressed: () => controller.text = ApiService.defaultProductionUrl,
                 ),
                 ActionChip(
-                  label: const Text('127.0.0.1:8000 (USB/ADB)'),
-                  onPressed: () => controller.text = 'http://127.0.0.1:8000',
+                  avatar: const Icon(Icons.computer_rounded, size: 16),
+                  label: const Text('127.0.0.1:8000'),
+                  onPressed: () => controller.text = ApiService.defaultLocalUrl,
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.wifi_rounded, size: 16),
+                  label: const Text('Wi-Fi tarmogʻi'),
+                  onPressed: () => controller.text = ApiService.defaultWifiUrl,
                 ),
               ],
             ),

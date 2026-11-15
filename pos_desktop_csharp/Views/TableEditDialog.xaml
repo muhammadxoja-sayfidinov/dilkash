@@ -14,7 +14,7 @@
         SnapsToDevicePixels="True"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType">
-    <controls:DialogChrome x:Name="Chrome" Title="Yangi stol" Subtitle="Zal, Terrasa yoki VIP xona stoli">
+    <controls:DialogChrome x:Name="Chrome" Title="Yangi stol" Subtitle="Zal, Terrasa, VIP yoki boshqa zal stoli">
         <StackPanel Margin="24,20">
             <TextBlock x:Name="ErrorBanner"
                        Foreground="{DynamicResource BrushError}"
@@ -28,13 +28,17 @@
                     <ColumnDefinition Width="12" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <controls:Field Grid.Column="0" Label="Stol raqami" HelperText="1-6 Zal, 7-9 Terrasa, 10+ VIP">
+                <controls:Field Grid.Column="0" Label="Stol raqami">
                     <TextBox x:Name="NumberBox" Typography.NumeralAlignment="Tabular" />
                 </controls:Field>
                 <controls:Field Grid.Column="2" Label="Oʻrinlar soni">
                     <TextBox x:Name="CapacityBox" Text="4" Typography.NumeralAlignment="Tabular" />
                 </controls:Field>
             </Grid>
+
+            <controls:Field Label="Zal (Hudud)" HelperText="Stol qaysi zalga tegishli ekanini tanlang" Margin="0,0,0,14">
+                <ComboBox x:Name="HallCombo" DisplayMemberPath="Name" SelectedValuePath="Id" />
+            </controls:Field>
 
             <controls:Field Label="Stol nomi" HelperText="Masalan: Asosiy Zal 1 yoki VIP Kabina" Margin="0,0,0,14">
                 <TextBox x:Name="NameBox" />

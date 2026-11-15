@@ -4,7 +4,9 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Media.Imaging;
 using DilkashPos.Models;
+using DilkashPos.Services;
 using Microsoft.Win32;
 
 namespace DilkashPos.Views
@@ -19,6 +21,8 @@ namespace DilkashPos.Views
         public bool IsProductAvailable => IsAvailableCheck.IsChecked == true;
         public string? SelectedImageBase64 { get; private set; }
         public string? SelectedImageFilename { get; private set; }
+        public byte[]? SelectedImageBytes { get; private set; }
+        public bool RemoveImage { get; private set; }
 
         public ProductEditDialog(List<Category> categories, Product? existing = null)
         {
@@ -37,8 +41,19 @@ namespace DilkashPos.Views
                 PriceBox.Text = existing.Price.ToString("0", CultureInfo.InvariantCulture);
                 DescriptionBox.Text = existing.Description;
                 IsAvailableCheck.IsChecked = existing.IsAvailable;
-                if (!string.IsNullOrWhiteSpace(existing.ImageUrl))
+
+                if (!string.IsNullOrWhiteSpace(existing.ImageLocalPath) || !string.IsNullOrWhiteSpace(existing.ImageUrl))
+                {
                     ImageFileText.Text = "Mavjud rasm saqlangan (oʻzgartirish uchun tanlang)";
+                    ClearImageBtn.Visibility = Visibility.Visible;
+                    var bmp = ImageCacheService.LoadBitmap(existing.ImageLocalPath, existing.ImageUrl, ImageCacheService.ActiveBaseUrl);
+                    if (bmp != null)
+                    {
+                        PreviewImage.Source = bmp;
+                        PreviewImage.Visibility = Visibility.Visible;
+                        PreviewPlaceholderIcon.Visibility = Visibility.Collapsed;
+                    }
+                }
 
                 var match = usableCats.FirstOrDefault(c => c.Id == existing.CategoryId)
                     ?? usableCats.FirstOrDefault(c => string.Equals(c.Name, existing.CategoryName, StringComparison.OrdinalIgnoreCase));
@@ -66,11 +81,43 @@ namespace DilkashPos.Views
                     ErrorBanner.Visibility = Visibility.Visible;
                     return;
                 }
-                SelectedImageBase64 = Convert.ToBase64String(File.ReadAllBytes(dlg.FileName));
+                var bytes = File.ReadAllBytes(dlg.FileName);
+                SelectedImageBytes = bytes;
+                SelectedImageBase64 = Convert.ToBase64String(bytes);
                 SelectedImageFilename = info.Name;
+                RemoveImage = false;
                 ImageFileText.Text = info.Name;
+                ClearImageBtn.Visibility = Visibility.Visible;
                 ErrorBanner.Visibility = Visibility.Collapsed;
+
+                try
+                {
+                    using var ms = new MemoryStream(bytes);
+                    var bmp = new BitmapImage();
+                    bmp.BeginInit();
+                    bmp.CacheOption = BitmapCacheOption.OnLoad;
+                    bmp.StreamSource = ms;
+                    bmp.EndInit();
+                    bmp.Freeze();
+                    PreviewImage.Source = bmp;
+                    PreviewImage.Visibility = Visibility.Visible;
+                    PreviewPlaceholderIcon.Visibility = Visibility.Collapsed;
+                }
+                catch { }
             }
+        }
+
+        private void OnClearImageClick(object sender, RoutedEventArgs e)
+        {
+            SelectedImageBytes = null;
+            SelectedImageBase64 = null;
+            SelectedImageFilename = null;
+            RemoveImage = true;
+            PreviewImage.Source = null;
+            PreviewImage.Visibility = Visibility.Collapsed;
+            PreviewPlaceholderIcon.Visibility = Visibility.Visible;
+            ClearImageBtn.Visibility = Visibility.Collapsed;
+            ImageFileText.Text = "Rasm oʻchirildi";
         }
 
         private void OnConfirmClick(object sender, RoutedEventArgs e)

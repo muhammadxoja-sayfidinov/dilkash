@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:customer_app_flutter/models/dish.dart';
+import 'package:customer_app_flutter/models/order.dart';
 import 'package:customer_app_flutter/services/cart_provider.dart';
 
 void main() {
@@ -72,6 +73,99 @@ void main() {
       cart.updateQuantity(sampleDish.id, 0);
       expect(cart.totalCount, 0);
       expect(cart.items.isEmpty, true);
+    });
+
+    test('hierarchical categories and stop-list dish model parsing', () {
+      final parentCat = Category.fromJson({
+        'id': 6,
+        'name': 'Choy va ichimliklar',
+        'department': 'bar',
+        'parent_id': null,
+        'subcategories_count': 2,
+        'products_count': 10,
+      });
+      final subCat = Category.fromJson({
+        'id': 8,
+        'name': 'Issiq choy va qahva',
+        'department': 'bar',
+        'parent_id': 6,
+        'subcategories_count': 0,
+        'products_count': 5,
+      });
+
+      expect(parentCat.isSubcategory, false);
+      expect(subCat.isSubcategory, true);
+      expect(subCat.parentId, 6);
+
+      final unavailableDish = Dish.fromJson({
+        'id': 99,
+        'name': 'Kofe Cappuccino',
+        'price': 22000.0,
+        'category': 'Issiq choy va qahva',
+        'category_id': 8,
+        'department': 'bar',
+        'is_available': false,
+      });
+
+      expect(unavailableDish.isAvailable, false);
+      expect(unavailableDish.categoryId, 8);
+      expect(unavailableDish.department, 'bar');
+    });
+
+    test('CustomerOrder parses live courier tracking and ETA telemetry correctly', () {
+      final json = {
+        'id': 501,
+        'order_number': '501',
+        'status': 'yolda',
+        'status_display': 'Kuryer yoʻlda',
+        'service_type': 'delivery',
+        'service_type_display': 'Yetkazib berish',
+        'delivery_address': 'Toshkent sh., Chilonzor 7-mavze',
+        'total_amount': 85000.0,
+        'customer_lat': 41.2825,
+        'customer_lng': 69.2155,
+        'restaurant_lat': 41.311081,
+        'restaurant_lng': 69.240562,
+        'restaurant_name': 'Dilkash Restorani (Markaziy filial)',
+        'distance_km': 2.35,
+        'eta_minutes': 9,
+        'courier': {
+          'id': 12,
+          'name': 'Jasur Rahimov',
+          'phone': '+998 90 111 22 33',
+          'vehicle': 'Honda Dio Skuter',
+          'current_lat': 41.2980,
+          'current_lng': 69.2300,
+          'distance_km': 2.35,
+          'eta_minutes': 9,
+          'is_live': true,
+        },
+        'items': [
+          {
+            'id': 1,
+            'dish_name': 'Toshkent Toʻy Oshi',
+            'quantity': 2,
+            'price': 40000.0,
+          }
+        ],
+      };
+
+      final order = CustomerOrder.fromJson(json);
+      expect(order.id, 501);
+      expect(order.status, 'yolda');
+      expect(order.customerLat, 41.2825);
+      expect(order.customerLng, 69.2155);
+      expect(order.distanceKm, 2.35);
+      expect(order.etaMinutes, 9);
+
+      final courier = order.courier;
+      expect(courier, isNotNull);
+      expect(courier!.name, 'Jasur Rahimov');
+      expect(courier.phone, '+998 90 111 22 33');
+      expect(courier.vehicle, 'Honda Dio Skuter');
+      expect(courier.currentLat, 41.2980);
+      expect(courier.currentLng, 69.2300);
+      expect(courier.isLive, true);
     });
   });
 }

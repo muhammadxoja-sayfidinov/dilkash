@@ -254,6 +254,18 @@ def format_escpos_slip(order, department, dept_data):
 import threading
 
 
+def _get_department_printer_addresses(dept_key, settings):
+    from .models import PrinterDevice
+    devices = PrinterDevice.objects.filter(department__iexact=dept_key, is_active=True).order_by('sort_order', 'id')
+    addrs = [d.effective_address() for d in devices if d.effective_address()]
+    if addrs:
+        return addrs
+    fallback_ip = getattr(settings, f"printer_{dept_key}_ip", None)
+    if fallback_ip and str(fallback_ip).strip():
+        return [str(fallback_ip).strip()]
+    return []
+
+
 def _background_network_print(order_id):
     """Orqa fonda (alohida oqimda) termal printerlarga chek yuborish vazifasi"""
     try:
@@ -273,15 +285,18 @@ def _background_network_print(order_id):
         for dept_key in ['shashlik', 'somsa', 'kitchen', 'fastfood', 'bar']:
             dept_data = depts[dept_key]
             if dept_data['total_qty'] > 0:
-                printer_ip = getattr(settings, f"printer_{dept_key}_ip", None)
-                if printer_ip and str(printer_ip).strip():
+                addrs = _get_department_printer_addresses(dept_key, settings)
+                if addrs:
                     slip_bytes = format_escpos_slip(order, dept_key, dept_data)
-                    send_escpos_socket(printer_ip, slip_bytes, timeout=0.6)
+                    for printer_ip in addrs:
+                        send_escpos_socket(printer_ip, slip_bytes, timeout=0.6)
 
         # Kassa printeriga
-        if settings.printer_kassa_ip and str(settings.printer_kassa_ip).strip():
+        kassa_addrs = _get_department_printer_addresses('kassa', settings)
+        if kassa_addrs:
             slip_bytes = format_escpos_slip(order, 'kassa', depts['kassa'])
-            send_escpos_socket(settings.printer_kassa_ip, slip_bytes, timeout=0.6)
+            for printer_ip in kassa_addrs:
+                send_escpos_socket(printer_ip, slip_bytes, timeout=0.6)
     except Exception as e:
         logger.warning(f"Orqa fonda termal chek yuborishda xatolik: {e}")
 
@@ -311,10 +326,12 @@ def _background_kassa_print(order_id):
         if not order:
             return
         settings = BotSettings.get_settings()
-        if settings.printer_kassa_ip and str(settings.printer_kassa_ip).strip():
+        kassa_addrs = _get_department_printer_addresses('kassa', settings)
+        if kassa_addrs:
             categorized = categorize_order_items(order)
             slip_bytes = format_escpos_slip(order, 'kassa', categorized['departments']['kassa'])
-            send_escpos_socket(settings.printer_kassa_ip, slip_bytes, timeout=0.8)
+            for ip in kassa_addrs:
+                send_escpos_socket(ip, slip_bytes, timeout=0.8)
     except Exception as e:
         logger.warning(f"Kassa chekini orqa fonda chiqarishda xatolik: {e}")
 
@@ -322,7 +339,8 @@ def _background_kassa_print(order_id):
 def async_print_kassa_slip(order):
     """Kassa hisob chekini fon oqimida yuborish (cloud/LAN kechikishsiz)."""
     settings = BotSettings.get_settings()
-    if not (settings.auto_print_network and settings.printer_kassa_ip and str(settings.printer_kassa_ip).strip()):
+    kassa_addrs = _get_department_printer_addresses('kassa', settings)
+    if not (settings.auto_print_network and kassa_addrs):
         return {'printed': False, 'message': "Tarmoq printeriga avtomatik chiqarish o'chirilgan"}
 
     thread = threading.Thread(target=_background_kassa_print, args=(order.id,), daemon=True)

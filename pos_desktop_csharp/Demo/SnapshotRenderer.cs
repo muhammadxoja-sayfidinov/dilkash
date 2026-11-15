@@ -60,7 +60,7 @@ namespace DilkashPos.Demo
                 Directory.CreateDirectory(resDir);
 
                 // 1. MainWindow Tabs
-                var tabs = new[] { "tables", "quick_pos", "stop_list", "online", "shift", "settings" };
+                var tabs = new[] { "tables", "quick_pos", "stop_list", "online", "shift", "manage", "inventory", "settings" };
                 foreach (var tab in tabs)
                 {
                     Application.Current.Dispatcher.Invoke(() =>

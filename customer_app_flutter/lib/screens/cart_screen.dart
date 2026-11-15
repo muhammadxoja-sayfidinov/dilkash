@@ -74,6 +74,16 @@ class _CartScreenState extends State<CartScreen> {
       return;
     }
 
+    final unavailableItems =
+        cart.items.where((i) => !i.dish.isAvailable).toList();
+    if (unavailableItems.isNotEmpty) {
+      DilkashFeedback.showWarning(
+        context,
+        '${unavailableItems.first.dish.name} hozirda mavjud emas (Stop-list). Iltimos, uni savatdan oʻchiring.',
+      );
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -569,14 +579,42 @@ class _CartScreenState extends State<CartScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  UzbekFormatters.fixUzbekApostrophes(
-                                      item.dish.name),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: DilkashColors.textPrimary(isDark),
-                                  ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        UzbekFormatters.fixUzbekApostrophes(
+                                            item.dish.name),
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: DilkashColors.textPrimary(isDark),
+                                        ),
+                                      ),
+                                    ),
+                                    if (!item.dish.isAvailable)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: DilkashColors.error
+                                              .withValues(alpha: 0.15),
+                                          borderRadius: DilkashRadii.radiusXs,
+                                          border: Border.all(
+                                            color: DilkashColors.error
+                                                .withValues(alpha: 0.5),
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'Stop-list',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: DilkashColors.error,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                                 const SizedBox(height: 2),
                                 Text(

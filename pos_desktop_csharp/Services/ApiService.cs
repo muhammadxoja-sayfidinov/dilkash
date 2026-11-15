@@ -18,8 +18,16 @@ namespace DilkashPos.Services
         public List<Product> Products { get; set; } = new();
         public List<int> StopList { get; set; } = new();
         public List<RestaurantTable> Tables { get; set; } = new();
+        public List<Hall> Halls { get; set; } = new();
+        public List<PosPrinter> Printers { get; set; } = new();
+        public CashierProfile? CashierProfile { get; set; }
+        public List<CashierProfile> Cashiers { get; set; } = new();
         public List<WaiterCall> WaiterCalls { get; set; } = new();
         public List<StaffAccount> Staff { get; set; } = new();
+        public List<Ingredient> Ingredients { get; set; } = new();
+        public List<Supplier> Suppliers { get; set; } = new();
+        public List<RecipeItem> Recipes { get; set; } = new();
+        public InventoryKpiSummary? InventorySummary { get; set; }
     }
 
     public class SyncPushResponse
@@ -49,6 +57,7 @@ namespace DilkashPos.Services
         public ApiService(string baseUrl = "https://dilkash-django-production.up.railway.app")
         {
             _baseUrl = baseUrl.TrimEnd('/');
+            ImageCacheService.ActiveBaseUrl = _baseUrl;
             _http = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
         }
 
@@ -97,6 +106,7 @@ namespace DilkashPos.Services
         public void SetBaseUrl(string url)
         {
             _baseUrl = url.TrimEnd('/');
+            ImageCacheService.ActiveBaseUrl = _baseUrl;
         }
 
         private void UpdateStatus(bool online)
@@ -402,6 +412,59 @@ namespace DilkashPos.Services
         public Task<(bool NetworkOk, bool Success, JsonElement Doc, string Error)> DeleteTableAsync(int tableId) =>
             PostAdminAsync($"/api/pos/tables/{tableId}/delete/", new { });
 
+        public async Task<byte[]?> DownloadBytesAsync(string url)
+        {
+            try
+            {
+                using var resp = await _http.GetAsync(url);
+                if (!resp.IsSuccessStatusCode) return null;
+                return await resp.Content.ReadAsByteArrayAsync();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public async Task<(bool NetworkOk, bool Success, Hall? Hall, string Error)> SaveHallAsync(object payload)
+        {
+            var (net, ok, doc, err) = await PostAdminAsync("/api/pos/halls/save/", payload);
+            Hall? hall = null;
+            if (ok && doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("hall", out var el))
+            {
+                hall = JsonSerializer.Deserialize<Hall>(el.GetRawText(), _jsonOptions);
+            }
+            return (net, ok, hall, err);
+        }
+
+        public Task<(bool NetworkOk, bool Success, JsonElement Doc, string Error)> DeleteHallAsync(int hallId) =>
+            PostAdminAsync($"/api/pos/halls/{hallId}/delete/", new { });
+
+        public async Task<(bool NetworkOk, bool Success, PosPrinter? Printer, string Error)> SavePrinterAsync(object payload)
+        {
+            var (net, ok, doc, err) = await PostAdminAsync("/api/pos/printers/save/", payload);
+            PosPrinter? pr = null;
+            if (ok && doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("printer", out var el))
+            {
+                pr = JsonSerializer.Deserialize<PosPrinter>(el.GetRawText(), _jsonOptions);
+            }
+            return (net, ok, pr, err);
+        }
+
+        public Task<(bool NetworkOk, bool Success, JsonElement Doc, string Error)> DeletePrinterAsync(int printerId) =>
+            PostAdminAsync($"/api/pos/printers/{printerId}/delete/", new { });
+
+        public async Task<(bool NetworkOk, bool Success, CashierProfile? Profile, string Error)> SaveCashierProfileAsync(object payload)
+        {
+            var (net, ok, doc, err) = await PostAdminAsync("/api/pos/cashier-profile/save/", payload);
+            CashierProfile? cp = null;
+            if (ok && doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("cashier_profile", out var el))
+            {
+                cp = JsonSerializer.Deserialize<CashierProfile>(el.GetRawText(), _jsonOptions);
+            }
+            return (net, ok, cp, err);
+        }
+
         public async Task<(bool NetworkOk, bool Success, string Error)> SaveFullSettingsAsync(PosSettings settings)
         {
             var payload = BuildSettingsSavePayload(settings);
@@ -428,6 +491,98 @@ namespace DilkashPos.Services
             payme_secret_key = settings.PaymeSecretKey,
             printers = settings.Printers,
         };
+
+        // ==============================================================================
+        // OMBORXONA VA KALKULYATSIYA API METODLARI
+        // ==============================================================================
+
+        public async Task<(bool NetworkOk, bool Success, Ingredient? Ingredient, string Error)> SaveIngredientAsync(object payload)
+        {
+            var (net, ok, doc, err) = await PostAdminAsync("/api/pos/inventory/ingredients/save/", payload);
+            Ingredient? ing = null;
+            if (ok && doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("ingredient", out var el))
+            {
+                ing = JsonSerializer.Deserialize<Ingredient>(el.GetRawText(), _jsonOptions);
+            }
+            return (net, ok, ing, err);
+        }
+
+        public Task<(bool NetworkOk, bool Success, JsonElement Doc, string Error)> DeleteIngredientAsync(int ingredientId) =>
+            PostAdminAsync($"/api/pos/inventory/ingredients/{ingredientId}/delete/", new { });
+
+        public async Task<(bool NetworkOk, bool Success, Supplier? Supplier, string Error)> SaveSupplierAsync(object payload)
+        {
+            var (net, ok, doc, err) = await PostAdminAsync("/api/pos/inventory/suppliers/save/", payload);
+            Supplier? sup = null;
+            if (ok && doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("supplier", out var el))
+            {
+                sup = JsonSerializer.Deserialize<Supplier>(el.GetRawText(), _jsonOptions);
+            }
+            return (net, ok, sup, err);
+        }
+
+        public Task<(bool NetworkOk, bool Success, JsonElement Doc, string Error)> DeleteSupplierAsync(int supplierId) =>
+            PostAdminAsync($"/api/pos/inventory/suppliers/{supplierId}/delete/", new { });
+
+        public async Task<(bool NetworkOk, bool Success, StockSupply? Supply, string Error)> CreateSupplyAsync(object payload)
+        {
+            var (net, ok, doc, err) = await PostAdminAsync("/api/pos/inventory/supplies/create/", payload);
+            StockSupply? supply = null;
+            if (ok && doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("supply", out var el))
+            {
+                supply = JsonSerializer.Deserialize<StockSupply>(el.GetRawText(), _jsonOptions);
+            }
+            return (net, ok, supply, err);
+        }
+
+        public async Task<(bool NetworkOk, bool Success, StockWriteOff? WriteOff, string Error)> CreateWriteOffAsync(object payload)
+        {
+            var (net, ok, doc, err) = await PostAdminAsync("/api/pos/inventory/write-offs/create/", payload);
+            StockWriteOff? wo = null;
+            if (ok && doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("write_off", out var el))
+            {
+                wo = JsonSerializer.Deserialize<StockWriteOff>(el.GetRawText(), _jsonOptions);
+            }
+            return (net, ok, wo, err);
+        }
+
+        public async Task<(bool NetworkOk, bool Success, List<RecipeItem> Recipes, string Error)> SaveRecipeAsync(int productId, object payload)
+        {
+            var (net, ok, doc, err) = await PostAdminAsync($"/api/pos/inventory/recipes/{productId}/save/", payload);
+            var list = new List<RecipeItem>();
+            if (ok && doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("recipes", out var el) && el.ValueKind == JsonValueKind.Array)
+            {
+                list = JsonSerializer.Deserialize<List<RecipeItem>>(el.GetRawText(), _jsonOptions) ?? new();
+            }
+            return (net, ok, list, err);
+        }
+
+        public async Task<(bool NetworkOk, bool Success, List<StockMovementLogItem> Movements, string Error)> GetMovementsAsync(int? ingredientId = null, string? type = null, int limit = 50)
+        {
+            string url = $"/api/pos/inventory/movements/?limit={limit}";
+            if (ingredientId.HasValue) url += $"&ingredient_id={ingredientId.Value}";
+            if (!string.IsNullOrWhiteSpace(type)) url += $"&type={type}";
+
+            var list = new List<StockMovementLogItem>();
+            try
+            {
+                var resp = await _http.GetAsync($"{_baseUrl}{url}");
+                if (!resp.IsSuccessStatusCode)
+                {
+                    return (true, false, list, $"Server xatosi: {resp.StatusCode}");
+                }
+                var doc = await resp.Content.ReadFromJsonAsync<JsonElement>();
+                if (doc.ValueKind == JsonValueKind.Object && doc.TryGetProperty("movements", out var el) && el.ValueKind == JsonValueKind.Array)
+                {
+                    list = JsonSerializer.Deserialize<List<StockMovementLogItem>>(el.GetRawText(), _jsonOptions) ?? new();
+                }
+                return (true, true, list, "");
+            }
+            catch (Exception ex)
+            {
+                return (false, false, list, ex.Message);
+            }
+        }
     }
 }
 

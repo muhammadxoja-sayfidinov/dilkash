@@ -29,6 +29,7 @@ namespace DilkashPos.Services
         public event EventHandler<SyncStatusEventArgs>? SyncStatusUpdated;
         public event EventHandler<List<Order>>? OnlineOrdersReceived;
         public event EventHandler<BootstrapResponse>? BootstrapSynced;
+        public event EventHandler? ProductImagesSynced;
 
         public bool IsOnline => _api.IsOnline;
         public int PendingCount { get; private set; }
@@ -143,6 +144,22 @@ namespace DilkashPos.Services
                         var preserveTables = await _db.GetPendingTableNumbersAsync();
                         await _db.SaveBootstrapStateAsync(bootstrap, preserveTables);
                         BootstrapSynced?.Invoke(this, bootstrap);
+
+                        if (bootstrap.Products.Count > 0)
+                        {
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    bool updated = await ImageCacheService.SyncProductImagesAsync(bootstrap.Products, _api, _db, _cts.Token);
+                                    if (updated)
+                                    {
+                                        ProductImagesSynced?.Invoke(this, EventArgs.Empty);
+                                    }
+                                }
+                                catch { }
+                            });
+                        }
                     }
                     catch { }
 

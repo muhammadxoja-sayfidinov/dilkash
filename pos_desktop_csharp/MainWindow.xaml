@@ -241,7 +241,44 @@
                                 </Grid>
                             </RadioButton>
 
-                            <!-- 7. Sozlamalar -->
+                            <!-- 7. Omborxona (Inventory & Tech-cards) -->
+                            <RadioButton x:Name="NavInventoryBtn"
+                                         GroupName="MainNav"
+                                         Style="{StaticResource NavRailItem}"
+                                         Click="OnNavClicked"
+                                         Tag="inventory">
+                                <Grid>
+                                    <Border x:Name="NavInventoryLowStockBadgeBorder"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Top"
+                                            Margin="0,-2,2,0"
+                                            Background="{DynamicResource BrushError}"
+                                            CornerRadius="{StaticResource RadiusFull}"
+                                            Padding="5,1"
+                                            Visibility="Collapsed">
+                                        <TextBlock x:Name="NavInventoryLowStockBadgeText"
+                                                   Text="0"
+                                                   FontSize="11"
+                                                   FontWeight="Bold"
+                                                   Foreground="{DynamicResource BrushTextOnError}"
+                                                   Typography.NumeralAlignment="Tabular" />
+                                    </Border>
+                                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,3">
+                                        <controls:Icon Data="{StaticResource IconWarehouse}"
+                                                       Size="20"
+                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                       HorizontalAlignment="Center" />
+                                        <TextBlock Text="Omborxona"
+                                                   FontSize="11.5"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}"
+                                                   TextAlignment="Center"
+                                                   Margin="0,3,0,0" />
+                                    </StackPanel>
+                                </Grid>
+                            </RadioButton>
+
+                            <!-- 8. Sozlamalar -->
                             <RadioButton x:Name="NavSettingsBtn"
                                          GroupName="MainNav"
                                          Style="{StaticResource NavRailItem}"
@@ -396,26 +433,41 @@
 
                             <Border Width="1" Height="24" Background="{DynamicResource BrushBorder}" Margin="14,0" VerticalAlignment="Center" />
 
-                            <!-- Cashier Avatar + Name -->
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Border Width="34" Height="34"
-                                        CornerRadius="17"
-                                        Background="{DynamicResource BrushPrimaryTint}"
-                                        BorderBrush="{DynamicResource BrushPrimary}"
-                                        BorderThickness="1"
-                                        Margin="0,0,10,0">
-                                    <controls:Icon Data="{StaticResource IconUser}"
-                                                   Size="16"
+                            <!-- Cashier Avatar + Name (Clickable -> Kassir Profili) -->
+                            <Button x:Name="TopBarCashierBtn"
+                                    Style="{StaticResource GhostButton}"
+                                    MinHeight="40" Height="42"
+                                    Padding="8,4"
+                                    Click="OnTopBarCashierProfileClick"
+                                    ToolTip="Kassir profili va shaxsiy sozlamalar">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border x:Name="TopBarCashierAvatarBorder"
+                                            Width="32" Height="32"
+                                            CornerRadius="16"
+                                            Background="{DynamicResource BrushPrimaryTint}"
+                                            BorderBrush="{DynamicResource BrushPrimary}"
+                                            BorderThickness="1"
+                                            Margin="0,0,8,0">
+                                        <TextBlock x:Name="TopBarCashierInitialsText"
+                                                   Text="JR"
+                                                   FontSize="12"
+                                                   FontWeight="Bold"
                                                    Foreground="{DynamicResource BrushPrimaryBright}"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center" />
-                                </Border>
-                                <TextBlock x:Name="SidebarCashierNameText"
-                                           Text="Jasur Rahimov"
-                                           Style="{StaticResource TextLabel}"
-                                           Foreground="{DynamicResource BrushTextPrimary}"
-                                           VerticalAlignment="Center" />
-                            </StackPanel>
+                                    </Border>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock x:Name="SidebarCashierNameText"
+                                                   Text="Jasur Rahimov"
+                                                   Style="{StaticResource TextLabel}"
+                                                   Foreground="{DynamicResource BrushTextPrimary}" />
+                                        <TextBlock x:Name="TopBarCashierRoleText"
+                                                   Text="Bosh kassir"
+                                                   Style="{StaticResource TextCaptionMuted}"
+                                                   FontSize="10.5" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -471,42 +523,39 @@
                 <!-- Zone Segmented Filter (left) & Status Filter Chips (right) -->
                 <Grid Grid.Row="0" Margin="0,0,0,14">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- Segmented Zone Filter -->
+                    <!-- Dynamic Segmented Hall Filter -->
                     <Border Grid.Column="0"
+                            HorizontalAlignment="Left"
                             Background="{DynamicResource BrushSurface}"
                             BorderBrush="{DynamicResource BrushBorder}"
                             BorderThickness="1"
                             CornerRadius="{StaticResource RadiusSm}"
                             Padding="4"
                             VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal">
-                            <RadioButton x:Name="FilterAllBtn"
-                                         GroupName="TableZoneFilter"
-                                         Content="Barchasi (12)"
-                                         Style="{StaticResource SegmentedItem}"
-                                         IsChecked="True"
-                                         Click="OnTableFilterAll" />
-                            <RadioButton x:Name="FilterZalBtn"
-                                         GroupName="TableZoneFilter"
-                                         Content="Asosiy zal (6)"
-                                         Style="{StaticResource SegmentedItem}"
-                                         Click="OnTableFilterZal" />
-                            <RadioButton x:Name="FilterTerrasaBtn"
-                                         GroupName="TableZoneFilter"
-                                         Content="Terrasa (3)"
-                                         Style="{StaticResource SegmentedItem}"
-                                         Click="OnTableFilterTerrasa" />
-                            <RadioButton x:Name="FilterVipBtn"
-                                         GroupName="TableZoneFilter"
-                                         Content="VIP (3)"
-                                         Style="{StaticResource SegmentedItem}"
-                                         Click="OnTableFilterVip" />
-                        </StackPanel>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" PanningMode="HorizontalOnly">
+                            <ItemsControl x:Name="HallFilterItemsControl">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <RadioButton GroupName="TableZoneFilter"
+                                                     Content="{Binding DisplayLabel}"
+                                                     IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                     Style="{StaticResource SegmentedItem}"
+                                                     Tag="{Binding}"
+                                                     Click="OnHallFilterClicked" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
                     </Border>
 
                     <!-- Status Filter Chips with Live Counts -->
@@ -524,6 +573,7 @@
 
                         <ToggleButton x:Name="StatusFilterOccupiedChip"
                                       Style="{StaticResource ChipToggle}"
+                                      IsChecked="True"
                                       Margin="0,0,8,0"
                                       Click="OnStatusFilterChipClick"
                                       Tag="occupied">
@@ -646,156 +696,97 @@
                     <ColumnDefinition x:Name="CartColumn" Width="400" />
                 </Grid.ColumnDefinitions>
 
-                <!-- LEFT COLUMN: CATEGORIES + SEARCH + PRODUCTS -->
+                <!-- LEFT COLUMN: BREADCRUMB + SEARCH + CATEGORY/PRODUCT DRILL-DOWN -->
                 <Grid Grid.Column="0">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="56" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <!-- 56px Horizontal Scrollable Category Chip Bar -->
-                    <ScrollViewer Grid.Row="0"
-                                  HorizontalScrollBarVisibility="Hidden"
-                                  VerticalScrollBarVisibility="Disabled"
-                                  PanningMode="HorizontalOnly"
-                                  VerticalAlignment="Center">
-                        <ScrollViewer.Style>
-                            <Style TargetType="{x:Type ScrollViewer}">
-                                <Setter Property="PanningMode" Value="HorizontalOnly" />
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="{x:Type ScrollViewer}">
-                                            <ScrollContentPresenter CanContentScroll="{TemplateBinding CanContentScroll}"
-                                                                    CanHorizontallyScroll="True"
-                                                                    CanVerticallyScroll="False" />
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </ScrollViewer.Style>
+                    <!-- Category Drill-down Breadcrumb Bar (No "Barchasi" pill) -->
+                    <Border Grid.Row="0"
+                            Background="{DynamicResource BrushSurface}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusSm}"
+                            Padding="8,6"
+                            MinHeight="52">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                        <ItemsControl x:Name="CategoryChipsItemsControl" VerticalAlignment="Center">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <RadioButton GroupName="PosCategoryChips"
-                                                 IsChecked="{Binding IsSelected, Mode=TwoWay}"
-                                                 MinHeight="48" Height="48"
-                                                 Padding="14,8"
-                                                 Margin="0,0,8,0"
-                                                 Cursor="Hand"
-                                                 FocusVisualStyle="{x:Null}"
-                                                 Stylus.IsPressAndHoldEnabled="False"
-                                                 Stylus.IsFlicksEnabled="False"
-                                                 Stylus.IsTapFeedbackEnabled="False"
-                                                 Stylus.IsTouchFeedbackEnabled="False"
-                                                 Click="OnCategoryChipClicked"
-                                                 Tag="{Binding}">
-                                        <RadioButton.Template>
-                                            <ControlTemplate TargetType="{x:Type RadioButton}">
-                                                <Grid RenderTransformOrigin="0.5,0.5">
-                                                    <Grid.RenderTransform>
-                                                        <ScaleTransform x:Name="pressScale" ScaleX="1" ScaleY="1" />
-                                                    </Grid.RenderTransform>
-                                                    <Border x:Name="chipBorder"
-                                                            Background="{DynamicResource BrushSurface}"
-                                                            BorderBrush="{DynamicResource BrushBorder}"
-                                                            BorderThickness="1"
-                                                            CornerRadius="24"
-                                                            Padding="{TemplateBinding Padding}">
-                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                            <controls:Icon Size="16" Margin="0,0,8,0" VerticalAlignment="Center">
-                                                                <controls:Icon.Style>
-                                                                    <Style TargetType="{x:Type controls:Icon}" BasedOn="{StaticResource {x:Type controls:Icon}}">
-                                                                        <Setter Property="Data" Value="{StaticResource IconBowl}" />
-                                                                        <Setter Property="Foreground" Value="{DynamicResource BrushTextSecondary}" />
-                                                                        <Style.Triggers>
-                                                                            <DataTrigger Binding="{Binding Department}" Value="all">
-                                                                                <Setter Property="Data" Value="{StaticResource IconTables}" />
-                                                                            </DataTrigger>
-                                                                            <DataTrigger Binding="{Binding Department}" Value="shashlik">
-                                                                                <Setter Property="Data" Value="{StaticResource IconGrill}" />
-                                                                            </DataTrigger>
-                                                                            <DataTrigger Binding="{Binding Department}" Value="somsa">
-                                                                                <Setter Property="Data" Value="{StaticResource IconChef}" />
-                                                                            </DataTrigger>
-                                                                            <DataTrigger Binding="{Binding Department}" Value="fastfood">
-                                                                                <Setter Property="Data" Value="{StaticResource IconBurger}" />
-                                                                            </DataTrigger>
-                                                                            <DataTrigger Binding="{Binding Department}" Value="bar">
-                                                                                <Setter Property="Data" Value="{StaticResource IconCoffee}" />
-                                                                            </DataTrigger>
-                                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                                                <Setter Property="Foreground" Value="{DynamicResource BrushTextOnPrimary}" />
-                                                                            </DataTrigger>
-                                                                        </Style.Triggers>
-                                                                    </Style>
-                                                                </controls:Icon.Style>
-                                                            </controls:Icon>
-                                                            <TextBlock x:Name="chipText"
-                                                                       Text="{Binding DisplayLabel}"
-                                                                       Style="{StaticResource TextLabel}"
-                                                                       Foreground="{DynamicResource BrushTextSecondary}"
-                                                                       Typography.NumeralAlignment="Tabular"
-                                                                       VerticalAlignment="Center" />
-                                                        </StackPanel>
-                                                    </Border>
-                                                    <Border x:Name="focusRing"
-                                                            Margin="-1"
-                                                            BorderBrush="{DynamicResource BrushFocusRing}"
-                                                            BorderThickness="2"
-                                                            CornerRadius="24"
-                                                            Visibility="Collapsed"
-                                                            IsHitTestVisible="False" />
-                                                </Grid>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsChecked" Value="True">
-                                                        <Setter TargetName="chipBorder" Property="Background" Value="{DynamicResource BrushPrimary}" />
-                                                        <Setter TargetName="chipBorder" Property="BorderBrush" Value="{DynamicResource BrushPrimary}" />
-                                                        <Setter TargetName="chipText" Property="Foreground" Value="{DynamicResource BrushTextOnPrimary}" />
-                                                    </Trigger>
-                                                    <MultiTrigger>
-                                                        <MultiTrigger.Conditions>
-                                                            <Condition Property="IsMouseOver" Value="True" />
-                                                            <Condition Property="IsChecked" Value="False" />
-                                                        </MultiTrigger.Conditions>
-                                                        <Setter TargetName="chipBorder" Property="Background" Value="{DynamicResource BrushSurfaceElevated}" />
-                                                        <Setter TargetName="chipText" Property="Foreground" Value="{DynamicResource BrushTextPrimary}" />
-                                                    </MultiTrigger>
-                                                    <Trigger Property="IsPressed" Value="True">
-                                                        <Trigger.EnterActions>
-                                                            <BeginStoryboard>
-                                                                <Storyboard>
-                                                                    <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleX" To="0.97" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
-                                                                    <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleY" To="0.97" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
-                                                                </Storyboard>
-                                                            </BeginStoryboard>
-                                                        </Trigger.EnterActions>
-                                                        <Trigger.ExitActions>
-                                                            <BeginStoryboard>
-                                                                <Storyboard>
-                                                                    <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleX" To="1.0" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
-                                                                    <DoubleAnimation Storyboard.TargetName="pressScale" Storyboard.TargetProperty="ScaleY" To="1.0" Duration="{StaticResource DurationPress}" EasingFunction="{StaticResource EaseOut}" />
-                                                                </Storyboard>
-                                                            </BeginStoryboard>
-                                                        </Trigger.ExitActions>
-                                                    </Trigger>
-                                                    <Trigger Property="IsKeyboardFocused" Value="True">
-                                                        <Setter TargetName="focusRing" Property="Visibility" Value="Visible" />
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </RadioButton.Template>
-                                    </RadioButton>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="QuickPosBackBtn"
+                                        Style="{StaticResource SecondaryButton}"
+                                        MinHeight="40" Height="40"
+                                        Padding="12,4"
+                                        Margin="0,0,8,0"
+                                        Visibility="Collapsed"
+                                        Click="OnQuickPosBackClick">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <controls:Icon Data="{StaticResource IconArrowLeft}" Size="16" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Orqaga" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <Button x:Name="QuickPosRootBreadcrumbBtn"
+                                        Style="{StaticResource GhostButton}"
+                                        MinHeight="40" Height="40"
+                                        Padding="12,4"
+                                        Click="OnQuickPosBreadcrumbRootClick">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <controls:Icon Data="{StaticResource IconLayers}" Size="16" Foreground="{DynamicResource BrushPrimaryBright}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="Kategoriyalar" Style="{StaticResource TextBodyBold}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+
+                            <ScrollViewer Grid.Column="1"
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Disabled"
+                                          VerticalAlignment="Center">
+                                <ItemsControl x:Name="CategoryBreadcrumbItemsControl" VerticalAlignment="Center">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <controls:Icon Data="{StaticResource IconChevronRight}" Size="14" Foreground="{DynamicResource BrushTextMuted}" Margin="4,0" VerticalAlignment="Center" />
+                                                <Button Style="{StaticResource GhostButton}"
+                                                        MinHeight="38" Height="38"
+                                                        Padding="10,4"
+                                                        Tag="{Binding}"
+                                                        Click="OnQuickPosBreadcrumbItemClick">
+                                                    <TextBlock Text="{Binding Name}" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextPrimary}" VerticalAlignment="Center" />
+                                                </Button>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+
+                            <Border Grid.Column="2"
+                                    Background="{DynamicResource BrushSurfaceElevated}"
+                                    BorderBrush="{DynamicResource BrushBorderSubtle}"
+                                    BorderThickness="1"
+                                    CornerRadius="{StaticResource RadiusFull}"
+                                    Padding="10,4"
+                                    VerticalAlignment="Center">
+                                <TextBlock x:Name="QuickPosLevelCountText"
+                                           Text="0 ta boʻlim"
+                                           Style="{StaticResource TextCaption}"
+                                           FontWeight="SemiBold"
+                                           Typography.NumeralAlignment="Tabular" />
+                            </Border>
+                        </Grid>
+                    </Border>
 
                     <!-- Search Field -->
                     <controls:SearchBox x:Name="ProductSearchBox"
@@ -804,29 +795,47 @@
                                         Margin="0,10,0,12"
                                         TextChanged="OnProductSearchChanged" />
 
-                    <!-- Product Grid / EmptyState -->
+                    <!-- Categories & Products Drill-Down Grid / EmptyState -->
                     <Grid Grid.Row="2">
                         <ScrollViewer x:Name="ProductsScrollViewer" VerticalScrollBarVisibility="Auto">
-                            <ItemsControl x:Name="ProductsItemsControl" Margin="0,0,-12,16">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <UniformGrid Columns="{Binding ProductColumns, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                     VerticalAlignment="Top" />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <controls:ProductTile Margin="0,0,12,12" TileClicked="OnProductTileClicked" />
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                            <StackPanel Margin="0,0,-12,16">
+                                <!-- Category / Subcategory Tiles -->
+                                <ItemsControl x:Name="CategoryTilesItemsControl" Visibility="Visible">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Columns="{Binding ProductColumns, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                         VerticalAlignment="Top" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <controls:CategoryTile Margin="0,0,12,12" CategoryClicked="OnCategoryTileClicked" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Product Tiles inside selected category (or search results) -->
+                                <ItemsControl x:Name="ProductsItemsControl" Visibility="Collapsed">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Columns="{Binding ProductColumns, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                         VerticalAlignment="Top" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <controls:ProductTile Margin="0,0,12,12" TileClicked="OnProductTileClicked" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
                         </ScrollViewer>
 
                         <controls:EmptyState x:Name="ProductsEmptyState"
                                              IconData="{StaticResource IconSearch}"
                                              Title="Taom topilmadi"
-                                             Subtitle="Qidiruv soʻzini oʻzgartiring yoki boshqa toifani tanlang."
-                                             ActionLabel="Filtrni tozalash"
+                                             Subtitle="Qidiruv soʻzini oʻzgartiring yoki boshqa kategoriyani tanlang."
+                                             ActionLabel="Kategoriyalarga qaytish"
                                              ActionClicked="OnResetProductFilter"
                                              VerticalAlignment="Center"
                                              HorizontalAlignment="Center"
@@ -1484,6 +1493,12 @@
                                          Style="{StaticResource SegmentedItem}"
                                          Tag="tables"
                                          Click="OnManageSubTabClick" />
+                            <RadioButton x:Name="ManageSubHallsBtn"
+                                         GroupName="ManageSubTabs"
+                                         Content="Zallar"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Tag="halls"
+                                         Click="OnManageSubTabClick" />
                         </StackPanel>
                     </Border>
 
@@ -1521,26 +1536,41 @@
                                             Margin="0,0,0,8">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="2.2*" />
+                                                <ColumnDefinition Width="52" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="2.1*" />
                                                 <ColumnDefinition Width="1.2*" />
                                                 <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="14" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <Border Grid.Column="0"
+                                                    Width="48" Height="48"
+                                                    CornerRadius="{StaticResource RadiusXs}"
+                                                    Background="{DynamicResource BrushSurfaceElevated}"
+                                                    BorderBrush="{DynamicResource BrushBorderSubtle}"
+                                                    BorderThickness="1"
+                                                    ClipToBounds="True"
+                                                    VerticalAlignment="Center">
+                                                <Grid>
+                                                    <controls:Icon Data="{StaticResource IconBowl}" Size="20" Foreground="{DynamicResource BrushTextMuted}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
+                                                </Grid>
+                                            </Border>
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding Name}" Style="{StaticResource TextTitle}" />
                                                 <TextBlock Text="{Binding Subtitle}" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
                                             </StackPanel>
-                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <Border Background="{DynamicResource BrushSurfaceElevated}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusXs}" Padding="8,4" Margin="0,0,8,0">
                                                     <TextBlock Text="{Binding CategoryAndDept}" Style="{StaticResource TextCaption}" FontWeight="SemiBold" />
                                                 </Border>
                                                 <TextBlock Text="{Binding PriceFormatted}" Style="{StaticResource TextBodyBold}" Typography.NumeralAlignment="Tabular" Foreground="{DynamicResource BrushPrimaryBright}" VerticalAlignment="Center" />
                                             </StackPanel>
-                                            <Border Grid.Column="2" Background="{Binding StatusBg}" CornerRadius="{StaticResource RadiusFull}" Padding="10,4" VerticalAlignment="Center">
+                                            <Border Grid.Column="4" Background="{Binding StatusBg}" CornerRadius="{StaticResource RadiusFull}" Padding="10,4" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding StatusText}" FontSize="12" FontWeight="SemiBold" Foreground="{Binding StatusFg}" />
                                             </Border>
-                                            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center">
                                                 <Button Content="Tahrirlash" Style="{StaticResource SecondaryButton}" MinHeight="40" Padding="14,6" Margin="0,0,8,0" Tag="{Binding Model}" Click="OnManageEditProductClick" />
                                                 <Button Content="Oʻchirish" Style="{StaticResource DangerButton}" MinHeight="40" Padding="12,6" Tag="{Binding Model}" Click="OnManageDeleteProductClick" />
                                             </StackPanel>
@@ -1569,7 +1599,7 @@
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Name}" Style="{StaticResource TextTitle}" />
+                                                <TextBlock Text="{Binding DisplayTitle}" Style="{StaticResource TextTitle}" />
                                                 <TextBlock Text="{Binding Description}" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -1670,232 +1700,1218 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+
+                        <!-- 5. Zallar -->
+                        <ItemsControl x:Name="ManageHallsItemsControl" Visibility="Collapsed">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BrushSurface}"
+                                            BorderBrush="{DynamicResource BrushBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMd}"
+                                            Padding="16,12"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="2*" />
+                                                <ColumnDefinition Width="1.2*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="14" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource TextTitle}" />
+                                                <TextBlock Text="{Binding Description}" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Background="{DynamicResource BrushSurfaceElevated}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusXs}" Padding="8,4" Margin="0,0,10,0">
+                                                    <TextBlock Text="{Binding TablesCountText}" Style="{StaticResource TextCaption}" FontWeight="SemiBold" />
+                                                </Border>
+                                                <TextBlock Text="{Binding SortOrderText}" Style="{StaticResource TextCaptionMuted}" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                            <Border Grid.Column="2" Background="{DynamicResource BrushSurfaceElevated}" CornerRadius="{StaticResource RadiusFull}" Padding="10,4" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding StatusText}" Style="{StaticResource TextCaption}" FontWeight="SemiBold" />
+                                            </Border>
+                                            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Content="Tahrirlash" Style="{StaticResource SecondaryButton}" MinHeight="40" Padding="14,6" Margin="0,0,8,0" Tag="{Binding Model}" Click="OnManageEditHallClick" />
+                                                <Button Content="Oʻchirish" Style="{StaticResource DangerButton}" MinHeight="40" Padding="12,6" Tag="{Binding Model}" Click="OnManageDeleteHallClick" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </Grid>
                 </ScrollViewer>
             </Grid>
 
             <!-- ===================================================== -->
-            <!-- 6. TAB: SOZLAMALAR (2-COLUMN + STICKY SAVE BAR)       -->
+            <!-- 7. TAB: OMBORXONA VA TEX-KARTA (INVENTORY & RECIPES)  -->
             <!-- ===================================================== -->
-            <Grid x:Name="SettingsTab" Visibility="Collapsed">
+            <Grid x:Name="InventoryTab" Visibility="Collapsed">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <ScrollViewer x:Name="SettingsScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto">
-                    <Grid Margin="0,0,0,20">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="1.3*" />
-                            <ColumnDefinition Width="20" />
-                            <ColumnDefinition Width="0.95*" />
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Left: 6 Department PrinterCards + AutoPrint Toggle -->
-                        <StackPanel Grid.Column="0">
-                            <controls:SectionHeader Title="Boʻlim printerlari (LAN 9100)"
-                                                    Subtitle="Jonli ulanish holati va sinov cheki" />
-
-                            <ItemsControl x:Name="PrintersItemsControl">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <controls:PrinterCard Margin="0,0,0,10"
-                                                              TestPrintClicked="OnPrinterCardTestClick"
-                                                              IpChanged="OnSettingsInputChanged" />
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-
-                            <Border Background="{DynamicResource BrushSurface}"
-                                    BorderBrush="{DynamicResource BrushBorder}"
-                                    BorderThickness="1"
-                                    CornerRadius="{StaticResource RadiusMd}"
-                                    Padding="16,12"
-                                    Margin="0,4,0,20">
-                                <CheckBox x:Name="AutoPrintCheck"
-                                          Style="{StaticResource ToggleSwitch}"
-                                          Content="Buyurtmada boʻlim printerlariga avtomatik chek chiqarish"
-                                          IsChecked="True"
-                                          Click="OnSettingsCheckChanged" />
+                <!-- Top KPI Summary Cards -->
+                <UniformGrid Grid.Row="0" Columns="4" Margin="0,0,0,14">
+                    <!-- KPI 1: Jami xomashyolar -->
+                    <Border Background="{DynamicResource BrushSurface}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="16,12"
+                            Margin="0,0,10,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Jami xomashyolar" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                <TextBlock x:Name="InventoryKpiTotalItemsText" Text="0 tur" Style="{StaticResource TextTitle}" Typography.NumeralAlignment="Tabular" Margin="0,4,0,0" />
+                                <TextBlock Text="Ombor hisobidagi tovarlar" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                            </StackPanel>
+                            <Border Grid.Column="1" Background="{DynamicResource BrushSurfaceVariant}" CornerRadius="{StaticResource RadiusFull}" Width="38" Height="38" VerticalAlignment="Top">
+                                <controls:Icon Data="{StaticResource IconBoxes}" Size="18" Foreground="{DynamicResource BrushPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
+                        </Grid>
+                    </Border>
 
-                            <controls:SectionHeader Title="Telegram Bot va yetkazib berish"
-                                                    Subtitle="Ish vaqti, yetkazish tariflari va bot eʼloni" />
-
-                            <Border Background="{DynamicResource BrushSurface}"
-                                    BorderBrush="{DynamicResource BrushBorder}"
-                                    BorderThickness="1"
-                                    CornerRadius="{StaticResource RadiusMd}"
-                                    Padding="20">
-                                <StackPanel>
-                                    <Grid Margin="0,0,0,14">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="12" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <controls:Field Grid.Column="0" Label="Ish boshlanishi (HH:MM)">
-                                            <TextBox x:Name="ServiceStartTimeBox" Text="10:00" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
-                                        </controls:Field>
-                                        <controls:Field Grid.Column="2" Label="Ish tugashi (HH:MM)">
-                                            <TextBox x:Name="ServiceEndTimeBox" Text="22:00" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
-                                        </controls:Field>
-                                    </Grid>
-
-                                    <Grid Margin="0,0,0,14">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="12" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="12" />
-                                            <ColumnDefinition Width="0.8*" />
-                                        </Grid.ColumnDefinitions>
-                                        <controls:Field Grid.Column="0" Label="Boshlangʻich (soʻm)">
-                                            <TextBox x:Name="DeliveryBaseCostBox" Text="5000" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
-                                        </controls:Field>
-                                        <controls:Field Grid.Column="2" Label="Har km (soʻm)">
-                                            <TextBox x:Name="DeliveryExtraKmCostBox" Text="6000" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
-                                        </controls:Field>
-                                        <controls:Field Grid.Column="4" Label="Radius (km)">
-                                            <TextBox x:Name="DeliveryMaxRadiusBox" Text="10" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
-                                        </controls:Field>
-                                    </Grid>
-
-                                    <controls:Field Label="Bot eʼlon matni (ixtiyoriy)">
-                                        <TextBox x:Name="BroadcastTextBox" Height="64" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" Padding="12,10" TextChanged="OnSettingsTextChanged" />
-                                    </controls:Field>
-                                </StackPanel>
+                    <!-- KPI 2: Ombor qiymati -->
+                    <Border Background="{DynamicResource BrushSurface}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="16,12"
+                            Margin="0,0,10,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Ombor umumiy qiymati" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                <TextBlock x:Name="InventoryKpiTotalValuationText" Text="0 soʻm" Style="{StaticResource TextTitle}" Foreground="{DynamicResource BrushPrimaryBright}" Typography.NumeralAlignment="Tabular" Margin="0,4,0,0" />
+                                <TextBlock Text="Tan narx boʻyicha qoldiq" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                            </StackPanel>
+                            <Border Grid.Column="1" Background="{DynamicResource BrushSurfaceVariant}" CornerRadius="{StaticResource RadiusFull}" Width="38" Height="38" VerticalAlignment="Top">
+                                <controls:Icon Data="{StaticResource IconCash}" Size="18" Foreground="{DynamicResource BrushPrimaryBright}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
-                        </StackPanel>
+                        </Grid>
+                    </Border>
 
-                        <!-- Right: Server, xizmat haqi va onlayn toʻlovlar -->
-                        <StackPanel Grid.Column="2">
-                            <controls:SectionHeader Title="Server va xizmat haqi"
-                                                    Subtitle="Tarmoq ulanishi, zal xizmati va kassir" />
-
-                            <Border Background="{DynamicResource BrushSurface}"
-                                    BorderBrush="{DynamicResource BrushBorder}"
-                                    BorderThickness="1"
-                                    CornerRadius="{StaticResource RadiusMd}"
-                                    Padding="20"
-                                    Margin="0,0,0,20">
-                                <StackPanel>
-                                    <controls:Field Label="Cloud Django Server manzili" HelperText="Internet boʻlganda markaziy server bilan sinxronlash uchun" Margin="0,0,0,16">
-                                        <TextBox x:Name="ServerUrlBox" Text="https://dilkash-django-production.up.railway.app" TextChanged="OnSettingsTextChanged" />
-                                    </controls:Field>
-
-                                    <controls:Field Label="Ofitsiantlar uchun Wi-Fi Hub manzili" HelperText="Lokal tarmoqdagi ofitsiant ilovalari shu manzilga ulanadi (avtomatik Wi-Fi qidiruv faol)" Margin="0,0,0,16">
-                                        <TextBox x:Name="LocalHubInfoBox" IsReadOnly="True" Text="http://127.0.0.1:8088" />
-                                    </controls:Field>
-
-                                    <controls:Field Label="Xizmat haqi turi" Margin="0,0,0,16">
-                                        <ComboBox x:Name="ServiceFeeTypeCombo" SelectionChanged="OnSettingsComboChanged">
-                                            <ComboBoxItem Content="Foizli (%)" IsSelected="True" Tag="percent" />
-                                            <ComboBoxItem Content="Odam boshiga (soʻm)" Tag="per_person" />
-                                            <ComboBoxItem Content="Xizmat haqi yoʻq (0%)" Tag="none" />
-                                        </ComboBox>
-                                    </controls:Field>
-
-                                    <controls:Field Label="Xizmat haqi miqdori" HelperText="Foiz (%) yoki har bir mehmon uchun soʻm" Margin="0,0,0,16">
-                                        <TextBox x:Name="ServiceFeeValueBox" Text="10" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
-                                    </controls:Field>
-
-                                    <controls:Field Label="Kassir ismi">
-                                        <TextBox x:Name="CashierNameBox" Text="Jasur Rahimov" TextChanged="OnSettingsTextChanged" />
-                                    </controls:Field>
-                                </StackPanel>
+                    <!-- KPI 3: Kam qolganlar -->
+                    <Border Background="{DynamicResource BrushSurface}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="16,12"
+                            Margin="0,0,10,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Kam qolganlar" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                <TextBlock x:Name="InventoryKpiLowStockCountText" Text="0 ta" Style="{StaticResource TextTitle}" Foreground="{DynamicResource BrushError}" Typography.NumeralAlignment="Tabular" Margin="0,4,0,0" />
+                                <TextBlock Text="Ogohlantirish chegarasida" FontSize="11" Foreground="{DynamicResource BrushError}" Margin="0,2,0,0" />
+                            </StackPanel>
+                            <Border Grid.Column="1" Background="{DynamicResource BrushSurfaceVariant}" CornerRadius="{StaticResource RadiusFull}" Width="38" Height="38" VerticalAlignment="Top">
+                                <controls:Icon Data="{StaticResource IconAlert}" Size="18" Foreground="{DynamicResource BrushError}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
+                        </Grid>
+                    </Border>
 
-                            <controls:SectionHeader Title="Click va Payme integratsiyasi"
-                                                    Subtitle="Onlayn toʻlov tizimi parametrlari" />
-
-                            <Border Background="{DynamicResource BrushSurface}"
-                                    BorderBrush="{DynamicResource BrushBorder}"
-                                    BorderThickness="1"
-                                    CornerRadius="{StaticResource RadiusMd}"
-                                    Padding="20">
-                                <StackPanel>
-                                    <Grid Margin="0,0,0,14">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="12" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <controls:Field Grid.Column="0" Label="Click Service ID">
-                                            <TextBox x:Name="ClickServiceIdBox" TextChanged="OnSettingsTextChanged" />
-                                        </controls:Field>
-                                        <controls:Field Grid.Column="2" Label="Click Merchant ID">
-                                            <TextBox x:Name="ClickMerchantIdBox" TextChanged="OnSettingsTextChanged" />
-                                        </controls:Field>
-                                    </Grid>
-                                    <controls:Field x:Name="ClickSecretField" Label="Click Secret Key" HelperText="Yangi kalit kiritilmasa eskisi saqlanadi" Margin="0,0,0,14">
-                                        <TextBox x:Name="ClickSecretBox" TextChanged="OnSettingsTextChanged" />
-                                    </controls:Field>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="12" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <controls:Field Grid.Column="0" Label="Payme Merchant ID">
-                                            <TextBox x:Name="PaymeMerchantIdBox" TextChanged="OnSettingsTextChanged" />
-                                        </controls:Field>
-                                        <controls:Field x:Name="PaymeSecretField" Grid.Column="2" Label="Payme Secret Key">
-                                            <TextBox x:Name="PaymeSecretBox" TextChanged="OnSettingsTextChanged" />
-                                        </controls:Field>
-                                    </Grid>
-                                </StackPanel>
+                    <!-- KPI 4: Bugungi kirim -->
+                    <Border Background="{DynamicResource BrushSurface}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="16,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Bugungi kirim (Prihod)" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                <TextBlock x:Name="InventoryKpiTodaySuppliesText" Text="0 soʻm" Style="{StaticResource TextTitle}" Typography.NumeralAlignment="Tabular" Margin="0,4,0,0" />
+                                <TextBlock Text="Keltirilgan yangi partiya" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                            </StackPanel>
+                            <Border Grid.Column="1" Background="{DynamicResource BrushSurfaceVariant}" CornerRadius="{StaticResource RadiusFull}" Width="38" Height="38" VerticalAlignment="Top">
+                                <controls:Icon Data="{StaticResource IconWarehouse}" Size="18" Foreground="{DynamicResource BrushPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
-                        </StackPanel>
-                    </Grid>
-                </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </UniformGrid>
 
-                <!-- Settings Loading Skeleton -->
-                <Grid x:Name="SettingsLoadingState" Grid.Row="0" Visibility="Collapsed">
+                <!-- Sub-tabs + Search + Filter + Actions -->
+                <Grid Grid.Row="1" Margin="0,0,0,14">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="1.2*" />
-                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" MaxWidth="320" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0">
-                        <controls:SkeletonBox Height="74" Margin="0,0,0,10" />
-                        <controls:SkeletonBox Height="74" Margin="0,0,0,10" />
-                        <controls:SkeletonBox Height="74" Margin="0,0,0,10" />
-                        <controls:SkeletonBox Height="74" Margin="0,0,0,10" />
-                    </StackPanel>
-                    <controls:SkeletonBox Grid.Column="2" Height="360" />
+
+                    <!-- Segmented Sub-tabs -->
+                    <Border Grid.Column="0"
+                            Background="{DynamicResource BrushSurface}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusSm}"
+                            Padding="4"
+                            VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="InventorySubStockBtn"
+                                         GroupName="InventorySubTabs"
+                                         Content="Qoldiqlar"
+                                         Style="{StaticResource SegmentedItem}"
+                                         IsChecked="True"
+                                         Tag="stock"
+                                         Click="OnInventorySubTabClick" />
+                            <RadioButton x:Name="InventorySubSuppliesBtn"
+                                         GroupName="InventorySubTabs"
+                                         Content="Kirim"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Tag="supplies"
+                                         Click="OnInventorySubTabClick" />
+                            <RadioButton x:Name="InventorySubWriteOffsBtn"
+                                         GroupName="InventorySubTabs"
+                                         Content="Chiqim"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Tag="write_offs"
+                                         Click="OnInventorySubTabClick" />
+                            <RadioButton x:Name="InventorySubRecipesBtn"
+                                         GroupName="InventorySubTabs"
+                                         Content="Tex-karta"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Tag="recipes"
+                                         Click="OnInventorySubTabClick" />
+                            <RadioButton x:Name="InventorySubSuppliersBtn"
+                                         GroupName="InventorySubTabs"
+                                         Content="Taʼminotchilar"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Tag="suppliers"
+                                         Click="OnInventorySubTabClick" />
+                            <RadioButton x:Name="InventorySubMovementsBtn"
+                                         GroupName="InventorySubTabs"
+                                         Content="Harakatlar"
+                                         Style="{StaticResource SegmentedItem}"
+                                         Tag="movements"
+                                         Click="OnInventorySubTabClick" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Search Box -->
+                    <controls:SearchBox x:Name="InventorySearchBox"
+                                        Grid.Column="2"
+                                        Placeholder="Xomashyo yoki taom qidirish..."
+                                        VerticalAlignment="Center"
+                                        TextChanged="OnInventorySearchChanged" />
+
+                    <!-- Low Stock Toggle Button -->
+                    <ToggleButton x:Name="InventoryLowStockFilterBtn"
+                                  Grid.Column="4"
+                                  Style="{StaticResource ChipToggle}"
+                                  VerticalAlignment="Center"
+                                  Click="OnInventoryLowStockFilterClick">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:Icon Data="{StaticResource IconAlert}" Size="13" Foreground="{DynamicResource BrushError}" Margin="0,0,5,0" />
+                            <TextBlock Text="Faqat kam qolganlar" FontSize="12" FontWeight="SemiBold" />
+                        </StackPanel>
+                    </ToggleButton>
+
+                    <!-- Primary Action CTA -->
+                    <Button x:Name="InventoryMainActionBtn"
+                            Grid.Column="6"
+                            Style="{StaticResource PrimaryButton}"
+                            MinHeight="44"
+                            Padding="16,8"
+                            Click="OnInventoryMainActionClick">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <controls:Icon Data="{StaticResource IconPlus}" Size="16" Foreground="{DynamicResource BrushTextOnPrimary}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="InventoryMainActionBtnText" Text="Yangi xomashyo" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </Grid>
 
-                <!-- Sticky Bottom Save Bar (Visible ONLY when dirty) -->
-                <Border x:Name="SettingsDirtyBar"
-                        Grid.Row="1"
-                        Background="{DynamicResource BrushSurfaceElevated}"
+                <!-- Scrollable Content Panels -->
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="0,0,0,16">
+                        <!-- 1. Qoldiqlar (Stock) -->
+                        <ItemsControl x:Name="InventoryStockItemsControl" Visibility="Visible">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BrushSurface}"
+                                            BorderBrush="{DynamicResource BrushBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMd}"
+                                            Padding="16,12"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="140" />
+                                                <ColumnDefinition Width="140" />
+                                                <ColumnDefinition Width="150" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Name & Category -->
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource TextBodyBold}" FontSize="14" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                    <Border Background="{DynamicResource BrushSurfaceVariant}" CornerRadius="{StaticResource RadiusSm}" Padding="6,2" Margin="0,0,6,0">
+                                                        <TextBlock Text="{Binding CategoryDisplay}" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                    </Border>
+                                                    <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <!-- Current Stock & Badge -->
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="Mavjud qoldiq" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                                    <TextBlock Text="{Binding FormattedStock}" Style="{StaticResource TextBodyBold}" Typography.NumeralAlignment="Tabular" />
+                                                    <Border Background="{Binding StatusBg}" CornerRadius="{StaticResource RadiusSm}" Padding="5,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding StatusBadge}" FontSize="10" FontWeight="Bold" Foreground="{Binding StatusFg}" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <!-- Unit Cost Price -->
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                <TextBlock Text="Tan narxi (1 birlik)" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                <TextBlock Text="{Binding FormattedCost}" Style="{StaticResource TextBodyBold}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Total Valuation -->
+                                            <StackPanel Grid.Column="3" VerticalAlignment="Center">
+                                                <TextBlock Text="Umumiy qiymati" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                <TextBlock Text="{Binding FormattedValuation}" Style="{StaticResource TextBodyBold}" Foreground="{DynamicResource BrushPrimaryBright}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Row Actions -->
+                                            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Style="{StaticResource GhostButton}" Padding="10,6" Margin="0,0,4,0" Tag="{Binding}" Click="OnIngredientSupplyQuickClick">
+                                                    <TextBlock Text="+ Kirim" Foreground="{DynamicResource BrushPrimary}" FontWeight="SemiBold" FontSize="12" />
+                                                </Button>
+                                                <Button Style="{StaticResource GhostButton}" Padding="8,6" Margin="0,0,4,0" Tag="{Binding}" Click="OnEditIngredientClick">
+                                                    <controls:Icon Data="{StaticResource IconEdit}" Size="15" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                </Button>
+                                                <Button Style="{StaticResource GhostButton}" Padding="8,6" Tag="{Binding}" Click="OnDeleteIngredientClick">
+                                                    <controls:Icon Data="{StaticResource IconTrash}" Size="15" Foreground="{DynamicResource BrushError}" />
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 2. Kirim (Supplies) -->
+                        <ItemsControl x:Name="InventorySuppliesItemsControl" Visibility="Collapsed">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BrushSurface}"
+                                            BorderBrush="{DynamicResource BrushBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMd}"
+                                            Padding="16,12"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="160" />
+                                                <ColumnDefinition Width="150" />
+                                                <ColumnDefinition Width="160" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding DocNumber}" Style="{StaticResource TextBodyBold}" FontSize="14" />
+                                                    <Border Background="{DynamicResource BrushSurfaceVariant}" CornerRadius="{StaticResource RadiusSm}" Padding="6,2" Margin="8,0,0,0">
+                                                        <TextBlock Text="{Binding FormattedDate}" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding SupplierAndNotes}" FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,3,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="Mahsulotlar soni" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                <TextBlock Text="{Binding ItemsSummary}" Style="{StaticResource TextBodyBold}" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                <TextBlock Text="Toʻlov holati" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                <TextBlock Text="{Binding PaymentStatusDisplay}" Style="{StaticResource TextBodyBold}" Foreground="{Binding PaymentStatusColor}" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="3" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <TextBlock Text="Jami summa" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding FormattedTotal}" Style="{StaticResource TextTitle}" Foreground="{DynamicResource BrushPrimaryBright}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 3. Chiqim (WriteOffs) -->
+                        <ItemsControl x:Name="InventoryWriteOffsItemsControl" Visibility="Collapsed">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BrushSurface}"
+                                            BorderBrush="{DynamicResource BrushBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMd}"
+                                            Padding="16,12"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="180" />
+                                                <ColumnDefinition Width="160" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding DocNumber}" Style="{StaticResource TextBodyBold}" FontSize="14" />
+                                                    <Border Background="{DynamicResource BrushSurfaceVariant}" CornerRadius="{StaticResource RadiusSm}" Padding="6,2" Margin="8,0,0,0">
+                                                        <TextBlock Text="{Binding FormattedDate}" FontSize="11" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Notes}" FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,3,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="Chiqim sababi" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                <Border Background="{DynamicResource BrushSurfaceVariant}" CornerRadius="{StaticResource RadiusSm}" Padding="6,2" HorizontalAlignment="Left" Margin="0,2,0,0">
+                                                    <TextBlock Text="{Binding ReasonDisplay}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource BrushError}" />
+                                                </Border>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <TextBlock Text="Hisoblangan zarar" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding FormattedTotal}" Style="{StaticResource TextTitle}" Foreground="{DynamicResource BrushError}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 4. Tex-karta (Recipes per Dish) -->
+                        <ItemsControl x:Name="InventoryRecipesItemsControl" Visibility="Collapsed">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BrushSurface}"
+                                            BorderBrush="{DynamicResource BrushBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMd}"
+                                            Padding="16,12"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="140" />
+                                                <ColumnDefinition Width="140" />
+                                                <ColumnDefinition Width="140" />
+                                                <ColumnDefinition Width="120" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Dish Name & Category -->
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource TextBodyBold}" FontSize="14" />
+                                                <TextBlock Text="{Binding RecipeSummary}" FontSize="12" Foreground="{Binding RecipeSummaryColor}" Margin="0,3,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Selling Price -->
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="Sotuv narxi" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                <TextBlock Text="{Binding FormattedPrice}" Style="{StaticResource TextBodyBold}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Tech-card Cost -->
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                <TextBlock Text="Xomashyo tannarxi" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                <TextBlock Text="{Binding FormattedCost}" Style="{StaticResource TextBodyBold}" Foreground="{DynamicResource BrushAmberBright}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Profit Margin -->
+                                            <StackPanel Grid.Column="3" VerticalAlignment="Center">
+                                                <TextBlock Text="Sof foyda" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                <TextBlock Text="{Binding FormattedProfit}" Style="{StaticResource TextBodyBold}" Foreground="{DynamicResource BrushPrimaryBright}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Margin % -->
+                                            <StackPanel Grid.Column="4" VerticalAlignment="Center">
+                                                <TextBlock Text="Rentabellik" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                <TextBlock Text="{Binding FormattedMarginPercent}" Style="{StaticResource TextBodyBold}" Foreground="{DynamicResource BrushPrimaryBright}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <!-- Edit Recipe Button -->
+                                            <Button Grid.Column="5"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    Padding="12,6"
+                                                    Tag="{Binding}"
+                                                    Click="OnEditRecipeClick">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <controls:Icon Data="{StaticResource IconEdit}" Size="14" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                                    <TextBlock Text="Tex-karta" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="12" />
+                                                </StackPanel>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 5. Ta'minotchilar (Suppliers) -->
+                        <ItemsControl x:Name="InventorySuppliersItemsControl" Visibility="Collapsed">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BrushSurface}"
+                                            BorderBrush="{DynamicResource BrushBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMd}"
+                                            Padding="16,12"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="180" />
+                                                <ColumnDefinition Width="160" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource TextBodyBold}" FontSize="14" />
+                                                <TextBlock Text="{Binding ContactAndAddress}" FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,3,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="Telefon" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                <TextBlock Text="{Binding PhoneDisplay}" Style="{StaticResource TextBodyBold}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                <TextBlock Text="Qarz balansi" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                <TextBlock Text="{Binding FormattedBalance}" Style="{StaticResource TextBodyBold}" Foreground="{Binding BalanceColor}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Button Style="{StaticResource GhostButton}" Padding="8,6" Margin="0,0,4,0" Tag="{Binding}" Click="OnEditSupplierClick">
+                                                    <controls:Icon Data="{StaticResource IconEdit}" Size="15" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                </Button>
+                                                <Button Style="{StaticResource GhostButton}" Padding="8,6" Tag="{Binding}" Click="OnDeleteSupplierClick">
+                                                    <controls:Icon Data="{StaticResource IconTrash}" Size="15" Foreground="{DynamicResource BrushError}" />
+                                                </Button>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- 6. Harakatlar (Movements) -->
+                        <ItemsControl x:Name="InventoryMovementsItemsControl" Visibility="Collapsed">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource BrushSurface}"
+                                            BorderBrush="{DynamicResource BrushBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMd}"
+                                            Padding="16,12"
+                                            Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="140" />
+                                                <ColumnDefinition Width="140" />
+                                                <ColumnDefinition Width="160" />
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding CreatedAtDisplay}" Style="{StaticResource TextBodyBold}" FontSize="13" />
+                                                <Border Background="{Binding MovementTypeBg}" CornerRadius="{StaticResource RadiusSm}" Padding="5,1" Margin="0,3,0,0" HorizontalAlignment="Left">
+                                                    <TextBlock Text="{Binding MovementTypeDisplay}" FontSize="10" FontWeight="Bold" Foreground="{Binding MovementTypeFg}" />
+                                                </Border>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding IngredientName}" Style="{StaticResource TextBodyBold}" FontSize="14" />
+                                                <TextBlock Text="{Binding Notes}" FontSize="12" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                <TextBlock Text="Oʻzgarish" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                <TextBlock Text="{Binding FormattedDelta}" Style="{StaticResource TextBodyBold}" Foreground="{Binding DeltaBrush}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="3" VerticalAlignment="Center">
+                                                <TextBlock Text="Qoldiq oʻzgarishi" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                                                <TextBlock Text="{Binding StockTransitionDisplay}" Style="{StaticResource TextBodyBold}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="4" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <TextBlock Text="1 birlik qiymati" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" HorizontalAlignment="Right" />
+                                                <TextBlock Text="{Binding FormattedUnitCost}" Style="{StaticResource TextBodyBold}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- ===================================================== -->
+            <!-- 8. TAB: SOZLAMALAR (ALOHIDA BO'LIMLAR + KASSIR PROFILI)-->
+            <!-- ===================================================== -->
+            <Grid x:Name="SettingsTab" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="236" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Settings Section Navigation -->
+                <Border Grid.Column="0"
+                        Background="{DynamicResource BrushSurface}"
                         BorderBrush="{DynamicResource BrushBorder}"
                         BorderThickness="1"
                         CornerRadius="{StaticResource RadiusMd}"
-                        Padding="20,12"
-                        Margin="0,10,0,0"
-                        Visibility="Collapsed">
-                    <Grid>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <controls:Icon Data="{StaticResource IconAlert}" Size="18" Foreground="{DynamicResource BrushAmberBright}" Margin="0,0,10,0" VerticalAlignment="Center" />
-                            <TextBlock Text="Sozlamalarda saqlanmagan oʻzgarishlar bor" Style="{StaticResource TextBody}" VerticalAlignment="Center" />
-                        </StackPanel>
+                        Padding="10">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="SOZLAMALAR BOʻLIMLARI"
+                                       Style="{StaticResource TextLabelCaps}"
+                                       Foreground="{DynamicResource BrushTextMuted}"
+                                       Margin="8,6,8,10" />
 
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <Button Content="Bekor qilish"
-                                    Style="{StaticResource GhostButton}"
-                                    MinHeight="48"
-                                    Margin="0,0,8,0"
-                                    Click="OnDiscardSettingsClick" />
-                            <Button Content="Saqlash"
-                                    Style="{StaticResource PrimaryButton}"
-                                    MinHeight="48"
-                                    Padding="24,10"
-                                    Click="OnSaveSettingsClick" />
+                            <RadioButton x:Name="SettingsNavProfileBtn"
+                                         GroupName="SettingsSectionNav"
+                                         Style="{StaticResource SettingsNavItem}"
+                                         IsChecked="True"
+                                         Tag="profile"
+                                         Click="OnSettingsSectionClick">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <controls:Icon Data="{StaticResource IconUser}" Size="18" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Kassir profili" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+
+                            <RadioButton x:Name="SettingsNavPrintersBtn"
+                                         GroupName="SettingsSectionNav"
+                                         Style="{StaticResource SettingsNavItem}"
+                                         Tag="printers"
+                                         Click="OnSettingsSectionClick">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <controls:Icon Data="{StaticResource IconPrinter}" Size="18" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Printerlar" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+
+                            <RadioButton x:Name="SettingsNavHallsBtn"
+                                         GroupName="SettingsSectionNav"
+                                         Style="{StaticResource SettingsNavItem}"
+                                         Tag="halls"
+                                         Click="OnSettingsSectionClick">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <controls:Icon Data="{StaticResource IconTables}" Size="18" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Zallar" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+
+                            <RadioButton x:Name="SettingsNavServerBtn"
+                                         GroupName="SettingsSectionNav"
+                                         Style="{StaticResource SettingsNavItem}"
+                                         Tag="server"
+                                         Click="OnSettingsSectionClick">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <controls:Icon Data="{StaticResource IconWifi}" Size="18" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Server va sinxron" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+
+                            <RadioButton x:Name="SettingsNavPaymentsBtn"
+                                         GroupName="SettingsSectionNav"
+                                         Style="{StaticResource SettingsNavItem}"
+                                         Tag="payments"
+                                         Click="OnSettingsSectionClick">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <controls:Icon Data="{StaticResource IconCard}" Size="18" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Xizmat va toʻlovlar" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+
+                            <RadioButton x:Name="SettingsNavBotBtn"
+                                         GroupName="SettingsSectionNav"
+                                         Style="{StaticResource SettingsNavItem}"
+                                         Tag="bot"
+                                         Click="OnSettingsSectionClick">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <controls:Icon Data="{StaticResource IconOnline}" Size="18" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="Bot va yetkazib berish" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
                         </StackPanel>
-                    </Grid>
+                    </ScrollViewer>
                 </Border>
+
+                <!-- Right Settings Content Area + Sticky Dirty Bar -->
+                <Grid Grid.Column="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ScrollViewer x:Name="SettingsScrollViewer" Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                        <Grid Margin="0,0,0,20">
+
+                            <!-- 1. KASSIR PROFILI VA PROFIL SOZLAMALARI -->
+                            <StackPanel x:Name="SettingsSectionProfile" Visibility="Visible">
+                                <!-- Profile Hero Banner -->
+                                <Border Background="{DynamicResource BrushSurface}"
+                                        BorderBrush="{DynamicResource BrushBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        Padding="20"
+                                        Margin="0,0,0,16">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="16" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Border x:Name="ProfileAvatarBorder"
+                                                Grid.Column="0"
+                                                Width="68" Height="68"
+                                                CornerRadius="34"
+                                                Background="{DynamicResource BrushPrimaryTint}"
+                                                BorderBrush="{DynamicResource BrushPrimary}"
+                                                BorderThickness="2"
+                                                VerticalAlignment="Center">
+                                            <TextBlock x:Name="ProfileAvatarInitials"
+                                                       Text="JR"
+                                                       FontSize="22"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource BrushPrimaryBright}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock x:Name="ProfileHeaderNameText"
+                                                           Text="Jasur Rahimov"
+                                                           Style="{StaticResource TextSection}"
+                                                           VerticalAlignment="Center" />
+                                                <Border Background="{DynamicResource BrushPrimaryTint}"
+                                                        BorderBrush="{DynamicResource BrushPrimary}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="{StaticResource RadiusFull}"
+                                                        Padding="10,3"
+                                                        Margin="10,0,0,0"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock x:Name="ProfileHeaderRoleText"
+                                                               Text="Bosh kassir"
+                                                               FontSize="12"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource BrushPrimaryBright}" />
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock x:Name="ProfileHeaderPhoneText"
+                                                       Text="+998 90 111 22 33"
+                                                       Style="{StaticResource TextBody}"
+                                                       Foreground="{DynamicResource BrushTextSecondary}"
+                                                       Margin="0,3,0,2" />
+                                            <TextBlock x:Name="ProfileShiftSummaryText"
+                                                       Text="Joriy smena: 0 ta chek · 0 soʻm"
+                                                       Style="{StaticResource TextCaption}"
+                                                       Foreground="{DynamicResource BrushTextMuted}" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Style="{StaticResource SecondaryButton}"
+                                                    MinHeight="46"
+                                                    Padding="14,8"
+                                                    Margin="0,0,8,0"
+                                                    Click="OnProfileOpenShiftClick">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <controls:Icon Data="{StaticResource IconReport}" Size="16" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                                    <TextBlock Text="Smena" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+                                            <Button Style="{StaticResource SecondaryButton}"
+                                                    MinHeight="46"
+                                                    Padding="14,8"
+                                                    Click="OnLockAppClick">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <controls:Icon Data="{StaticResource IconLock}" Size="16" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,6,0" VerticalAlignment="Center" />
+                                                    <TextBlock Text="Qulflash" VerticalAlignment="Center" />
+                                                </StackPanel>
+                                            </Button>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1.1*" />
+                                        <ColumnDefinition Width="16" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Left: Personal Identity & PIN -->
+                                    <Border Grid.Column="0"
+                                            Background="{DynamicResource BrushSurface}"
+                                            BorderBrush="{DynamicResource BrushBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMd}"
+                                            Padding="20">
+                                        <StackPanel>
+                                            <controls:SectionHeader Title="Profil maʻlumotlari"
+                                                                    Subtitle="Kassir ismi, lavozimi va kirish PIN-kodi" />
+
+                                            <controls:Field Label="Kassir toʻliq ismi" Margin="0,0,0,14">
+                                                <TextBox x:Name="CashierNameBox" Text="Jasur Rahimov" TextChanged="OnSettingsTextChanged" />
+                                            </controls:Field>
+
+                                            <Grid Margin="0,0,0,14">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="12" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <controls:Field Grid.Column="0" Label="Telefon raqami">
+                                                    <TextBox x:Name="CashierPhoneBox" Text="+998901112233" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
+                                                </controls:Field>
+                                                <controls:Field Grid.Column="2" Label="Lavozim">
+                                                    <TextBox x:Name="CashierRoleBox" Text="Bosh kassir" TextChanged="OnSettingsTextChanged" />
+                                                </controls:Field>
+                                            </Grid>
+
+                                            <Grid Margin="0,0,0,14">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="12" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <controls:Field Grid.Column="0" Label="Yangi PIN-kod (ixtiyoriy)" HelperText="Boʻsh qoldirilsa eskisi qoladi">
+                                                    <PasswordBox x:Name="CashierPinBox" PasswordChanged="OnSettingsPasswordChanged" />
+                                                </controls:Field>
+                                                <controls:Field Grid.Column="2" Label="PIN-kodni tasdiqlash">
+                                                    <PasswordBox x:Name="CashierPinConfirmBox" PasswordChanged="OnSettingsPasswordChanged" />
+                                                </controls:Field>
+                                            </Grid>
+
+                                            <Button Content="Profilni saqlash"
+                                                    Style="{StaticResource PrimaryButton}"
+                                                    MinHeight="48"
+                                                    HorizontalAlignment="Right"
+                                                    Padding="22,10"
+                                                    Click="OnSaveProfileQuickClick" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Right: Personal Preferences -->
+                                    <Border Grid.Column="2"
+                                            Background="{DynamicResource BrushSurface}"
+                                            BorderBrush="{DynamicResource BrushBorder}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMd}"
+                                            Padding="20"
+                                            VerticalAlignment="Top">
+                                        <StackPanel>
+                                            <controls:SectionHeader Title="Profil sozlamalari"
+                                                                    Subtitle="Xavfsizlik, koʻrinish va bildirishnomalar" />
+
+                                            <CheckBox x:Name="RequirePinOnUnlockCheck"
+                                                      Style="{StaticResource ToggleSwitch}"
+                                                      Content="Qulfdan chiqishda PIN-kod soʻrash"
+                                                      Margin="0,0,0,12"
+                                                      Click="OnSettingsCheckChanged" />
+
+                                            <CheckBox x:Name="NotificationSoundCheck"
+                                                      Style="{StaticResource ToggleSwitch}"
+                                                      Content="Yangi buyurtmalarda ovozli signal"
+                                                      IsChecked="True"
+                                                      Margin="0,0,0,12"
+                                                      Click="OnSettingsCheckChanged" />
+
+                                            <CheckBox x:Name="ProfileThemeToggleCheck"
+                                                      Style="{StaticResource ToggleSwitch}"
+                                                      Content="Tungi mavzu (Dark mode)"
+                                                      Margin="0,0,0,16"
+                                                      Click="OnProfileThemeToggleClick" />
+
+                                            <TextBlock Text="Avatar rangi" Style="{StaticResource TextLabel}" Margin="0,0,0,8" />
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                                                <Button Style="{StaticResource GhostButton}" Width="40" Height="40" MinHeight="40" Padding="0" Margin="0,0,8,0" Tag="#10B981" Click="OnSelectAvatarColorClick">
+                                                    <Border Width="32" Height="32" CornerRadius="16" Background="#10B981" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" />
+                                                </Button>
+                                                <Button Style="{StaticResource GhostButton}" Width="40" Height="40" MinHeight="40" Padding="0" Margin="0,0,8,0" Tag="#F59E0B" Click="OnSelectAvatarColorClick">
+                                                    <Border Width="32" Height="32" CornerRadius="16" Background="#F59E0B" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" />
+                                                </Button>
+                                                <Button Style="{StaticResource GhostButton}" Width="40" Height="40" MinHeight="40" Padding="0" Margin="0,0,8,0" Tag="#3B82F6" Click="OnSelectAvatarColorClick">
+                                                    <Border Width="32" Height="32" CornerRadius="16" Background="#3B82F6" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" />
+                                                </Button>
+                                                <Button Style="{StaticResource GhostButton}" Width="40" Height="40" MinHeight="40" Padding="0" Margin="0,0,8,0" Tag="#8B5CF6" Click="OnSelectAvatarColorClick">
+                                                    <Border Width="32" Height="32" CornerRadius="16" Background="#8B5CF6" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" />
+                                                </Button>
+                                                <Button Style="{StaticResource GhostButton}" Width="40" Height="40" MinHeight="40" Padding="0" Tag="#EF4444" Click="OnSelectAvatarColorClick">
+                                                    <Border Width="32" Height="32" CornerRadius="16" Background="#EF4444" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" />
+                                                </Button>
+                                            </StackPanel>
+
+                                            <Button Content="Kiosk rejimi (Toʻliq ekran F11)"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    MinHeight="46"
+                                                    Click="OnToggleKioskClick" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- 2. PRINTERLAR BO'LIMI (QO'SHISH / TAHRIRLASH / O'CHIRISH / SINOV) -->
+                            <StackPanel x:Name="SettingsSectionPrinters" Visibility="Collapsed">
+                                <Grid Margin="0,0,0,14">
+                                    <controls:SectionHeader Title="Tarmoq printerlari (LAN 9100)"
+                                                            Subtitle="Printer qoʻshish, tahrirlash, oʻchirish va sinov cheki"
+                                                            VerticalAlignment="Center" />
+                                    <Button HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource PrimaryButton}"
+                                            MinHeight="46"
+                                            Padding="18,10"
+                                            Click="OnAddPrinterClick">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <controls:Icon Data="{StaticResource IconPlus}" Size="16" Foreground="{DynamicResource BrushTextOnPrimary}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="Printer qoʻshish" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+
+                                <ItemsControl x:Name="PrintersItemsControl">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <controls:PrinterCard Margin="0,0,0,10"
+                                                                  TestPrintClicked="OnPrinterCardTestClick"
+                                                                  EditClicked="OnPrinterCardEditClick"
+                                                                  DeleteClicked="OnPrinterCardDeleteClick"
+                                                                  IpChanged="OnSettingsInputChanged" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <Border Background="{DynamicResource BrushSurface}"
+                                        BorderBrush="{DynamicResource BrushBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        Padding="16,12"
+                                        Margin="0,6,0,0">
+                                    <CheckBox x:Name="AutoPrintCheck"
+                                              Style="{StaticResource ToggleSwitch}"
+                                              Content="Buyurtmada boʻlim printerlariga avtomatik chek chiqarish"
+                                              IsChecked="True"
+                                              Click="OnSettingsCheckChanged" />
+                                </Border>
+                            </StackPanel>
+
+                            <!-- 3. ZALLAR BO'LIMI (QO'SHISH / TAHRIRLASH / O'CHIRISH) -->
+                            <StackPanel x:Name="SettingsSectionHalls" Visibility="Collapsed">
+                                <Grid Margin="0,0,0,14">
+                                    <controls:SectionHeader Title="Restoran zallari boshqaruvi"
+                                                            Subtitle="Zallarni qoʻshish, tahrirlash va oʻchirish (stollar xaritasida koʻrinadi)"
+                                                            VerticalAlignment="Center" />
+                                    <Button HorizontalAlignment="Right"
+                                            VerticalAlignment="Center"
+                                            Style="{StaticResource PrimaryButton}"
+                                            MinHeight="46"
+                                            Padding="18,10"
+                                            Click="OnAddHallClick">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <controls:Icon Data="{StaticResource IconPlus}" Size="16" Foreground="{DynamicResource BrushTextOnPrimary}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                            <TextBlock Text="Zal qoʻshish" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+
+                                <ItemsControl x:Name="SettingsHallsItemsControl">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{DynamicResource BrushSurface}"
+                                                    BorderBrush="{DynamicResource BrushBorder}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="{StaticResource RadiusMd}"
+                                                    Padding="16,12"
+                                                    Margin="0,0,0,8">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="2*" />
+                                                        <ColumnDefinition Width="1.2*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="14" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Name}" Style="{StaticResource TextTitle}" />
+                                                        <TextBlock Text="{Binding Description}" Style="{StaticResource TextCaption}" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                                                    </StackPanel>
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Border Background="{DynamicResource BrushSurfaceElevated}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusXs}" Padding="8,4" Margin="0,0,10,0">
+                                                            <TextBlock Text="{Binding TablesCountText}" Style="{StaticResource TextCaption}" FontWeight="SemiBold" />
+                                                        </Border>
+                                                        <TextBlock Text="{Binding SortOrderText}" Style="{StaticResource TextCaptionMuted}" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                    <Border Grid.Column="2" Background="{DynamicResource BrushSurfaceElevated}" CornerRadius="{StaticResource RadiusFull}" Padding="10,4" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding StatusText}" Style="{StaticResource TextCaption}" FontWeight="SemiBold" />
+                                                    </Border>
+                                                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Button Content="Tahrirlash" Style="{StaticResource SecondaryButton}" MinHeight="40" Padding="14,6" Margin="0,0,8,0" Tag="{Binding Model}" Click="OnManageEditHallClick" />
+                                                        <Button Content="Oʻchirish" Style="{StaticResource DangerButton}" MinHeight="40" Padding="12,6" Tag="{Binding Model}" Click="OnManageDeleteHallClick" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <!-- 4. SERVER VA SINXRONIZATSIYA BO'LIMI -->
+                            <StackPanel x:Name="SettingsSectionServer" Visibility="Collapsed">
+                                <controls:SectionHeader Title="Server va baza sinxronizatsiyasi"
+                                                        Subtitle="Cloud Django, lokal Wi-Fi Hub va taom rasmlari keshi" />
+
+                                <Border Background="{DynamicResource BrushSurface}"
+                                        BorderBrush="{DynamicResource BrushBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        Padding="20"
+                                        Margin="0,0,0,16">
+                                    <StackPanel>
+                                        <controls:Field Label="Cloud Django Server manzili" HelperText="Internet boʻlganda markaziy server bilan sinxronlash uchun" Margin="0,0,0,16">
+                                            <TextBox x:Name="ServerUrlBox" Text="https://dilkash-django-production.up.railway.app" TextChanged="OnSettingsTextChanged" />
+                                        </controls:Field>
+
+                                        <controls:Field Label="Ofitsiantlar uchun Wi-Fi Hub manzili" HelperText="Lokal tarmoqdagi ofitsiant ilovalari shu manzilga ulanadi (avtomatik Wi-Fi qidiruv faol)">
+                                            <TextBox x:Name="LocalHubInfoBox" IsReadOnly="True" Text="http://127.0.0.1:8088" />
+                                        </controls:Field>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Background="{DynamicResource BrushSurface}"
+                                        BorderBrush="{DynamicResource BrushBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        Padding="20">
+                                    <Grid>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Taom rasmlari va maʼlumotlar bazasi sinxronizatsiyasi" Style="{StaticResource TextBodyBold}" />
+                                            <TextBlock x:Name="SyncImagesStatusText"
+                                                       Text="Rasmlar bazadan lokal keshga sinxronlanadi"
+                                                       Style="{StaticResource TextCaption}"
+                                                       Foreground="{DynamicResource BrushTextSecondary}"
+                                                       Margin="0,4,0,2" />
+                                            <TextBlock x:Name="SyncLastTimeText"
+                                                       Text="Oxirgi sinxron: -"
+                                                       Style="{StaticResource TextCaptionMuted}" />
+                                        </StackPanel>
+
+                                        <Button HorizontalAlignment="Right"
+                                                VerticalAlignment="Center"
+                                                Style="{StaticResource SecondaryButton}"
+                                                MinHeight="46"
+                                                Padding="16,8"
+                                                Click="OnManualSyncNowClick">
+                                            <StackPanel Orientation="Horizontal">
+                                                <controls:Icon Data="{StaticResource IconRefresh}" Size="16" Foreground="{DynamicResource BrushTextPrimary}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                                <TextBlock Text="Hozir sinxronlash" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- 5. XIZMAT HAQI VA TO'LOVLAR BO'LIMI -->
+                            <StackPanel x:Name="SettingsSectionPayments" Visibility="Collapsed">
+                                <controls:SectionHeader Title="Xizmat haqi"
+                                                        Subtitle="Zal stollari uchun xizmat haqi hisoblash usuli" />
+
+                                <Border Background="{DynamicResource BrushSurface}"
+                                        BorderBrush="{DynamicResource BrushBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        Padding="20"
+                                        Margin="0,0,0,16">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="14" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <controls:Field Grid.Column="0" Label="Xizmat haqi turi">
+                                            <ComboBox x:Name="ServiceFeeTypeCombo" SelectionChanged="OnSettingsComboChanged">
+                                                <ComboBoxItem Content="Foizli (%)" IsSelected="True" Tag="percent" />
+                                                <ComboBoxItem Content="Odam boshiga (soʻm)" Tag="per_person" />
+                                                <ComboBoxItem Content="Xizmat haqi yoʻq (0%)" Tag="none" />
+                                            </ComboBox>
+                                        </controls:Field>
+
+                                        <controls:Field Grid.Column="2" Label="Xizmat haqi miqdori" HelperText="Foiz (%) yoki har bir mehmon uchun soʻm">
+                                            <TextBox x:Name="ServiceFeeValueBox" Text="10" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
+                                        </controls:Field>
+                                    </Grid>
+                                </Border>
+
+                                <controls:SectionHeader Title="Click va Payme integratsiyasi"
+                                                        Subtitle="Onlayn toʻlov tizimi parametrlari" />
+
+                                <Border Background="{DynamicResource BrushSurface}"
+                                        BorderBrush="{DynamicResource BrushBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        Padding="20">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,14">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <controls:Field Grid.Column="0" Label="Click Service ID">
+                                                <TextBox x:Name="ClickServiceIdBox" TextChanged="OnSettingsTextChanged" />
+                                            </controls:Field>
+                                            <controls:Field Grid.Column="2" Label="Click Merchant ID">
+                                                <TextBox x:Name="ClickMerchantIdBox" TextChanged="OnSettingsTextChanged" />
+                                            </controls:Field>
+                                        </Grid>
+                                        <controls:Field x:Name="ClickSecretField" Label="Click Secret Key" HelperText="Yangi kalit kiritilmasa eskisi saqlanadi" Margin="0,0,0,14">
+                                            <TextBox x:Name="ClickSecretBox" TextChanged="OnSettingsTextChanged" />
+                                        </controls:Field>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <controls:Field Grid.Column="0" Label="Payme Merchant ID">
+                                                <TextBox x:Name="PaymeMerchantIdBox" TextChanged="OnSettingsTextChanged" />
+                                            </controls:Field>
+                                            <controls:Field x:Name="PaymeSecretField" Grid.Column="2" Label="Payme Secret Key">
+                                                <TextBox x:Name="PaymeSecretBox" TextChanged="OnSettingsTextChanged" />
+                                            </controls:Field>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- 6. TELEGRAM BOT VA YETKAZIB BERISH BO'LIMI -->
+                            <StackPanel x:Name="SettingsSectionBot" Visibility="Collapsed">
+                                <controls:SectionHeader Title="Telegram Bot va yetkazib berish"
+                                                        Subtitle="Ish vaqti, yetkazish tariflari va bot eʼloni" />
+
+                                <Border Background="{DynamicResource BrushSurface}"
+                                        BorderBrush="{DynamicResource BrushBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource RadiusMd}"
+                                        Padding="20">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,14">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <controls:Field Grid.Column="0" Label="Ish boshlanishi (HH:MM)">
+                                                <TextBox x:Name="ServiceStartTimeBox" Text="10:00" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
+                                            </controls:Field>
+                                            <controls:Field Grid.Column="2" Label="Ish tugashi (HH:MM)">
+                                                <TextBox x:Name="ServiceEndTimeBox" Text="22:00" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
+                                            </controls:Field>
+                                        </Grid>
+
+                                        <Grid Margin="0,0,0,14">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="0.8*" />
+                                            </Grid.ColumnDefinitions>
+                                            <controls:Field Grid.Column="0" Label="Boshlangʻich (soʻm)">
+                                                <TextBox x:Name="DeliveryBaseCostBox" Text="5000" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
+                                            </controls:Field>
+                                            <controls:Field Grid.Column="2" Label="Har km (soʻm)">
+                                                <TextBox x:Name="DeliveryExtraKmCostBox" Text="6000" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
+                                            </controls:Field>
+                                            <controls:Field Grid.Column="4" Label="Radius (km)">
+                                                <TextBox x:Name="DeliveryMaxRadiusBox" Text="10" Typography.NumeralAlignment="Tabular" TextChanged="OnSettingsTextChanged" />
+                                            </controls:Field>
+                                        </Grid>
+
+                                        <controls:Field Label="Bot eʼlon matni (ixtiyoriy)">
+                                            <TextBox x:Name="BroadcastTextBox" Height="84" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" Padding="12,10" TextChanged="OnSettingsTextChanged" />
+                                        </controls:Field>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </ScrollViewer>
+
+                    <!-- Settings Loading Skeleton -->
+                    <StackPanel x:Name="SettingsLoadingState" Grid.Row="0" Visibility="Collapsed">
+                        <controls:SkeletonBox Height="96" Margin="0,0,0,12" />
+                        <controls:SkeletonBox Height="180" Margin="0,0,0,12" />
+                        <controls:SkeletonBox Height="120" />
+                    </StackPanel>
+
+                    <!-- Sticky Bottom Save Bar (Visible ONLY when dirty) -->
+                    <Border x:Name="SettingsDirtyBar"
+                            Grid.Row="1"
+                            Background="{DynamicResource BrushSurfaceElevated}"
+                            BorderBrush="{DynamicResource BrushBorder}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource RadiusMd}"
+                            Padding="20,12"
+                            Margin="0,10,0,0"
+                            Visibility="Collapsed">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <controls:Icon Data="{StaticResource IconAlert}" Size="18" Foreground="{DynamicResource BrushAmberBright}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Sozlamalarda saqlanmagan oʻzgarishlar bor" Style="{StaticResource TextBody}" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <Button Content="Bekor qilish"
+                                        Style="{StaticResource GhostButton}"
+                                        MinHeight="48"
+                                        Margin="0,0,8,0"
+                                        Click="OnDiscardSettingsClick" />
+                                <Button Content="Saqlash"
+                                        Style="{StaticResource PrimaryButton}"
+                                        MinHeight="48"
+                                        Padding="24,10"
+                                        Click="OnSaveSettingsClick" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
             </Grid>
                 </Grid>
             </Grid>
@@ -1948,11 +2964,26 @@
                                Style="{StaticResource TextSection}"
                                HorizontalAlignment="Center"
                                Margin="0,0,0,6" />
-                    <TextBlock Text="Ishni davom ettirish uchun Ochish tugmasini bosing"
+                    <TextBlock x:Name="LockSubtitleText"
+                               Text="Ishni davom ettirish uchun Ochish tugmasini bosing"
                                Style="{StaticResource TextBody}"
                                Foreground="{DynamicResource BrushTextSecondary}"
                                HorizontalAlignment="Center"
-                               Margin="0,0,0,28" />
+                               Margin="0,0,0,20" />
+
+                    <StackPanel x:Name="LockPinPanel" Visibility="Collapsed" Width="240" Margin="0,0,0,18">
+                        <PasswordBox x:Name="LockPinBox"
+                                     HorizontalContentAlignment="Center"
+                                     FontSize="18"
+                                     KeyDown="OnLockPinKeyDown" />
+                        <TextBlock x:Name="LockPinErrorText"
+                                   Text="PIN-kod notoʻgʻri"
+                                   Style="{StaticResource TextCaption}"
+                                   Foreground="{DynamicResource BrushErrorBright}"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,6,0,0"
+                                   Visibility="Collapsed" />
+                    </StackPanel>
 
                     <Button Content="Ochish"
                             Style="{StaticResource PrimaryButton}"

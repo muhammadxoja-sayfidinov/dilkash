@@ -3,11 +3,22 @@ from django.contrib import messages
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django import forms
-from .models import Category, Product, Customer, Order, OrderItem, OrderStatusHistory, BotSettings, RestaurantTable, PaymentTransaction, WaiterCall, WaiterProfile
+from .models import (
+    Category, Product, Customer, Order, OrderItem, OrderStatusHistory,
+    BotSettings, RestaurantTable, PaymentTransaction, WaiterCall, WaiterProfile,
+    Hall, PrinterDevice, CashierProfile,
+    Ingredient, Supplier, StockSupply, StockSupplyItem, StockWriteOff, StockWriteOffItem, RecipeItem, StockMovementLog
+)
 from .utils import send_telegram_message
 import logging
 
 logger = logging.getLogger(__name__)
+
+class RecipeItemInline(admin.TabularInline):
+    model = RecipeItem
+    extra = 1
+    autocomplete_fields = ['ingredient']
+    fields = ['ingredient', 'quantity', 'unit', 'notes']
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -22,6 +33,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = ['category', 'is_available', 'created_at']
     search_fields = ['name', 'description']
     list_editable = ['price', 'is_available']
+    inlines = [RecipeItemInline]
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
@@ -303,5 +315,95 @@ class WaiterProfileAdmin(admin.ModelAdmin):
     list_filter = ['is_active', 'created_at']
     search_fields = ['name', 'phone', 'telegram_id']
     list_editable = ['is_active']
+
+
+@admin.register(Hall)
+class HallAdmin(admin.ModelAdmin):
+    list_display = ['name', 'description', 'sort_order', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['name']
+    list_editable = ['sort_order', 'is_active']
+
+
+@admin.register(PrinterDevice)
+class PrinterDeviceAdmin(admin.ModelAdmin):
+    list_display = ['name', 'department', 'ip_address', 'port', 'paper_width', 'is_active', 'sort_order']
+    list_filter = ['department', 'paper_width', 'is_active']
+    search_fields = ['name', 'ip_address']
+    list_editable = ['ip_address', 'port', 'is_active', 'sort_order']
+
+
+@admin.register(CashierProfile)
+class CashierProfileAdmin(admin.ModelAdmin):
+    list_display = ['name', 'phone', 'role_title', 'avatar_color', 'require_pin_on_unlock', 'is_active', 'is_primary']
+    list_filter = ['is_active', 'is_primary']
+    search_fields = ['name', 'phone', 'role_title']
+    list_editable = ['is_active', 'is_primary']
+
+
+@admin.register(Ingredient)
+class IngredientAdmin(admin.ModelAdmin):
+    list_display = ['name', 'category', 'current_stock', 'unit', 'cost_price', 'min_stock_alert', 'is_low_stock', 'is_active']
+    list_filter = ['category', 'unit', 'is_active']
+    search_fields = ['name']
+    list_editable = ['current_stock', 'cost_price', 'min_stock_alert', 'is_active']
+
+    def is_low_stock(self, obj):
+        return obj.is_low_stock
+    is_low_stock.boolean = True
+    is_low_stock.short_description = "Kam qolgan"
+
+
+@admin.register(Supplier)
+class SupplierAdmin(admin.ModelAdmin):
+    list_display = ['name', 'phone', 'contact_person', 'balance', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['name', 'phone', 'contact_person']
+    list_editable = ['balance', 'is_active']
+
+
+class StockSupplyItemInline(admin.TabularInline):
+    model = StockSupplyItem
+    extra = 1
+    autocomplete_fields = ['ingredient']
+
+
+@admin.register(StockSupply)
+class StockSupplyAdmin(admin.ModelAdmin):
+    list_display = ['doc_number', 'supplier', 'date', 'total_cost', 'payment_status', 'paid_amount', 'created_by']
+    list_filter = ['payment_status', 'date']
+    search_fields = ['doc_number', 'supplier__name']
+    inlines = [StockSupplyItemInline]
+
+
+class StockWriteOffItemInline(admin.TabularInline):
+    model = StockWriteOffItem
+    extra = 1
+    autocomplete_fields = ['ingredient']
+
+
+@admin.register(StockWriteOff)
+class StockWriteOffAdmin(admin.ModelAdmin):
+    list_display = ['doc_number', 'reason', 'date', 'total_cost', 'created_by']
+    list_filter = ['reason', 'date']
+    search_fields = ['doc_number', 'notes']
+    inlines = [StockWriteOffItemInline]
+
+
+@admin.register(RecipeItem)
+class RecipeItemAdmin(admin.ModelAdmin):
+    list_display = ['product', 'ingredient', 'quantity', 'unit', 'notes']
+    list_filter = ['unit']
+    search_fields = ['product__name', 'ingredient__name']
+    autocomplete_fields = ['product', 'ingredient']
+
+
+@admin.register(StockMovementLog)
+class StockMovementLogAdmin(admin.ModelAdmin):
+    list_display = ['created_at', 'ingredient', 'movement_type', 'quantity_delta', 'stock_before', 'stock_after', 'unit_cost', 'related_order']
+    list_filter = ['movement_type', 'created_at']
+    search_fields = ['ingredient__name', 'notes', 'related_order__order_number']
+    readonly_fields = ['created_at', 'ingredient', 'movement_type', 'quantity_delta', 'stock_before', 'stock_after', 'unit_cost', 'related_order', 'related_supply', 'related_write_off', 'notes']
+
 
 

@@ -1,0 +1,107 @@
+<Window x:Class="DilkashPos.Views.StockSupplyDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:DilkashPos.Controls"
+        Title="Kirim (Prihod)"
+        Width="680"
+        Height="620"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
+    <controls:DialogChrome x:Name="Chrome" Title="Yangi kirim (Prihod)" Subtitle="Omborga xomashyo qabul qilish va tan narxini yangilash">
+        <Grid Margin="24,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Top Header Controls -->
+            <StackPanel Grid.Row="0">
+                <TextBlock x:Name="ErrorBanner"
+                           Foreground="{DynamicResource BrushError}"
+                           Style="{StaticResource TextLabel}"
+                           Margin="0,0,0,10"
+                           Visibility="Collapsed" />
+
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <controls:Field Grid.Column="0" Label="Taʼminotchi">
+                        <ComboBox x:Name="SupplierCombo" DisplayMemberPath="Name" SelectedValuePath="Id" />
+                    </controls:Field>
+
+                    <controls:Field Grid.Column="2" Label="Toʻlov holati">
+                        <ComboBox x:Name="PaymentStatusCombo" SelectionChanged="OnPaymentStatusChanged">
+                            <ComboBoxItem Content="Toʻlangan (Toʻliq)" Tag="paid" IsSelected="True" />
+                            <ComboBoxItem Content="Qisman toʻlangan" Tag="partial" />
+                            <ComboBoxItem Content="Nasiya / Qarz" Tag="credit" />
+                        </ComboBox>
+                    </controls:Field>
+
+                    <controls:Field Grid.Column="4" Label="Toʻlangan summa (soʻm)">
+                        <TextBox x:Name="PaidAmountBox" Text="0" Typography.NumeralAlignment="Tabular" />
+                    </controls:Field>
+                </Grid>
+
+                <controls:Field Label="Izoh yoki yuk xati raqami (ixtiyoriy)" Margin="0,0,0,12">
+                    <TextBox x:Name="NotesBox" />
+                </controls:Field>
+
+                <Grid Margin="0,0,0,6">
+                    <TextBlock Text="Keltirilgan xomashyolar roʻyxati" Style="{StaticResource TextBodyBold}" VerticalAlignment="Center" />
+                    <Button HorizontalAlignment="Right" Style="{StaticResource GhostButton}" Padding="8,4" Click="OnAddRowClick">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:Icon Data="{StaticResource IconPlus}" Size="14" Foreground="{DynamicResource BrushPrimary}" Margin="0,0,4,0" />
+                            <TextBlock Text="Qator qoʻshish" Foreground="{DynamicResource BrushPrimary}" FontWeight="SemiBold" FontSize="12" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </StackPanel>
+
+            <!-- Scrollable Items List -->
+            <Border Grid.Row="1" Background="{DynamicResource BrushSurfaceVariant}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Padding="8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="ItemsStackPanel" />
+                </ScrollViewer>
+            </Border>
+
+            <!-- Bottom Summary Bar -->
+            <Grid Grid.Row="2" Margin="0,12,0,0">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Jami mahsulot: " Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                    <TextBlock x:Name="TotalItemsCountText" Text="0 ta" Style="{StaticResource TextBodyBold}" Margin="4,0,16,0" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Text="Umumiy summa: " Style="{StaticResource TextBodyBold}" Foreground="{DynamicResource BrushTextSecondary}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="TotalCostText" Text="0 soʻm" Style="{StaticResource TextTitle}" Foreground="{DynamicResource BrushPrimaryBright}" Typography.NumeralAlignment="Tabular" Margin="6,0,0,0" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <controls:DialogChrome.FooterContent>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="Bekor qilish" Style="{StaticResource GhostButton}" MinHeight="48" Padding="20,10" Click="OnCancelClick" />
+                <Button Grid.Column="2" Content="Kirimni qabul qilish" Style="{StaticResource PrimaryButton}" MinHeight="48" Click="OnSaveClick" />
+            </Grid>
+        </controls:DialogChrome.FooterContent>
+    </controls:DialogChrome>
+</Window>

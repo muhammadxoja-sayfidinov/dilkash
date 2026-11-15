@@ -29,6 +29,7 @@ page_urlpatterns = [
     path('table/<str:table_number>/', views.table_guest_bill_view, name='table_guest_bill'),
     path('settings/', views.settings_hub_view, name='settings_hub'),
     path('printer-settings/', views.printer_settings_view, name='printer_settings'),
+    path('inventory/', views.inventory_dashboard_view, name='inventory_dashboard'),
 ]
 
 api_urlpatterns = [
@@ -73,6 +74,7 @@ api_urlpatterns = [
     path('api/mobile/customer/order/create/', views.mobile_customer_order_create_api, name='mobile_customer_order_create_api'),
     path('api/mobile/customer/orders/<str:phone>/', views.mobile_customer_orders_api, name='mobile_customer_orders_api'),
     path('api/mobile/customer/order/<int:order_id>/status/', views.mobile_customer_order_status_api, name='mobile_customer_order_status_api'),
+    path('api/mobile/customer/order/<int:order_id>/simulate-courier/', views.mobile_customer_simulate_courier_api, name='mobile_customer_simulate_courier_api'),
     path('api/mobile/customer/auth/', views.mobile_customer_auth_api, name='mobile_customer_auth_api'),
     path('api/mobile/customer/profile/update/', views.mobile_customer_profile_update_api, name='mobile_customer_profile_update_api'),
     path('api/mobile/customer/tip/', views.mobile_customer_tip_api, name='mobile_customer_tip_api'),
@@ -101,12 +103,37 @@ api_urlpatterns = [
     path('api/pos/categories/<int:category_id>/delete/', pos_api.pos_category_delete_api, name='pos_category_delete_api'),
     path('api/pos/products/save/', pos_api.pos_product_save_api, name='pos_product_save_api'),
     path('api/pos/products/<int:product_id>/delete/', pos_api.pos_product_delete_api, name='pos_product_delete_api'),
+    path('api/pos/products/<int:product_id>/image/', pos_api.pos_product_image_api, name='pos_product_image_api'),
     path('api/pos/staff/save/', pos_api.pos_staff_save_api, name='pos_staff_save_api'),
     path('api/pos/staff/<str:role>/<int:staff_id>/toggle/', pos_api.pos_staff_toggle_api, name='pos_staff_toggle_api'),
     path('api/pos/staff/<str:role>/<int:staff_id>/delete/', pos_api.pos_staff_delete_api, name='pos_staff_delete_api'),
+    path('api/pos/halls/', pos_api.pos_halls_api, name='pos_halls_api'),
+    path('api/pos/halls/save/', pos_api.pos_hall_save_api, name='pos_hall_save_api'),
+    path('api/pos/halls/<int:hall_id>/delete/', pos_api.pos_hall_delete_api, name='pos_hall_delete_api'),
+    path('api/pos/printers/', pos_api.pos_printers_api, name='pos_printers_api'),
+    path('api/pos/printers/save/', pos_api.pos_printer_save_api, name='pos_printer_save_api'),
+    path('api/pos/printers/<int:printer_id>/delete/', pos_api.pos_printer_delete_api, name='pos_printer_delete_api'),
+    path('api/pos/cashier-profile/', pos_api.pos_cashier_profile_api, name='pos_cashier_profile_api'),
+    path('api/pos/cashier-profile/save/', pos_api.pos_cashier_profile_save_api, name='pos_cashier_profile_save_api'),
     path('api/pos/tables/save/', pos_api.pos_table_save_api, name='pos_table_save_api'),
     path('api/pos/tables/<int:table_id>/delete/', pos_api.pos_table_delete_api, name='pos_table_delete_api'),
     path('api/pos/settings/save/', pos_api.pos_settings_save_api, name='pos_settings_save_api'),
+
+    # Omborxona va kalkulyatsiya API lari
+    path('api/pos/inventory/bootstrap/', pos_api.pos_inventory_bootstrap_api, name='pos_inventory_bootstrap_api'),
+    path('api/pos/inventory/ingredients/', pos_api.pos_inventory_ingredients_api, name='pos_inventory_ingredients_api'),
+    path('api/pos/inventory/ingredients/save/', pos_api.pos_inventory_ingredients_api, name='pos_inventory_ingredient_save_api'),
+    path('api/pos/inventory/ingredients/<int:ingredient_id>/delete/', pos_api.pos_inventory_ingredient_delete_api, name='pos_inventory_ingredient_delete_api'),
+    path('api/pos/inventory/suppliers/', pos_api.pos_inventory_suppliers_api, name='pos_inventory_suppliers_api'),
+    path('api/pos/inventory/suppliers/save/', pos_api.pos_inventory_suppliers_api, name='pos_inventory_supplier_save_api'),
+    path('api/pos/inventory/suppliers/<int:supplier_id>/delete/', pos_api.pos_inventory_supplier_delete_api, name='pos_inventory_supplier_delete_api'),
+    path('api/pos/inventory/supplies/', pos_api.pos_inventory_supplies_api, name='pos_inventory_supplies_api'),
+    path('api/pos/inventory/supplies/create/', pos_api.pos_inventory_supplies_api, name='pos_inventory_supply_create_api'),
+    path('api/pos/inventory/write-offs/', pos_api.pos_inventory_write_offs_api, name='pos_inventory_write_offs_api'),
+    path('api/pos/inventory/write-offs/create/', pos_api.pos_inventory_write_offs_api, name='pos_inventory_write_off_create_api'),
+    path('api/pos/inventory/recipes/', pos_api.pos_inventory_recipes_api, name='pos_inventory_recipes_api'),
+    path('api/pos/inventory/recipes/<int:product_id>/save/', pos_api.pos_inventory_recipe_save_api, name='pos_inventory_recipe_save_api'),
+    path('api/pos/inventory/movements/', pos_api.pos_inventory_movements_api, name='pos_inventory_movements_api'),
 ]
 
 urlpatterns = page_urlpatterns + api_urlpatterns
