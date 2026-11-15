@@ -1,3 +1,4 @@
+import base64
 import json
 from decimal import Decimal
 from django.test import TestCase, Client
@@ -5,7 +6,8 @@ from django.urls import reverse
 from django.utils import timezone
 from .models import (
     Category, Product, Order, OrderItem, Customer,
-    RestaurantTable, BotSettings, WaiterProfile, CourierProfile, WaiterCall
+    RestaurantTable, BotSettings, WaiterProfile, CourierProfile, WaiterCall,
+    Hall, PrinterDevice, CashierProfile
 )
 
 class PosApiTests(TestCase):
@@ -462,6 +464,319 @@ class PosApiTests(TestCase):
         self.assertEqual(s_data['delivery_max_radius_km'], 15.0)
         self.assertEqual(s_data['click_merchant_id'], 'M123')
         self.assertEqual(s_data['printers']['kassa'], '192.168.1.200:9100')
+
+    def test_11_halls_printers_nested_categories_images_and_cashier_profile(self):
+        """Zallar CRUD, Printerlar CRUD, ichma-ich kategoriyalar, taom rasmi baza bilan sinxron va kassir profili"""
+        # 1. Zallar CRUD
+        h_res = self.client.post('/api/pos/halls/save/', data=json.dumps({
+            'name': 'Yozgi Bog',
+            'description': 'Ochiq havo',
+            'sort_order': 4,
+            'is_active': True,
+        }), content_type='application/json')
+        self.assertEqual(h_res.status_code, 200)
+        hall_id = h_res.json()['hall']['id']
+        self.assertEqual(h_res.json()['hall']['name'], 'Yozgi Bog')
+
+        # Yangi stolni yangi zalga biriktirish
+        t_res = self.client.post('/api/pos/tables/save/', data=json.dumps({
+            'number': 20,
+            'name': 'Bog 1',
+            'capacity': 6,
+            'hall_id': hall_id,
+        }), content_type='application/json')
+        self.assertEqual(t_res.status_code, 200)
+        self.assertEqual(t_res.json()['table']['zone'], 'Yozgi Bog')
+        self.assertEqual(t_res.json()['table']['hall_id'], hall_id)
+        t_id = t_res.json()['table']['id']
+
+        # Stol bor zalni o'chirish rad etilishi kerak
+        bad_h_del = self.client.post(f'/api/pos/halls/{hall_id}/delete/')
+        self.assertEqual(bad_h_del.status_code, 400)
+
+        # Stolni o'chirish -> keyin zalni o'chirish
+        self.assertEqual(self.client.post(f'/api/pos/tables/{t_id}/delete/').status_code, 200)
+        self.assertEqual(self.client.post(f'/api/pos/halls/{hall_id}/delete/').status_code, 200)
+
+        # 2. Printerlar CRUD
+        p_res = self.client.post('/api/pos/printers/save/', data=json.dumps({
+            'name': 'Bar 2-qavat',
+            'department': 'bar',
+            'ip_address': '192.168.1.188',
+            'port': 9100,
+            'paper_width': 58,
+            'subtitle': 'Kokteyl va qahva',
+        }), content_type='application/json')
+        self.assertEqual(p_res.status_code, 200)
+        printer_id = p_res.json()['printer']['id']
+        self.assertEqual(p_res.json()['printer']['effective_address'], '192.168.1.188:9100')
+        self.assertEqual(p_res.json()['printer']['paper_width'], 58)
+
+        # Printer tahrirlash
+        p_upd = self.client.post('/api/pos/printers/save/', data=json.dumps({
+            'id': printer_id,
+            'name': 'Bar Asosiy',
+            'department': 'bar',
+            'ip_address': '192.168.1.199',
+            'port': 9100,
+            'paper_width': 80,
+        }), content_type='application/json')
+        self.assertEqual(p_upd.status_code, 200)
+        self.assertEqual(p_upd.json()['printer']['name'], 'Bar Asosiy')
+
+        # Printer o'chirish
+        self.assertEqual(self.client.post(f'/api/pos/printers/{printer_id}/delete/').status_code, 200)
+
+        # 3. Ichma-ich kategoriya + Taom rasmi DB bilan sinxron
+        parent_c = self.client.post('/api/pos/categories/save/', data=json.dumps({
+            'name': 'Ichimliklar Bosh',
+            'department': 'bar',
+        }), content_type='application/json').json()['category']
+        child_c = self.client.post('/api/pos/categories/save/', data=json.dumps({
+            'name': 'Salqin Ichimliklar',
+            'department': 'bar',
+            'parent_id': parent_c['id'],
+        }), content_type='application/json')
+        self.assertEqual(child_c.status_code, 200)
+        child_id = child_c.json()['category']['id']
+        self.assertEqual(child_c.json()['category']['parent_id'], parent_c['id'])
+
+        # 1x1 PNG rasm yuklash va bazadan (/api/pos/products/<id>/image/) olish
+        tiny_png = base64.b64decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX7cAAAAASUVORK5CYII='
+        )
+        prod_img = self.client.post('/api/pos/products/save/', data=json.dumps({
+            'category_id': child_id,
+            'name': 'Moxito',
+            'price': 22000,
+            'image_base64': base64.b64encode(tiny_png).decode('ascii'),
+            'image_filename': 'mojito.png',
+        }), content_type='application/json')
+        self.assertEqual(prod_img.status_code, 200)
+        prod_data = prod_img.json()['product']
+        self.assertTrue(prod_data['image_url'])
+        self.assertTrue(prod_data['image_hash'])
+
+        img_resp = self.client.get(f"/api/pos/products/{prod_data['id']}/image/")
+        self.assertEqual(img_resp.status_code, 200)
+        self.assertEqual(img_resp.content, tiny_png)
+
+        # Rasmni o'chirish
+        rem_res = self.client.post('/api/pos/products/save/', data=json.dumps({
+            'id': prod_data['id'],
+            'category_id': child_id,
+            'name': 'Moxito',
+            'price': 22000,
+            'remove_image': True,
+        }), content_type='application/json')
+        self.assertEqual(rem_res.status_code, 200)
+        self.assertIsNone(rem_res.json()['product']['image_url'])
+        self.assertEqual(self.client.get(f"/api/pos/products/{prod_data['id']}/image/").status_code, 404)
+
+        # 4. Kassir profili
+        cp_res = self.client.post('/api/pos/cashier-profile/save/', data=json.dumps({
+            'name': 'Dilshod Alimov',
+            'phone': '909998877',
+            'role_title': 'Katta kassir',
+            'pin_code': '5678',
+            'require_pin_on_unlock': True,
+            'notification_sound': False,
+        }), content_type='application/json')
+        self.assertEqual(cp_res.status_code, 200)
+        cp = cp_res.json()['cashier_profile']
+        self.assertEqual(cp['name'], 'Dilshod Alimov')
+        self.assertEqual(cp['phone'], '+998909998877')
+        self.assertTrue(cp['require_pin_on_unlock'])
+        self.assertFalse(cp['notification_sound'])
+
+        # 5. Bootstrap yangi bo'limlarni qaytarishi kerak
+        boot = self.client.get('/api/pos/bootstrap/').json()
+        self.assertIn('halls', boot)
+        self.assertIn('printers', boot)
+        self.assertIn('cashier_profile', boot)
+        self.assertEqual(boot['cashier_profile']['name'], 'Dilshod Alimov')
+
+    def test_12_inventory_warehouse_supplies_recipes_and_deduction(self):
+        """Omborxona tizimi: xomashyo, ta'minotchi, kirim, chiqim, tex-karta va sotuvda avtomatik hisobdan chiqarish."""
+        # 1. Boshlang'ich ombor bootstrap
+        boot = self.client.get('/api/pos/inventory/bootstrap/').json()
+        self.assertEqual(boot['status'], 'ok')
+        self.assertIn('ingredients', boot)
+        self.assertIn('suppliers', boot)
+        self.assertIn('recipes', boot)
+        self.assertIn('kpi', boot)
+
+        # 2. Yangi xomashyo yaratish
+        ing_res = self.client.post('/api/pos/inventory/ingredients/save/', data=json.dumps({
+            'name': 'Marmar mol goʻshti (premium)',
+            'category': 'meat',
+            'unit': 'kg',
+            'current_stock': 20.0,
+            'min_stock_alert': 5.0,
+            'cost_price': 120000.0,
+            'description': 'Ribeye va T-bone uchun',
+        }), content_type='application/json')
+        self.assertEqual(ing_res.status_code, 200)
+        ing_id = ing_res.json()['ingredient']['id']
+        self.assertEqual(ing_res.json()['ingredient']['current_stock'], 20.0)
+
+        # 3. Yangi ta'minotchi kiritish
+        sup_res = self.client.post('/api/pos/inventory/suppliers/save/', data=json.dumps({
+            'name': 'Premium Agro Goʻsht MCHJ',
+            'phone': '+998901239988',
+            'contact_person': 'Sherzod',
+            'balance': 0.0,
+        }), content_type='application/json')
+        self.assertEqual(sup_res.status_code, 200)
+        sup_id = sup_res.json()['supplier']['id']
+
+        # 4. Kirim hujjati yaratish (+10 kg)
+        sup_doc = self.client.post('/api/pos/inventory/supplies/create/', data=json.dumps({
+            'supplier_id': sup_id,
+            'payment_status': 'paid',
+            'paid_amount': 1250000.0,
+            'notes': 'Yangilangan partiya',
+            'created_by': 'Bosh kassir',
+            'items': [
+                {'ingredient_id': ing_id, 'quantity': 10.0, 'unit_price': 125000.0}
+            ],
+        }), content_type='application/json')
+        self.assertEqual(sup_doc.status_code, 200)
+        self.assertEqual(sup_doc.json()['supply']['total_cost'], 1250000.0)
+
+        # Xomashyo qoldig'i 20 + 10 = 30 kg bo'lishi kerak
+        ings = self.client.get(f'/api/pos/inventory/ingredients/?q=Marmar').json()
+        target_ing = next(i for i in ings['ingredients'] if i['id'] == ing_id)
+        self.assertEqual(target_ing['current_stock'], 30.0)
+        self.assertEqual(target_ing['cost_price'], 125000.0)
+
+        # 5. Taomga tex-karta (retsept) biriktirish: 1 porsiya p_osh uchun 0.250 kg
+        rec_res = self.client.post(f'/api/pos/inventory/recipes/{self.p_osh.id}/save/', data=json.dumps({
+            'items': [
+                {'ingredient_id': ing_id, 'quantity': 0.250, 'unit': 'kg', 'notes': 'Premium goʻsht qismi'}
+            ]
+        }), content_type='application/json')
+        self.assertEqual(rec_res.status_code, 200)
+        self.assertEqual(len(rec_res.json()['recipes']), 1)
+        self.assertEqual(rec_res.json()['calculated_cost'], 31250.0) # 0.250 * 125000
+
+        # 6. Chiqim hujjati (spisaniye) qilish (-2 kg aynigan)
+        wo_res = self.client.post('/api/pos/inventory/write-offs/create/', data=json.dumps({
+            'reason': 'spoilage',
+            'notes': 'Texnik sababli yaroqsiz',
+            'created_by': 'Bosh oshpaz',
+            'items': [
+                {'ingredient_id': ing_id, 'quantity': 2.0}
+            ]
+        }), content_type='application/json')
+        self.assertEqual(wo_res.status_code, 200)
+
+        # Qoldiq 30 - 2 = 28 kg bo'lishi kerak
+        ings_after_wo = self.client.get(f'/api/pos/inventory/ingredients/?q=Marmar').json()
+        target_ing2 = next(i for i in ings_after_wo['ingredients'] if i['id'] == ing_id)
+        self.assertEqual(target_ing2['current_stock'], 28.0)
+
+        # 7. POS orqali buyurtma berish va to'lash: 2 dona p_osh
+        # Kutilgan sarf: 2 x 0.250 = 0.500 kg
+        order_res = self.client.post('/api/pos/orders/', data=json.dumps({
+            'service_type': 'pickup',
+            'customer_name': 'Omborxonachi',
+            'customer_phone': '+998901112233',
+            'is_paid': True,
+            'payment_method': 'naqd',
+            'items': [
+                {'product_id': self.p_osh.id, 'quantity': 2, 'price': float(self.p_osh.price)}
+            ]
+        }), content_type='application/json')
+        self.assertEqual(order_res.status_code, 200)
+
+        # Qoldiq endi 28 - 0.500 = 27.500 kg bo'lishi shart!
+        ings_after_sale = self.client.get(f'/api/pos/inventory/ingredients/?q=Marmar').json()
+        target_ing3 = next(i for i in ings_after_sale['ingredients'] if i['id'] == ing_id)
+        self.assertEqual(target_ing3['current_stock'], 27.5)
+
+        # 8. Harakatlar jurnali barcha operatsiyalarni ko'rsatishi kerak
+        mov_res = self.client.get(f'/api/pos/inventory/movements/?ingredient_id={ing_id}').json()
+        self.assertEqual(mov_res['status'], 'ok')
+        types = [m['movement_type'] for m in mov_res['movements']]
+        self.assertIn('supply', types)
+        self.assertIn('write_off', types)
+        self.assertIn('sale_deduction', types)
+
+    def test_customer_live_tracking_and_courier_simulation(self):
+        """Mijoz ilovasi: Kuryer jonli GPS kuzatuvi, ETA, masofa va simulyatsiya tekshiruvi"""
+        from chef_panel.models import CourierProfile, Order, Customer
+        courier = CourierProfile.objects.create(
+            name="Sardor Kuryer",
+            phone="+998909876543",
+            vehicle_info="Honda Dio (Oq) - 01 B 555 AA",
+            is_active=True,
+            current_lat=41.3050,
+            current_lng=69.2350
+        )
+
+        customer = Customer.objects.create(
+            telegram_id=987654321,
+            phone_number="+998901239988",
+            full_name="Akmaljon"
+        )
+
+        order = Order.objects.create(
+            customer=customer,
+            service_type='delivery',
+            status='yolda',
+            address="Toshkent sh., Chilonzor 7-mavze",
+            latitude=41.2825,
+            longitude=69.2155,
+            courier=courier,
+            courier_name=courier.name,
+            products_total=Decimal('75000.0'),
+            delivery_cost=Decimal('10000.0'),
+            total_amount=Decimal('85000.0')
+        )
+
+        # 1. Mijoz status API orqali live tracking telemetriyasini tekshirish
+        res = self.client.get(f'/api/mobile/customer/order/{order.id}/status/')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['status'], 'yolda')
+        self.assertEqual(data['latitude'], 41.2825)
+        self.assertEqual(data['longitude'], 69.2155)
+        self.assertIsNotNone(data['restaurant_lat'])
+        self.assertIsNotNone(data['restaurant_lng'])
+
+        # Kuryer ma'lumotlari
+        courier_info = data['courier']
+        self.assertIsNotNone(courier_info)
+        self.assertEqual(courier_info['name'], "Sardor Kuryer")
+        self.assertEqual(courier_info['current_lat'], 41.3050)
+        self.assertEqual(courier_info['current_lng'], 69.2350)
+        self.assertTrue(courier_info['is_live'])
+        self.assertGreater(courier_info['distance_km'], 0)
+        self.assertGreater(courier_info['eta_minutes'], 0)
+
+        # 2. Simulyatsiya orqali kuryerni mijoz tomon siljitish
+        sim_res = self.client.post(f'/api/mobile/customer/order/{order.id}/simulate-courier/')
+        self.assertEqual(sim_res.status_code, 200)
+        sim_data = sim_res.json()
+        self.assertTrue(sim_data['success'])
+        courier.refresh_from_db()
+        self.assertNotEqual(courier.current_lat, 41.3050)
+
+        # 3. Kuryer GPS yangilash API (mobile_courier_location_api)
+        loc_res = self.client.post('/api/mobile/courier/location/update/', data=json.dumps({
+            'courier_id': courier.id,
+            'latitude': 41.2900,
+            'longitude': 69.2200
+        }), content_type='application/json')
+        self.assertEqual(loc_res.status_code, 200)
+        courier.refresh_from_db()
+        self.assertEqual(courier.current_lat, 41.2900)
+        self.assertEqual(courier.current_lng, 69.2200)
+
+
+
 
 
 

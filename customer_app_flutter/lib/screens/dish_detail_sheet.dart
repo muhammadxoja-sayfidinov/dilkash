@@ -187,6 +187,36 @@ class _DishDetailSheetState extends State<DishDetailSheet> {
                     ],
                   ),
 
+                  // Stop-list warning banner
+                  if (!widget.dish.isAvailable) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: DilkashColors.error.withValues(alpha: 0.12),
+                        borderRadius: DilkashRadii.radiusSm,
+                        border: Border.all(color: DilkashColors.error.withValues(alpha: 0.3)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded,
+                              size: 18, color: DilkashColors.error),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Ushbu taom xomashyosi tugaganligi sababli vaqtincha stop-listda (mavjud emas).',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: DilkashColors.error,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   if (widget.dish.description.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Text(
@@ -317,36 +347,47 @@ class _DishDetailSheetState extends State<DishDetailSheet> {
             ),
             child: Row(
               children: [
-                // Stepper
-                DilkashQuantityStepper(
-                  value: _quantity,
-                  minValue: 1,
-                  onChanged: (val) => setState(() => _quantity = val),
-                ),
-                const SizedBox(width: 14),
-
-                // Add to Cart Button
-                Expanded(
-                  child: DilkashButton(
-                    label:
-                        'Savatga • ${UzbekFormatters.formatCurrency(currentTotal)}',
-                    leadingIcon: Icons.shopping_bag_outlined,
-                    onPressed: () {
-                      cart.addItem(
-                        widget.dish,
-                        quantity: _quantity,
-                        selectedPortion: _selectedPortion,
-                        selectedExtras: _selectedExtras.toList(),
-                        notes: _notesController.text.trim(),
-                      );
-                      Navigator.pop(context);
-                      DilkashFeedback.showSuccess(
-                        context,
-                        '${widget.dish.name} savatga qoʻshildi',
-                      );
-                    },
+                if (widget.dish.isAvailable) ...[
+                  // Stepper
+                  DilkashQuantityStepper(
+                    value: _quantity,
+                    minValue: 1,
+                    onChanged: (val) => setState(() => _quantity = val),
                   ),
-                ),
+                  const SizedBox(width: 14),
+
+                  // Add to Cart Button
+                  Expanded(
+                    child: DilkashButton(
+                      label:
+                          'Savatga • ${UzbekFormatters.formatCurrency(currentTotal)}',
+                      leadingIcon: Icons.shopping_bag_outlined,
+                      onPressed: () {
+                        cart.addItem(
+                          widget.dish,
+                          quantity: _quantity,
+                          selectedPortion: _selectedPortion,
+                          selectedExtras: _selectedExtras.toList(),
+                          notes: _notesController.text.trim(),
+                        );
+                        Navigator.pop(context);
+                        DilkashFeedback.showSuccess(
+                          context,
+                          '${widget.dish.name} savatga qoʻshildi',
+                        );
+                      },
+                    ),
+                  ),
+                ] else ...[
+                  const Expanded(
+                    child: DilkashButton(
+                      label: 'Mavjud emas (Stop-list)',
+                      leadingIcon: Icons.block_rounded,
+                      variant: DilkashButtonVariant.outline,
+                      onPressed: null,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

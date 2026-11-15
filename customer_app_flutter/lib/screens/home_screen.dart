@@ -20,6 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Category> _categories = [];
   List<Dish> _dishes = [];
   int _selectedCategoryId = 0; // 0 = Hammasi
+  int _selectedSubcategoryId = 0; // 0 = Hammasi (ushbu toifa ichida)
   bool _isLoading = true;
   String? _errorMessage;
   String _searchQuery = '';
@@ -111,23 +112,53 @@ class _HomeScreenState extends State<HomeScreen> {
     final themeProv = Provider.of<ThemeProvider>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Filter dishes by category and search query
-    final filteredDishes = _dishes.where((dish) {
-      final matchesCategory = _selectedCategoryId == 0 ||
-          dish.category ==
-              _categories
-                  .firstWhere((c) => c.id == _selectedCategoryId,
-                      orElse: () => Category(id: 0, name: ''))
-                  .name;
+    final rootCategories = _categories.where((c) => !c.isSubcategory).toList();
+    final selectedCategory = _selectedCategoryId == 0
+        ? null
+        : _categories.cast<Category?>().firstWhere(
+            (c) => c?.id == _selectedCategoryId,
+            orElse: () => null,
+          );
 
-      final matchesSearch = _searchQuery.isEmpty ||
-          dish.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          dish.description.toLowerCase().contains(_searchQuery.toLowerCase());
+    final subcategories = selectedCategory != null
+        ? _categories.where((c) => c.parentId == selectedCategory.id).toList()
+        : <Category>[];
+
+    // Filter dishes by category, subcategory and search query
+    final filteredDishes = _dishes.where((dish) {
+      bool matchesCategory = true;
+      if (selectedCategory != null) {
+        if (_selectedSubcategoryId != 0) {
+          final sub = subcategories.cast<Category?>().firstWhere(
+                (c) => c?.id == _selectedSubcategoryId,
+                orElse: () => null,
+              );
+          matchesCategory = (dish.categoryId == _selectedSubcategoryId) ||
+              (sub != null &&
+                  dish.category.trim().toLowerCase() ==
+                      sub.name.trim().toLowerCase());
+        } else {
+          final childNames =
+              subcategories.map((s) => s.name.trim().toLowerCase()).toSet();
+          final childIds = subcategories.map((s) => s.id).toSet();
+          matchesCategory = (dish.categoryId == selectedCategory.id) ||
+              (dish.category.trim().toLowerCase() ==
+                  selectedCategory.name.trim().toLowerCase()) ||
+              childIds.contains(dish.categoryId) ||
+              childNames.contains(dish.category.trim().toLowerCase());
+        }
+      }
+
+      final query = _searchQuery.trim().toLowerCase();
+      final matchesSearch = query.isEmpty ||
+          dish.name.toLowerCase().contains(query) ||
+          dish.description.toLowerCase().contains(query);
 
       return matchesCategory && matchesSearch;
     }).toList();
 
-    final popularDishes = _dishes.take(5).toList();
+    final popularDishes =
+        _dishes.where((d) => d.isAvailable).take(6).toList();
 
     return Scaffold(
       backgroundColor: DilkashColors.background(isDark),
@@ -429,6 +460,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                   onTap: () =>
                                       DishDetailSheet.show(context, dish),
                                   onAddToCart: () {
+                                    if (!dish.isAvailable) {
+                                      DilkashFeedback.showWarning(
+                                        context,
+                                        '${dish.name} vaqtincha mavjud emas (Stop-list)',
+                                      );
+                                      return;
+                                    }
                                     cart.addItem(dish);
                                     DilkashFeedback.showSuccess(context,
                                         '${dish.name} savatga qoʻshildi');
@@ -441,7 +479,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SliverToBoxAdapter(child: SizedBox(height: 12)),
                       ],
 
-                      // Categories Horizontal Filter Bar
+                      // Categories Horizontal Filter Bar (Root Categories)
                       SliverToBoxAdapter(
                         child: Container(
                           height: 46,
@@ -454,22 +492,40 @@ class _HomeScreenState extends State<HomeScreen> {
                                 label: 'Hammasi',
                                 count: _dishes.length,
                                 isSelected: _selectedCategoryId == 0,
-                                onSelected: () =>
-                                    setState(() => _selectedCategoryId = 0),
+                                onSelected: () => setState(() {
+                                  _selectedCategoryId = 0;
+                                  _selectedSubcategoryId = 0;
+                                }),
                               ),
                               const SizedBox(width: 8),
-                              ..._categories.map((cat) {
-                                final count = _dishes
-                                    .where((d) => d.category == cat.name)
-                                    .length;
+                              ...rootCategories.map((cat) {
+                                final childSubs = _categories
+                                    .where((c) => c.parentId == cat.id)
+                                    .toList();
+                                final childNames = childSubs
+                                    .map((s) => s.name.trim().toLowerCase())
+                                    .toSet();
+                                final childIds =
+                                    childSubs.map((s) => s.id).toSet();
+                                final count = _dishes.where((d) {
+                                  return (d.categoryId == cat.id) ||
+                                      (d.category.trim().toLowerCase() ==
+                                          cat.name.trim().toLowerCase()) ||
+                                      childIds.contains(d.categoryId) ||
+                                      childNames.contains(
+                                          d.category.trim().toLowerCase());
+                                }).length;
+
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 8),
                                   child: DilkashFilterChip(
                                     label: cat.name,
                                     count: count,
                                     isSelected: _selectedCategoryId == cat.id,
-                                    onSelected: () => setState(
-                                        () => _selectedCategoryId = cat.id),
+                                    onSelected: () => setState(() {
+                                      _selectedCategoryId = cat.id;
+                                      _selectedSubcategoryId = 0;
+                                    }),
                                   ),
                                 );
                               }),
@@ -477,6 +533,48 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
+
+                      // Subcategories Secondary Horizontal Chip Bar
+                      if (subcategories.isNotEmpty)
+                        SliverToBoxAdapter(
+                          child: Container(
+                            height: 40,
+                            margin: const EdgeInsets.only(top: 2, bottom: 6),
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              children: [
+                                DilkashFilterChip(
+                                  label: 'Barchasi',
+                                  isSelected: _selectedSubcategoryId == 0,
+                                  onSelected: () => setState(
+                                      () => _selectedSubcategoryId = 0),
+                                ),
+                                const SizedBox(width: 8),
+                                ...subcategories.map((sub) {
+                                  final count = _dishes.where((d) {
+                                    return (d.categoryId == sub.id) ||
+                                        (d.category.trim().toLowerCase() ==
+                                            sub.name.trim().toLowerCase());
+                                  }).length;
+
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: DilkashFilterChip(
+                                      label: sub.name,
+                                      count: count,
+                                      isSelected:
+                                          _selectedSubcategoryId == sub.id,
+                                      onSelected: () => setState(() =>
+                                          _selectedSubcategoryId = sub.id),
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
+                        ),
 
                       // Section Title & Item Count
                       SliverToBoxAdapter(
@@ -488,10 +586,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               Text(
                                 _selectedCategoryId == 0
                                     ? 'Barcha Taomlar'
-                                    : _categories
-                                        .firstWhere(
-                                            (c) => c.id == _selectedCategoryId)
-                                        .name,
+                                    : _selectedSubcategoryId != 0
+                                        ? '${selectedCategory?.name ?? ""} • ${subcategories.firstWhere((s) => s.id == _selectedSubcategoryId, orElse: () => Category(id: 0, name: '')).name}'
+                                        : (selectedCategory?.name ?? ''),
                                 style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w800,
@@ -527,6 +624,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     setState(() {
                                       _searchQuery = '';
                                       _selectedCategoryId = 0;
+                                      _selectedSubcategoryId = 0;
                                     });
                                   },
                                 ),
@@ -565,6 +663,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                       onTap: () =>
                                           DishDetailSheet.show(context, dish),
                                       onAddToCart: () {
+                                        if (!dish.isAvailable) {
+                                          DilkashFeedback.showWarning(
+                                            context,
+                                            '${dish.name} vaqtincha mavjud emas (Stop-list)',
+                                          );
+                                          return;
+                                        }
                                         cart.addItem(dish);
                                         DilkashFeedback.showSuccess(
                                           context,

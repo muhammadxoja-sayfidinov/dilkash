@@ -6,8 +6,14 @@ import '../models/order.dart';
 import '../models/user_profile.dart';
 
 class ApiService {
-  // Standart Django server manzili (Mahalliy, Wi-Fi yoki tunnel)
-  static String baseUrl = 'http://127.0.0.1:8000';
+  // Standart Django server manzillari (Railway Production bulut yoki lokal server)
+  static const String defaultProductionUrl = 'https://dilkash-django-production.up.railway.app';
+  static const String defaultLocalUrl = 'http://127.0.0.1:8000';
+  static const String defaultWifiUrl = 'http://192.168.1.100:8000';
+
+  static String baseUrl = defaultProductionUrl;
+
+  static bool get isProduction => baseUrl.contains('up.railway.app');
 
   static Future<void> init() async {
     try {
@@ -15,8 +21,12 @@ class ApiService {
       final saved = prefs.getString('api_base_url');
       if (saved != null && saved.isNotEmpty) {
         baseUrl = saved.replaceAll(RegExp(r'/+$'), '');
+      } else {
+        baseUrl = defaultProductionUrl;
       }
-    } catch (_) {}
+    } catch (_) {
+      baseUrl = defaultProductionUrl;
+    }
   }
 
   static Future<void> setBaseUrl(String url) async {
@@ -173,6 +183,21 @@ class ApiService {
     } else {
       throw Exception('Buyurtma holati topilmadi (${response.statusCode})');
     }
+  }
+
+  // 6b. Kuryer harakatini simulyatsiya qilish (test/demo uchun)
+  static Future<Map<String, dynamic>> simulateCourierStep(int orderId) async {
+    try {
+      final response = await http.post(
+        Uri.parse(
+            '$baseUrl/api/mobile/customer/order/$orderId/simulate-courier/'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes));
+      }
+    } catch (_) {}
+    return {};
   }
 
   // 7. Kuryer va Restoranga choychaqa (Tip) hamda sharh yuborish

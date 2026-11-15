@@ -3,10 +3,11 @@ import datetime
 import hashlib
 import json
 import logging
+import mimetypes
 import uuid
 from decimal import Decimal
 from django.core.files.base import ContentFile
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.db import transaction, connection
@@ -15,8 +16,12 @@ from django.db.models import Sum, Count, Q
 
 from .models import (
     Category, Product, Order, OrderItem, Customer,
-    RestaurantTable, WaiterProfile, CourierProfile, BotSettings, WaiterCall
+    RestaurantTable, WaiterProfile, CourierProfile, BotSettings, WaiterCall,
+    Hall, PrinterDevice, CashierProfile,
+    Ingredient, Supplier, StockSupply, StockSupplyItem, StockWriteOff, StockWriteOffItem,
+    RecipeItem, StockMovementLog, process_order_inventory_deduction
 )
+from .inventory_service import ensure_default_inventory, get_inventory_kpi_summary
 from .printer_service import (
     DEPARTMENT_CONFIG, categorize_order_items, 
     auto_print_order_to_network, async_print_kassa_slip,
@@ -33,6 +38,61 @@ def _infer_table_zone(number):
     if number <= 9:
         return 'Terrasa'
     return 'VIP'
+
+
+def ensure_default_halls():
+    """Standart zallar mavjud bo'lmasa yaratish."""
+    if Hall.objects.exists():
+        return
+    defaults = [
+        ("Zal", "Asosiy zal", 1),
+        ("Terrasa", "Ochiq havo terrasa", 2),
+        ("VIP", "VIP kabinalar", 3),
+    ]
+    for name, desc, order in defaults:
+        Hall.objects.get_or_create(
+            name=name,
+            defaults={'description': desc, 'sort_order': order, 'is_active': True},
+        )
+
+
+def ensure_default_printers(settings=None):
+    """Standart bo'lim printerlari mavjud bo'lmasa BotSettings dan yaratish."""
+    if PrinterDevice.objects.exists():
+        return
+    settings = settings or BotSettings.get_settings()
+    order_list = ['kassa', 'shashlik', 'somsa', 'kitchen', 'fastfood', 'bar']
+    for idx, code in enumerate(order_list, start=1):
+        cfg = DEPARTMENT_CONFIG.get(code, {})
+        raw_addr = (getattr(settings, f"printer_{code}_ip", '') or '').strip()
+        ip_part = raw_addr
+        port_part = 9100
+        if ':' in raw_addr:
+            parts = raw_addr.split(':', 1)
+            ip_part = parts[0].strip()
+            if parts[1].strip().isdigit():
+                port_part = int(parts[1].strip())
+        PrinterDevice.objects.create(
+            name=cfg.get('name', code.title()),
+            department=code,
+            ip_address=ip_part,
+            port=port_part,
+            paper_width=80,
+            subtitle=cfg.get('subtitle', ''),
+            is_active=True,
+            sort_order=idx,
+        )
+
+
+def _sync_printer_to_bot_settings(department, settings=None):
+    """Bo'limning birinchi faol printeri manzilini BotSettings bilan moslab qo'yish."""
+    dept = (department or '').strip().lower()
+    if dept not in ('kassa', 'shashlik', 'somsa', 'kitchen', 'fastfood', 'bar'):
+        return
+    settings = settings or BotSettings.get_settings()
+    first_dev = PrinterDevice.objects.filter(department__iexact=dept, is_active=True).order_by('sort_order', 'id').first()
+    setattr(settings, f"printer_{dept}_ip", first_dev.effective_address() if first_dev else '')
+    settings.save()
 
 
 def _get_or_create_pos_customer(phone, full_name):
@@ -138,10 +198,54 @@ def _serialize_category(cat):
     return {
         'id': cat.id,
         'name': cat.name,
+        'parent_id': cat.parent_id,
         'department': cat.get_department(),
         'description': cat.description or '',
         'is_active': cat.is_active,
         'products_count': cat.product_set.count(),
+        'subcategories_count': cat.subcategories.filter(is_active=True).count(),
+    }
+
+
+def _serialize_hall(hall):
+    return {
+        'id': hall.id,
+        'name': hall.name,
+        'description': hall.description or '',
+        'sort_order': hall.sort_order,
+        'is_active': hall.is_active,
+        'tables_count': hall.tables.filter(is_active=True).count(),
+    }
+
+
+def _serialize_printer(printer):
+    return {
+        'id': printer.id,
+        'name': printer.name,
+        'department': printer.department,
+        'ip_address': printer.ip_address or '',
+        'port': printer.port or 9100,
+        'paper_width': printer.paper_width or 80,
+        'subtitle': printer.subtitle or '',
+        'is_active': printer.is_active,
+        'sort_order': printer.sort_order,
+        'effective_address': printer.effective_address(),
+    }
+
+
+def _serialize_cashier(cashier):
+    return {
+        'id': cashier.id,
+        'name': cashier.name,
+        'phone': cashier.phone or '',
+        'role_title': cashier.role_title or 'Kassir',
+        'pin_hash': hashlib.sha256((cashier.pin_code or '1234').encode('utf-8')).hexdigest(),
+        'has_pin': bool(cashier.pin_code),
+        'avatar_color': cashier.avatar_color or '#10B981',
+        'require_pin_on_unlock': bool(cashier.require_pin_on_unlock),
+        'notification_sound': bool(cashier.notification_sound),
+        'is_active': bool(cashier.is_active),
+        'is_primary': bool(cashier.is_primary),
     }
 
 
@@ -175,7 +279,7 @@ def _serialize_settings(settings):
 
 def _serialize_tables():
     """Faol restoran stollari va joriy band buyurtmalarni JSON ko'rinishda qaytarish."""
-    tables_qs = RestaurantTable.objects.filter(is_active=True).order_by('number')
+    tables_qs = RestaurantTable.objects.select_related('hall', 'assigned_waiter').filter(is_active=True).order_by('number')
     active_orders = Order.objects.filter(
         service_type='dine_in',
         is_paid=False
@@ -200,11 +304,13 @@ def _serialize_tables():
         elif is_occupied:
             status = 'occupied'
 
+        zone_name = tbl.hall.name if tbl.hall else _infer_table_zone(tbl.number)
         tables.append({
             'id': tbl.id,
             'number': tbl.number,
             'name': tbl.name or f"Stol #{tbl.number}",
-            'zone': _infer_table_zone(tbl.number),
+            'hall_id': tbl.hall_id,
+            'zone': zone_name,
             'capacity': tbl.capacity,
             'guests_count': active_order.guests_count if active_order else tbl.guests_count,
             'is_occupied': is_occupied,
@@ -237,9 +343,23 @@ def health_check_api(request):
         return JsonResponse({'status': 'error', 'detail': str(exc)}, status=500)
 
 
-def _serialize_product(product):
+def _serialize_product(product, request=None):
     """Mahsulotni POS uchun to'liq JSON formatida shakllantirish"""
     cat_dept = product.get_department()
+    if product.image and (not product.image_blob or not product.image_hash):
+        if product.sync_image_blob_from_field():
+            Product.objects.filter(pk=product.pk).update(
+                image_blob=product.image_blob,
+                image_mime=product.image_mime,
+                image_hash=product.image_hash,
+            )
+
+    image_url = None
+    if product.image_blob or product.image:
+        ver = product.image_hash or '1'
+        rel_path = f"/api/pos/products/{product.id}/image/?v={ver}"
+        image_url = request.build_absolute_uri(rel_path) if request is not None else rel_path
+
     return {
         'id': product.id,
         'name': product.name,
@@ -250,8 +370,93 @@ def _serialize_product(product):
         'department_name': DEPARTMENT_CONFIG.get(cat_dept, {}).get('name', cat_dept),
         'is_available': product.is_available,
         'description': product.description or '',
-        'image_url': product.image.url if product.image else None,
+        'image_url': image_url,
+        'image_hash': product.image_hash or '',
     }
+
+
+def _serialize_ingredient(ing):
+    return {
+        'id': ing.id,
+        'name': ing.name,
+        'category': ing.category,
+        'category_display': ing.get_category_display(),
+        'unit': ing.unit,
+        'unit_display': ing.get_unit_display(),
+        'current_stock': float(ing.current_stock),
+        'min_stock_alert': float(ing.min_stock_alert),
+        'cost_price': float(ing.cost_price),
+        'is_low_stock': ing.is_low_stock,
+        'total_valuation': float(ing.total_valuation),
+        'description': ing.description or '',
+        'is_active': ing.is_active,
+    }
+
+
+def _serialize_supplier(sup):
+    return {
+        'id': sup.id,
+        'name': sup.name,
+        'phone': sup.phone or '',
+        'contact_person': sup.contact_person or '',
+        'address': sup.address or '',
+        'balance': float(sup.balance),
+        'notes': sup.notes or '',
+        'is_active': sup.is_active,
+    }
+
+
+def _serialize_recipe_item(r):
+    return {
+        'id': r.id,
+        'product_id': r.product_id,
+        'product_name': r.product.name,
+        'ingredient_id': r.ingredient_id,
+        'ingredient_name': r.ingredient.name,
+        'ingredient_unit': r.ingredient.unit,
+        'quantity': float(r.quantity),
+        'unit': r.unit,
+        'cost': float(r.get_cost()),
+        'notes': r.notes or '',
+    }
+
+
+@csrf_exempt
+def pos_product_image_api(request, product_id):
+    """Taom rasmini bazadan (image_blob) yoki media fayldan qaytarish."""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Faqat GET qabul qilinadi'}, status=405)
+    product = Product.objects.filter(id=product_id).first()
+    if not product:
+        return HttpResponse(status=404)
+
+    raw_bytes = bytes(product.image_blob) if product.image_blob else None
+    mime_type = product.image_mime or 'image/jpeg'
+
+    if not raw_bytes and product.image:
+        try:
+            if product.image.storage.exists(product.image.name):
+                with product.image.storage.open(product.image.name, 'rb') as f:
+                    raw_bytes = f.read()
+                if raw_bytes:
+                    product.set_image_bytes(raw_bytes, product.image.name)
+                    Product.objects.filter(pk=product.pk).update(
+                        image_blob=product.image_blob,
+                        image_mime=product.image_mime,
+                        image_hash=product.image_hash,
+                    )
+                    mime_type = product.image_mime or 'image/jpeg'
+        except Exception:
+            raw_bytes = None
+
+    if not raw_bytes:
+        return HttpResponse(status=404)
+
+    resp = HttpResponse(raw_bytes, content_type=mime_type)
+    resp['Cache-Control'] = 'public, max-age=86400'
+    if product.image_hash:
+        resp['ETag'] = f'"{product.image_hash}"'
+    return resp
 
 
 def _serialize_order(order):
@@ -312,11 +517,16 @@ def pos_bootstrap_api(request):
     - Faol kategoriyalar va barcha taomlar (Stop-list belgilari bilan)
     - Restoran stollari xaritasi va joriy ochiq stollar
     - Stop-list ID lari
+    - Omborxona qoldiqlari, ta'minotchilar va taomlar kalkulyatsiyasi (tex-karta)
     """
     if request.method != 'GET':
         return JsonResponse({'error': 'Faqat GET so\'rovlari qabul qilinadi'}, status=405)
 
     settings = BotSettings.get_settings()
+    ensure_default_halls()
+    ensure_default_printers(settings)
+    ensure_default_inventory()
+    primary_cashier = CashierProfile.get_primary()
 
     # 1. Bo'limlar ro'yxati va printer IP-lari
     departments = []
@@ -340,15 +550,24 @@ def pos_bootstrap_api(request):
     stop_list_ids = []
     prod_qs = Product.objects.select_related('category').order_by('category__name', 'name')
     for prod in prod_qs:
-        prod_data = _serialize_product(prod)
+        prod_data = _serialize_product(prod, request=request)
         products.append(prod_data)
         if not prod.is_available:
             stop_list_ids.append(prod.id)
 
-    # 4. Stollar xaritasi va joriy holati
+    # 4. Stollar xaritasi va joriy holati + Zallar + Printerlar + Kassir profili
     tables = _serialize_tables()
+    halls = [_serialize_hall(h) for h in Hall.objects.order_by('sort_order', 'id')]
+    printers = [_serialize_printer(p) for p in PrinterDevice.objects.order_by('sort_order', 'id')]
+    cashiers = [_serialize_cashier(c) for c in CashierProfile.objects.filter(is_active=True).order_by('-is_primary', 'id')]
 
-    # 5. Sozlamalar
+    # 5. Omborxona ma'lumotlari (xomashyo, ta'minotchilar, retseptlar, KPI)
+    ingredients = [_serialize_ingredient(i) for i in Ingredient.objects.filter(is_active=True).order_by('category', 'name')]
+    suppliers = [_serialize_supplier(s) for s in Supplier.objects.filter(is_active=True).order_by('name')]
+    recipes = [_serialize_recipe_item(r) for r in RecipeItem.objects.select_related('product', 'ingredient').all()]
+    inventory_summary = get_inventory_kpi_summary()
+
+    # 6. Sozlamalar
     settings_data = _serialize_settings(settings)
 
     return JsonResponse({
@@ -360,8 +579,16 @@ def pos_bootstrap_api(request):
         'products': products,
         'stop_list': stop_list_ids,
         'tables': tables,
+        'halls': halls,
+        'printers': printers,
+        'cashier_profile': _serialize_cashier(primary_cashier),
+        'cashiers': cashiers,
         'waiter_calls': _serialize_waiter_calls(),
         'staff': _serialize_staff_accounts(),
+        'ingredients': ingredients,
+        'suppliers': suppliers,
+        'recipes': recipes,
+        'inventory_summary': inventory_summary,
     })
 
 
@@ -646,6 +873,13 @@ def pos_orders_api(request):
                         tbl.assigned_waiter = WaiterProfile.objects.filter(name__iexact=waiter_name).first()
                     tbl.save()
 
+        # To'langan buyurtmalar uchun omborxona chiqimi (avtomatik kalkulyatsiya)
+        if order.is_paid:
+            try:
+                process_order_inventory_deduction(order, cashier_name=data.get('cashier_name') or 'Kassa')
+            except Exception as e:
+                logger.warning(f"Avtomatik ombor chiqimida xatolik (buyurtma #{order.id}): {e}")
+
         # 4. Tarmoq printerlariga avtomatik yuborish (agar so'ralgan yoki yoqilgan bo'lsa)
         print_to_network = data.get('print_to_network', settings.auto_print_network)
         if print_to_network and items_data:
@@ -696,6 +930,12 @@ def pos_order_pay_api(request, order_id):
         order.picked_up_at = timezone.now()
     
     order.save()
+
+    # Omborxonadan taomlar kalkulyatsiyasi (tex-karta) bo'yicha xomashyolarni avtomatik hisobdan chiqarish
+    try:
+        process_order_inventory_deduction(order, cashier_name='Kassa')
+    except Exception as e:
+        logger.warning(f"Avtomatik ombor chiqimida xatolik (buyurtma #{order.id}): {e}")
 
     # Kassa printeriga hisob chekini orqa fonda chiqarish (HTTP ni kutdirmasdan)
     async_print_kassa_slip(order)
@@ -994,25 +1234,46 @@ def pos_category_save_api(request):
     dept = (body.get('department') or 'kitchen').strip()
     desc = (body.get('description') or '').strip()
     is_active = bool(body.get('is_active', True))
+    raw_parent_id = body.get('parent_id')
 
     if not name:
         return JsonResponse({'error': 'Kategoriya nomi kiritilishi shart'}, status=400)
     if dept not in DEPARTMENT_CONFIG:
         dept = 'kitchen'
 
+    parent_cat = None
+    if raw_parent_id is not None and str(raw_parent_id).strip() not in ('', '0', 'null', 'None'):
+        try:
+            pid = int(raw_parent_id)
+            if pid > 0:
+                parent_cat = Category.objects.filter(id=pid).first()
+                if not parent_cat:
+                    return JsonResponse({'error': 'Yuqori kategoriya topilmadi'}, status=404)
+        except Exception:
+            return JsonResponse({'error': "parent_id noto'g'ri formatda"}, status=400)
+
     if cat_id and int(cat_id) > 0:
         cat = Category.objects.filter(id=int(cat_id)).first()
         if not cat:
             return JsonResponse({'error': 'Kategoriya topilmadi'}, status=404)
+        if parent_cat:
+            if parent_cat.id == cat.id:
+                return JsonResponse({'error': 'Kategoriya oʻzini yuqori kategoriya qilib belgilay olmaydi'}, status=400)
+            cursor = parent_cat
+            while cursor is not None:
+                if cursor.id == cat.id:
+                    return JsonResponse({'error': 'Ichma-ich kategoriyalarda halqa (tsikl) hosil boʻlmaydi'}, status=400)
+                cursor = cursor.parent
         cat.name = name
         cat.department = dept
         cat.description = desc
         cat.is_active = is_active
+        cat.parent = parent_cat
         cat.save()
     else:
         cat, _ = Category.objects.update_or_create(
             name=name,
-            defaults={'department': dept, 'description': desc, 'is_active': is_active},
+            defaults={'department': dept, 'description': desc, 'is_active': is_active, 'parent': parent_cat},
         )
 
     return JsonResponse({'status': 'ok', 'category': _serialize_category(cat)})
@@ -1030,6 +1291,12 @@ def pos_category_delete_api(request, category_id):
     if prod_count > 0:
         return JsonResponse(
             {'error': f"'{cat.name}' guruhida {prod_count} ta taom mavjud. Avval taomlarni o'chiring yoki boshqa guruhga o'tkazing."},
+            status=400,
+        )
+    sub_count = cat.subcategories.count()
+    if sub_count > 0:
+        return JsonResponse(
+            {'error': f"'{cat.name}' guruhi ichida {sub_count} ta ichki kategoriya bor. Avval ularni o'chiring."},
             status=400,
         )
     cat.delete()
@@ -1054,6 +1321,7 @@ def pos_product_save_api(request):
     is_available = bool(body.get('is_available', True))
     img_b64 = (body.get('image_base64') or '').strip()
     img_name = (body.get('image_filename') or 'dish.jpg').strip()
+    remove_image = bool(body.get('remove_image', False))
 
     if not name:
         return JsonResponse({'error': 'Taom nomi kiritilishi shart'}, status=400)
@@ -1092,6 +1360,9 @@ def pos_product_save_api(request):
             is_available=is_available,
         )
 
+    if remove_image and not img_b64:
+        prod.clear_image_data()
+
     if img_b64:
         try:
             if ',' in img_b64 and img_b64.startswith('data:'):
@@ -1100,12 +1371,14 @@ def pos_product_save_api(request):
             ext = (img_name.rsplit('.', 1)[-1] if '.' in img_name else 'jpg').lower()
             if ext not in ('jpg', 'jpeg', 'png', 'webp'):
                 ext = 'jpg'
-            prod.image.save(f"pos_{uuid.uuid4().hex[:8]}.{ext}", ContentFile(raw_bytes), save=False)
+            fname = f"pos_{uuid.uuid4().hex[:8]}.{ext}"
+            prod.image.save(fname, ContentFile(raw_bytes), save=False)
+            prod.set_image_bytes(raw_bytes, fname)
         except Exception as exc:
             logger.warning("Rasmni saqlashda xatolik: %s", exc)
 
     prod.save()
-    return JsonResponse({'status': 'ok', 'product': _serialize_product(prod)})
+    return JsonResponse({'status': 'ok', 'product': _serialize_product(prod, request=request)})
 
 
 @csrf_exempt
@@ -1254,6 +1527,17 @@ def pos_table_save_api(request):
 
     name = (body.get('name') or f"Stol #{number}").strip()
     is_active = bool(body.get('is_active', True))
+    hall_id = body.get('hall_id')
+    zone_name = (body.get('zone') or '').strip()
+
+    ensure_default_halls()
+    hall_obj = None
+    if hall_id and str(hall_id).isdigit() and int(hall_id) > 0:
+        hall_obj = Hall.objects.filter(id=int(hall_id)).first()
+    if not hall_obj and zone_name:
+        hall_obj = Hall.objects.filter(name__iexact=zone_name).first()
+    if not hall_obj:
+        hall_obj = Hall.objects.filter(name__iexact=_infer_table_zone(number)).first() or Hall.objects.order_by('sort_order', 'id').first()
 
     if tbl_id and int(tbl_id) > 0:
         tbl = RestaurantTable.objects.filter(id=int(tbl_id)).first()
@@ -1266,11 +1550,12 @@ def pos_table_save_api(request):
         tbl.name = name
         tbl.capacity = max(1, capacity)
         tbl.is_active = is_active
+        tbl.hall = hall_obj
         tbl.save()
     else:
         tbl, _ = RestaurantTable.objects.update_or_create(
             number=number,
-            defaults={'name': name, 'capacity': max(1, capacity), 'is_active': is_active},
+            defaults={'name': name, 'capacity': max(1, capacity), 'is_active': is_active, 'hall': hall_obj},
         )
 
     all_tables = _serialize_tables()
@@ -1317,9 +1602,21 @@ def pos_settings_save_api(request):
 
     printers = body.get('printers')
     if isinstance(printers, dict):
+        ensure_default_printers(settings_obj)
         for dept_key in ('kassa', 'shashlik', 'somsa', 'kitchen', 'fastfood', 'bar'):
             if dept_key in printers:
-                setattr(settings_obj, f"printer_{dept_key}_ip", (printers.get(dept_key) or '').strip())
+                raw_addr = (printers.get(dept_key) or '').strip()
+                setattr(settings_obj, f"printer_{dept_key}_ip", raw_addr)
+                dev = PrinterDevice.objects.filter(department__iexact=dept_key).order_by('sort_order', 'id').first()
+                if dev:
+                    if ':' in raw_addr:
+                        ip_p, port_p = raw_addr.split(':', 1)
+                        dev.ip_address = ip_p.strip()
+                        if port_p.strip().isdigit():
+                            dev.port = int(port_p.strip())
+                    else:
+                        dev.ip_address = raw_addr
+                    dev.save()
 
     for time_field in ('service_start_time', 'service_end_time'):
         raw_t = (body.get(time_field) or '').strip()
@@ -1355,5 +1652,801 @@ def pos_settings_save_api(request):
 
     settings_obj.save()
     return JsonResponse({'status': 'ok', 'settings': _serialize_settings(settings_obj)})
+
+
+@csrf_exempt
+def pos_halls_api(request):
+    """Zallar ro'yxati."""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Faqat GET qabul qilinadi'}, status=405)
+    ensure_default_halls()
+    halls = [_serialize_hall(h) for h in Hall.objects.order_by('sort_order', 'id')]
+    return JsonResponse({'status': 'ok', 'halls': halls})
+
+
+@csrf_exempt
+def pos_hall_save_api(request):
+    """POS Desktop orqali Zal qo'shish yoki tahrirlash."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Faqat POST qabul qilinadi'}, status=405)
+    body = _parse_json_body(request)
+    if body is None:
+        return JsonResponse({'error': "Noto'g'ri JSON format"}, status=400)
+
+    ensure_default_halls()
+    hall_id = body.get('id')
+    name = (body.get('name') or '').strip()
+    desc = (body.get('description') or '').strip()
+    try:
+        sort_order = int(body.get('sort_order') or 0)
+    except Exception:
+        sort_order = 0
+    is_active = bool(body.get('is_active', True))
+
+    if not name:
+        return JsonResponse({'error': 'Zal nomi kiritilishi shart'}, status=400)
+
+    if hall_id and int(hall_id) > 0:
+        hall = Hall.objects.filter(id=int(hall_id)).first()
+        if not hall:
+            return JsonResponse({'error': 'Zal topilmadi'}, status=404)
+        conflict = Hall.objects.filter(name__iexact=name).exclude(id=hall.id).exists()
+        if conflict:
+            return JsonResponse({'error': f"'{name}' nomli zal allaqachon mavjud"}, status=400)
+        hall.name = name
+        hall.description = desc
+        hall.sort_order = max(0, sort_order)
+        hall.is_active = is_active
+        hall.save()
+    else:
+        existing = Hall.objects.filter(name__iexact=name).first()
+        if existing:
+            existing.description = desc
+            existing.sort_order = max(0, sort_order)
+            existing.is_active = is_active
+            existing.save()
+            hall = existing
+        else:
+            if sort_order <= 0:
+                last = Hall.objects.order_by('-sort_order').first()
+                sort_order = (last.sort_order + 1) if last else 1
+            hall = Hall.objects.create(
+                name=name,
+                description=desc,
+                sort_order=sort_order,
+                is_active=is_active,
+            )
+
+    return JsonResponse({'status': 'ok', 'hall': _serialize_hall(hall)})
+
+
+@csrf_exempt
+def pos_hall_delete_api(request, hall_id):
+    """POS Desktop orqali bo'sh Zalni o'chirish."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Faqat POST qabul qilinadi'}, status=405)
+    hall = Hall.objects.filter(id=hall_id).first()
+    if not hall:
+        return JsonResponse({'error': 'Zal topilmadi'}, status=404)
+    tbl_count = hall.tables.count()
+    if tbl_count > 0:
+        return JsonResponse(
+            {'error': f"'{hall.name}' zalida {tbl_count} ta stol mavjud. Avval stollarni boshqa zalga o'tkazing yoki o'chiring."},
+            status=400,
+        )
+    hall.delete()
+    return JsonResponse({'status': 'ok', 'deleted_id': hall_id})
+
+
+@csrf_exempt
+def pos_printers_api(request):
+    """Tarmoq printerlari ro'yxati."""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Faqat GET qabul qilinadi'}, status=405)
+    ensure_default_printers()
+    printers = [_serialize_printer(p) for p in PrinterDevice.objects.order_by('sort_order', 'id')]
+    return JsonResponse({'status': 'ok', 'printers': printers})
+
+
+@csrf_exempt
+def pos_printer_save_api(request):
+    """POS Desktop orqali Printer qo'shish yoki tahrirlash."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Faqat POST qabul qilinadi'}, status=405)
+    body = _parse_json_body(request)
+    if body is None:
+        return JsonResponse({'error': "Noto'g'ri JSON format"}, status=400)
+
+    ensure_default_printers()
+    printer_id = body.get('id')
+    name = (body.get('name') or '').strip()
+    dept = (body.get('department') or 'kitchen').strip().lower()
+    raw_ip = (body.get('ip_address') or '').strip()
+    subtitle = (body.get('subtitle') or '').strip()
+    is_active = bool(body.get('is_active', True))
+    try:
+        port = int(body.get('port') or 9100)
+    except Exception:
+        port = 9100
+    try:
+        paper_width = int(body.get('paper_width') or 80)
+    except Exception:
+        paper_width = 80
+    if paper_width not in (58, 80):
+        paper_width = 80
+    try:
+        sort_order = int(body.get('sort_order') or 0)
+    except Exception:
+        sort_order = 0
+
+    if ':' in raw_ip:
+        ip_part, port_part = raw_ip.split(':', 1)
+        raw_ip = ip_part.strip()
+        if port_part.strip().isdigit():
+            port = int(port_part.strip())
+
+    if not name:
+        return JsonResponse({'error': 'Printer nomi kiritilishi shart'}, status=400)
+
+    if printer_id and int(printer_id) > 0:
+        dev = PrinterDevice.objects.filter(id=int(printer_id)).first()
+        if not dev:
+            return JsonResponse({'error': 'Printer topilmadi'}, status=404)
+        old_dept = dev.department
+        dev.name = name
+        dev.department = dept
+        dev.ip_address = raw_ip
+        dev.port = max(1, min(65535, port))
+        dev.paper_width = paper_width
+        dev.subtitle = subtitle
+        dev.is_active = is_active
+        if sort_order > 0:
+            dev.sort_order = sort_order
+        dev.save()
+        if old_dept != dept:
+            _sync_printer_to_bot_settings(old_dept)
+    else:
+        if sort_order <= 0:
+            last = PrinterDevice.objects.order_by('-sort_order').first()
+            sort_order = (last.sort_order + 1) if last else 1
+        dev = PrinterDevice.objects.create(
+            name=name,
+            department=dept,
+            ip_address=raw_ip,
+            port=max(1, min(65535, port)),
+            paper_width=paper_width,
+            subtitle=subtitle,
+            is_active=is_active,
+            sort_order=sort_order,
+        )
+
+    _sync_printer_to_bot_settings(dev.department)
+    return JsonResponse({'status': 'ok', 'printer': _serialize_printer(dev)})
+
+
+@csrf_exempt
+def pos_printer_delete_api(request, printer_id):
+    """POS Desktop orqali Printerni o'chirish."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Faqat POST qabul qilinadi'}, status=405)
+    dev = PrinterDevice.objects.filter(id=printer_id).first()
+    if not dev:
+        return JsonResponse({'error': 'Printer topilmadi'}, status=404)
+    dept = dev.department
+    dev.delete()
+    _sync_printer_to_bot_settings(dept)
+    return JsonResponse({'status': 'ok', 'deleted_id': printer_id})
+
+
+@csrf_exempt
+def pos_cashier_profile_api(request):
+    """Kassir profili va profillar ro'yxatini olish."""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Faqat GET qabul qilinadi'}, status=405)
+    primary = CashierProfile.get_primary()
+    all_profiles = [_serialize_cashier(c) for c in CashierProfile.objects.filter(is_active=True).order_by('-is_primary', 'id')]
+    return JsonResponse({
+        'status': 'ok',
+        'cashier_profile': _serialize_cashier(primary),
+        'cashiers': all_profiles,
+    })
+
+
+@csrf_exempt
+def pos_cashier_profile_save_api(request):
+    """Kassir profili va shaxsiy sozlamalarini saqlash."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Faqat POST qabul qilinadi'}, status=405)
+    body = _parse_json_body(request)
+    if body is None:
+        return JsonResponse({'error': "Noto'g'ri JSON format"}, status=400)
+
+    profile_id = body.get('id')
+    name = (body.get('name') or '').strip()
+    phone = _normalize_uz_phone(body.get('phone') or '') if (body.get('phone') or '').strip() else ''
+    role_title = (body.get('role_title') or 'Bosh kassir').strip()
+    pin_code = (body.get('pin_code') or '').strip()
+    avatar_color = (body.get('avatar_color') or '#10B981').strip()
+    require_pin = bool(body.get('require_pin_on_unlock', False))
+    notif_sound = bool(body.get('notification_sound', True))
+    is_primary = bool(body.get('is_primary', True))
+
+    if not name:
+        return JsonResponse({'error': 'Kassir ismi kiritilishi shart'}, status=400)
+
+    if profile_id and int(profile_id) > 0:
+        obj = CashierProfile.objects.filter(id=int(profile_id)).first()
+        if not obj:
+            obj = CashierProfile.get_primary()
+    else:
+        obj = CashierProfile.get_primary()
+
+    obj.name = name
+    obj.phone = phone
+    obj.role_title = role_title
+    if pin_code:
+        obj.pin_code = pin_code
+    obj.avatar_color = avatar_color
+    obj.require_pin_on_unlock = require_pin
+    obj.notification_sound = notif_sound
+    obj.is_primary = is_primary
+    obj.is_active = True
+    obj.save()
+
+    if is_primary:
+        CashierProfile.objects.exclude(id=obj.id).update(is_primary=False)
+
+    return JsonResponse({'status': 'ok', 'cashier_profile': _serialize_cashier(obj)})
+
+
+# ==============================================================================
+# OMBORXONA VA KALKULYATSIYA API ENDPOINTLARI (INVENTORY & RECIPES)
+# ==============================================================================
+
+def _serialize_stock_supply(s):
+    items = []
+    for item in s.items.select_related('ingredient').all():
+        items.append({
+            'id': item.id,
+            'ingredient_id': item.ingredient_id,
+            'ingredient_name': item.ingredient.name,
+            'ingredient_unit': item.ingredient.unit,
+            'quantity': float(item.quantity),
+            'unit_price': float(item.unit_price),
+            'total_price': float(item.total_price),
+        })
+    return {
+        'id': s.id,
+        'doc_number': s.doc_number,
+        'supplier_id': s.supplier_id,
+        'supplier_name': s.supplier.name if s.supplier else 'Nomaʼlum taʼminotchi',
+        'date': s.date.isoformat(),
+        'total_cost': float(s.total_cost),
+        'payment_status': s.payment_status,
+        'payment_status_display': s.get_payment_status_display(),
+        'paid_amount': float(s.paid_amount),
+        'notes': s.notes or '',
+        'created_by': s.created_by,
+        'items_count': len(items),
+        'items': items,
+    }
+
+
+def _serialize_stock_write_off(w):
+    items = []
+    for item in w.items.select_related('ingredient').all():
+        items.append({
+            'id': item.id,
+            'ingredient_id': item.ingredient_id,
+            'ingredient_name': item.ingredient.name,
+            'ingredient_unit': item.ingredient.unit,
+            'quantity': float(item.quantity),
+            'unit_cost': float(item.unit_cost),
+            'total_cost': float(item.total_cost),
+        })
+    return {
+        'id': w.id,
+        'doc_number': w.doc_number,
+        'date': w.date.isoformat(),
+        'reason': w.reason,
+        'reason_display': w.get_reason_display(),
+        'total_cost': float(w.total_cost),
+        'notes': w.notes or '',
+        'created_by': w.created_by,
+        'items_count': len(items),
+        'items': items,
+    }
+
+
+def _serialize_stock_movement(m):
+    return {
+        'id': m.id,
+        'created_at': m.created_at.isoformat(),
+        'created_at_display': m.created_at.strftime('%Y-%m-%d %H:%M'),
+        'ingredient_id': m.ingredient_id,
+        'ingredient_name': m.ingredient.name,
+        'ingredient_unit': m.ingredient.unit,
+        'movement_type': m.movement_type,
+        'movement_type_display': m.get_movement_type_display(),
+        'quantity_delta': float(m.quantity_delta),
+        'stock_before': float(m.stock_before),
+        'stock_after': float(m.stock_after),
+        'unit_cost': float(m.unit_cost),
+        'related_order_id': m.related_order_id,
+        'notes': m.notes or '',
+    }
+
+
+@csrf_exempt
+def pos_inventory_bootstrap_api(request):
+    """Omborxona to'liq boshlang'ich ma'lumotlari (KPI, xomashyolar, ta'minotchilar, retseptlar)."""
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Faqat GET qabul qilinadi'}, status=405)
+
+    ensure_default_inventory()
+    ingredients = [_serialize_ingredient(i) for i in Ingredient.objects.filter(is_active=True).order_by('category', 'name')]
+    suppliers = [_serialize_supplier(s) for s in Supplier.objects.filter(is_active=True).order_by('name')]
+    recipes = [_serialize_recipe_item(r) for r in RecipeItem.objects.select_related('product', 'ingredient').all()]
+    kpi = get_inventory_kpi_summary()
+
+    return JsonResponse({
+        'status': 'ok',
+        'kpi': kpi,
+        'ingredients': ingredients,
+        'suppliers': suppliers,
+        'recipes': recipes,
+    })
+
+
+@csrf_exempt
+def pos_inventory_ingredients_api(request):
+    """
+    Xomashyolar ro'yxati (GET) va yangi xomashyo yaratish / tahrirlash (POST).
+    """
+    if request.method == 'GET':
+        qs = Ingredient.objects.filter(is_active=True)
+        cat = request.GET.get('category')
+        if cat:
+            qs = qs.filter(category=cat)
+        q = request.GET.get('q')
+        if q:
+            qs = qs.filter(name__icontains=q)
+        if request.GET.get('low_stock') == 'true':
+            qs = [ing for ing in qs if ing.is_low_stock]
+            return JsonResponse({'status': 'ok', 'ingredients': [_serialize_ingredient(i) for i in qs]})
+        return JsonResponse({'status': 'ok', 'ingredients': [_serialize_ingredient(i) for i in qs.order_by('category', 'name')]})
+
+    if request.method == 'POST':
+        body = _parse_json_body(request)
+        if not body:
+            return JsonResponse({'error': "Noto'g'ri JSON format"}, status=400)
+
+        ing_id = body.get('id')
+        name = (body.get('name') or '').strip()
+        if not name:
+            return JsonResponse({'error': "Xomashyo nomi kiritilishi shart"}, status=400)
+
+        category = body.get('category', 'groceries')
+        unit = body.get('unit', 'kg')
+        current_stock = Decimal(str(body.get('current_stock', 0)))
+        min_stock_alert = Decimal(str(body.get('min_stock_alert', 5)))
+        cost_price = Decimal(str(body.get('cost_price', 0)))
+        description = (body.get('description') or '').strip()
+        is_active = bool(body.get('is_active', True))
+
+        if ing_id and int(ing_id) > 0:
+            ing = Ingredient.objects.filter(id=int(ing_id)).first()
+            if not ing:
+                return JsonResponse({'error': 'Xomashyo topilmadi'}, status=404)
+            # Agar qoldiq qo'lda o'zgartirilsa, audit jurnaliga yozish
+            old_stock = ing.current_stock
+            if old_stock != current_stock:
+                StockMovementLog.objects.create(
+                    ingredient=ing,
+                    movement_type='adjustment',
+                    quantity_delta=current_stock - old_stock,
+                    stock_before=old_stock,
+                    stock_after=current_stock,
+                    unit_cost=cost_price,
+                    notes="Qo'lda to'g'rilash (Inventarizatsiya)",
+                )
+            ing.name = name
+            ing.category = category
+            ing.unit = unit
+            ing.current_stock = current_stock
+            ing.min_stock_alert = min_stock_alert
+            ing.cost_price = cost_price
+            ing.description = description
+            ing.is_active = is_active
+            ing.save()
+        else:
+            ing = Ingredient.objects.create(
+                name=name,
+                category=category,
+                unit=unit,
+                current_stock=current_stock,
+                min_stock_alert=min_stock_alert,
+                cost_price=cost_price,
+                description=description,
+                is_active=is_active,
+            )
+            if current_stock > 0:
+                StockMovementLog.objects.create(
+                    ingredient=ing,
+                    movement_type='adjustment',
+                    quantity_delta=current_stock,
+                    stock_before=Decimal('0.000'),
+                    stock_after=current_stock,
+                    unit_cost=cost_price,
+                    notes="Dastlabki kiritilgan qoldiq",
+                )
+
+        return JsonResponse({'status': 'ok', 'ingredient': _serialize_ingredient(ing)})
+
+    return JsonResponse({'error': 'Faqat GET yoki POST qabul qilinadi'}, status=405)
+
+
+@csrf_exempt
+def pos_inventory_ingredient_delete_api(request, ingredient_id):
+    """Xomashyoni nofaol qilish / o'chirish."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Faqat POST qabul qilinadi'}, status=405)
+    ing = Ingredient.objects.filter(id=ingredient_id).first()
+    if not ing:
+        return JsonResponse({'error': 'Xomashyo topilmadi'}, status=404)
+
+    # Agar retseptlarda ishlatilgan bo'lsa, xavfsiz nofaol qilish
+    if ing.recipe_usages.exists():
+        ing.is_active = False
+        ing.save(update_fields=['is_active', 'updated_at'])
+        return JsonResponse({'status': 'ok', 'deactivated': True, 'message': 'Xomashyo retseptlarda ishlatilgani sababli nofaol qilindi'})
+
+    ing.delete()
+    return JsonResponse({'status': 'ok', 'deleted_id': ingredient_id})
+
+
+@csrf_exempt
+def pos_inventory_suppliers_api(request):
+    """Ta'minotchilar ro'yxati va saqlash."""
+    if request.method == 'GET':
+        suppliers = [_serialize_supplier(s) for s in Supplier.objects.filter(is_active=True).order_by('name')]
+        return JsonResponse({'status': 'ok', 'suppliers': suppliers})
+
+    if request.method == 'POST':
+        body = _parse_json_body(request)
+        if not body:
+            return JsonResponse({'error': "Noto'g'ri JSON format"}, status=400)
+
+        sup_id = body.get('id')
+        name = (body.get('name') or '').strip()
+        if not name:
+            return JsonResponse({'error': "Taʼminotchi nomi kiritilishi shart"}, status=400)
+
+        phone = (body.get('phone') or '').strip()
+        contact_person = (body.get('contact_person') or '').strip()
+        address = (body.get('address') or '').strip()
+        balance = Decimal(str(body.get('balance', 0)))
+        notes = (body.get('notes') or '').strip()
+        is_active = bool(body.get('is_active', True))
+
+        if sup_id and int(sup_id) > 0:
+            sup = Supplier.objects.filter(id=int(sup_id)).first()
+            if not sup:
+                return JsonResponse({'error': 'Taʼminotchi topilmadi'}, status=404)
+            sup.name = name
+            sup.phone = phone
+            sup.contact_person = contact_person
+            sup.address = address
+            sup.balance = balance
+            sup.notes = notes
+            sup.is_active = is_active
+            sup.save()
+        else:
+            sup = Supplier.objects.create(
+                name=name,
+                phone=phone,
+                contact_person=contact_person,
+                address=address,
+                balance=balance,
+                notes=notes,
+                is_active=is_active,
+            )
+
+        return JsonResponse({'status': 'ok', 'supplier': _serialize_supplier(sup)})
+
+    return JsonResponse({'error': 'Faqat GET yoki POST qabul qilinadi'}, status=405)
+
+
+@csrf_exempt
+def pos_inventory_supplier_delete_api(request, supplier_id):
+    """Ta'minotchinining faolligini bekor qilish."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Faqat POST qabul qilinadi'}, status=405)
+    sup = Supplier.objects.filter(id=supplier_id).first()
+    if not sup:
+        return JsonResponse({'error': 'Taʼminotchi topilmadi'}, status=404)
+    sup.is_active = False
+    sup.save(update_fields=['is_active', 'updated_at'])
+    return JsonResponse({'status': 'ok', 'deleted_id': supplier_id})
+
+
+@csrf_exempt
+def pos_inventory_supplies_api(request):
+    """
+    Kirim hujjatlari ro'yxati (GET) va yangi kirim yaratish (POST).
+    """
+    if request.method == 'GET':
+        supplies = StockSupply.objects.select_related('supplier').prefetch_related('items__ingredient').order_by('-date', '-id')[:40]
+        return JsonResponse({'status': 'ok', 'supplies': [_serialize_stock_supply(s) for s in supplies]})
+
+    if request.method == 'POST':
+        body = _parse_json_body(request)
+        if not body:
+            return JsonResponse({'error': "Noto'g'ri JSON format"}, status=400)
+
+        supplier_id = body.get('supplier_id')
+        supplier = Supplier.objects.filter(id=supplier_id).first() if supplier_id else None
+        payment_status = body.get('payment_status', 'paid')
+        paid_amount = Decimal(str(body.get('paid_amount', 0)))
+        notes = (body.get('notes') or '').strip()
+        created_by = (body.get('created_by') or 'Kassir').strip()
+        items_data = body.get('items', [])
+
+        if not items_data:
+            return JsonResponse({'error': "Kirim tarkibida kamida 1 ta mahsulot bo'lishi kerak"}, status=400)
+
+        with transaction.atomic():
+            # Avtomatik hujjat raqami
+            today_str = timezone.now().strftime('%Y%m%d')
+            count_today = StockSupply.objects.filter(doc_number__startswith=f"KIR-{today_str}").count() + 1
+            doc_number = f"KIR-{today_str}-{count_today:04d}"
+
+            supply = StockSupply.objects.create(
+                doc_number=doc_number,
+                supplier=supplier,
+                date=timezone.now(),
+                total_cost=Decimal('0.00'),
+                payment_status=payment_status,
+                paid_amount=paid_amount,
+                notes=notes,
+                created_by=created_by,
+            )
+
+            total_cost = Decimal('0.00')
+            for it in items_data:
+                ing_id = it.get('ingredient_id')
+                ingredient = Ingredient.objects.filter(id=ing_id).first()
+                if not ingredient:
+                    continue
+
+                qty = Decimal(str(it.get('quantity', 0)))
+                unit_price = Decimal(str(it.get('unit_price', ingredient.cost_price)))
+                if qty <= 0:
+                    continue
+
+                item_total = qty * unit_price
+                total_cost += item_total
+
+                StockSupplyItem.objects.create(
+                    supply=supply,
+                    ingredient=ingredient,
+                    quantity=qty,
+                    unit_price=unit_price,
+                    total_price=item_total,
+                )
+
+                # Ombor qoldig'i va tannarxini yangilash
+                stock_before = ingredient.current_stock
+                stock_after = stock_before + qty
+                ingredient.current_stock = stock_after
+                ingredient.cost_price = unit_price
+                ingredient.save(update_fields=['current_stock', 'cost_price', 'updated_at'])
+
+                # Harakatlar jurnaliga yozish
+                StockMovementLog.objects.create(
+                    ingredient=ingredient,
+                    movement_type='supply',
+                    quantity_delta=qty,
+                    stock_before=stock_before,
+                    stock_after=stock_after,
+                    unit_cost=unit_price,
+                    related_supply=supply,
+                    notes=f"Kirim hujjati #{doc_number}",
+                )
+
+            supply.total_cost = total_cost
+            if payment_status == 'paid':
+                supply.paid_amount = total_cost
+            supply.save(update_fields=['total_cost', 'paid_amount'])
+
+            # Ta'minotchi balansini hisoblash
+            if supplier and payment_status in ['debt', 'partial']:
+                unpaid = total_cost - supply.paid_amount
+                supplier.balance += unpaid
+                supplier.save(update_fields=['balance', 'updated_at'])
+
+        return JsonResponse({'status': 'ok', 'supply': _serialize_stock_supply(supply)})
+
+    return JsonResponse({'error': 'Faqat GET yoki POST qabul qilinadi'}, status=405)
+
+
+@csrf_exempt
+def pos_inventory_write_offs_api(request):
+    """
+    Chiqim hujjatlari ro'yxati (GET) va yangi chiqim (POST).
+    """
+    if request.method == 'GET':
+        write_offs = StockWriteOff.objects.prefetch_related('items__ingredient').order_by('-date', '-id')[:40]
+        return JsonResponse({'status': 'ok', 'write_offs': [_serialize_stock_write_off(w) for w in write_offs]})
+
+    if request.method == 'POST':
+        body = _parse_json_body(request)
+        if not body:
+            return JsonResponse({'error': "Noto'g'ri JSON format"}, status=400)
+
+        reason = body.get('reason', 'spoilage')
+        notes = (body.get('notes') or '').strip()
+        created_by = (body.get('created_by') or 'Kassir').strip()
+        items_data = body.get('items', [])
+
+        if not items_data:
+            return JsonResponse({'error': "Chiqim tarkibida kamida 1 ta mahsulot bo'lishi kerak"}, status=400)
+
+        with transaction.atomic():
+            today_str = timezone.now().strftime('%Y%m%d')
+            count_today = StockWriteOff.objects.filter(doc_number__startswith=f"CHIQ-{today_str}").count() + 1
+            doc_number = f"CHIQ-{today_str}-{count_today:04d}"
+
+            wo = StockWriteOff.objects.create(
+                doc_number=doc_number,
+                date=timezone.now(),
+                reason=reason,
+                total_cost=Decimal('0.00'),
+                notes=notes,
+                created_by=created_by,
+            )
+
+            total_cost = Decimal('0.00')
+            for it in items_data:
+                ing_id = it.get('ingredient_id')
+                ingredient = Ingredient.objects.filter(id=ing_id).first()
+                if not ingredient:
+                    continue
+
+                qty = Decimal(str(it.get('quantity', 0)))
+                if qty <= 0:
+                    continue
+
+                unit_cost = ingredient.cost_price or Decimal('0.00')
+                item_total = qty * unit_cost
+                total_cost += item_total
+
+                StockWriteOffItem.objects.create(
+                    write_off=wo,
+                    ingredient=ingredient,
+                    quantity=qty,
+                    unit_cost=unit_cost,
+                    total_cost=item_total,
+                )
+
+                stock_before = ingredient.current_stock
+                stock_after = stock_before - qty
+                ingredient.current_stock = stock_after
+                ingredient.save(update_fields=['current_stock', 'updated_at'])
+
+                StockMovementLog.objects.create(
+                    ingredient=ingredient,
+                    movement_type='write_off',
+                    quantity_delta=-qty,
+                    stock_before=stock_before,
+                    stock_after=stock_after,
+                    unit_cost=unit_cost,
+                    related_write_off=wo,
+                    notes=f"Chiqim #{doc_number} ({wo.get_reason_display()})",
+                )
+
+            wo.total_cost = total_cost
+            wo.save(update_fields=['total_cost'])
+
+        return JsonResponse({'status': 'ok', 'write_off': _serialize_stock_write_off(wo)})
+
+    return JsonResponse({'error': 'Faqat GET yoki POST qabul qilinadi'}, status=405)
+
+
+@csrf_exempt
+def pos_inventory_recipes_api(request):
+    """
+    Barcha taomlarning tex-kartalari (retseptlari) ro'yxati.
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Faqat GET qabul qilinadi'}, status=405)
+
+    prod_id = request.GET.get('product_id')
+    qs = RecipeItem.objects.select_related('product', 'ingredient')
+    if prod_id:
+        qs = qs.filter(product_id=int(prod_id))
+
+    recipes = [_serialize_recipe_item(r) for r in qs]
+    return JsonResponse({'status': 'ok', 'recipes': recipes})
+
+
+@csrf_exempt
+def pos_inventory_recipe_save_api(request, product_id):
+    """
+    Muayyan taom uchun tex-karta tarkibini to'liq saqlash / almashtirish.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Faqat POST qabul qilinadi'}, status=405)
+
+    product = Product.objects.filter(id=product_id).first()
+    if not product:
+        return JsonResponse({'error': 'Taom topilmadi'}, status=404)
+
+    body = _parse_json_body(request)
+    if body is None:
+        return JsonResponse({'error': "Noto'g'ri JSON format"}, status=400)
+
+    items_data = body.get('items', [])
+
+    with transaction.atomic():
+        # Avvalgi retsept elementlarini tozalash
+        RecipeItem.objects.filter(product=product).delete()
+
+        created_items = []
+        for it in items_data:
+            ing_id = it.get('ingredient_id')
+            ingredient = Ingredient.objects.filter(id=ing_id).first()
+            if not ingredient:
+                continue
+
+            qty = Decimal(str(it.get('quantity', 0)))
+            unit = it.get('unit', ingredient.unit)
+            notes = (it.get('notes') or '').strip()
+
+            if qty > 0:
+                ri = RecipeItem.objects.create(
+                    product=product,
+                    ingredient=ingredient,
+                    quantity=qty,
+                    unit=unit,
+                    notes=notes,
+                )
+                created_items.append(ri)
+
+    return JsonResponse({
+        'status': 'ok',
+        'product_id': product.id,
+        'product_name': product.name,
+        'calculated_cost': float(product.get_recipe_cost()),
+        'profit_margin': float(product.get_profit_margin()),
+        'margin_percent': product.get_margin_percent(),
+        'recipes': [_serialize_recipe_item(ri) for ri in created_items],
+    })
+
+
+@csrf_exempt
+def pos_inventory_movements_api(request):
+    """
+    Ombor harakatlari jurnali (Audit trail).
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Faqat GET qabul qilinadi'}, status=405)
+
+    qs = StockMovementLog.objects.select_related('ingredient', 'related_order').order_by('-created_at', '-id')
+
+    ing_id = request.GET.get('ingredient_id')
+    if ing_id:
+        qs = qs.filter(ingredient_id=int(ing_id))
+
+    m_type = request.GET.get('type')
+    if m_type:
+        qs = qs.filter(movement_type=m_type)
+
+    limit = int(request.GET.get('limit', 50))
+    logs = [_serialize_stock_movement(m) for m in qs[:limit]]
+
+    return JsonResponse({'status': 'ok', 'movements': logs})
+
+
 
 

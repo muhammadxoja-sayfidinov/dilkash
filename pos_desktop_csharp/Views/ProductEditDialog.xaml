@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:DilkashPos.Controls"
         Title="Taom qoʻshish"
-        Width="540"
+        Width="560"
         SizeToContent="Height"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -46,15 +46,67 @@
                 <TextBox x:Name="DescriptionBox" Height="64" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" Padding="12,10" />
             </controls:Field>
 
-            <Grid Margin="0,0,0,14">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="10" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBox x:Name="ImageFileText" Grid.Column="0" IsReadOnly="True" Text="Rasm tanlanmagan (ixtiyoriy)" Foreground="{DynamicResource BrushTextSecondary}" />
-                <Button Grid.Column="2" Content="Rasm tanlash..." Style="{StaticResource SecondaryButton}" MinHeight="44" Padding="14,8" Click="OnPickImageClick" />
-            </Grid>
+            <!-- Taom rasmi + Oldindan ko'rish -->
+            <Border Background="{DynamicResource BrushSurfaceElevated}"
+                    BorderBrush="{DynamicResource BrushBorder}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource RadiusSm}"
+                    Padding="10"
+                    Margin="0,0,0,14">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="64" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0"
+                            Width="64" Height="64"
+                            CornerRadius="{StaticResource RadiusXs}"
+                            Background="{DynamicResource BrushBg}"
+                            BorderBrush="{DynamicResource BrushBorderSubtle}"
+                            BorderThickness="1"
+                            ClipToBounds="True">
+                        <Grid>
+                            <controls:Icon x:Name="PreviewPlaceholderIcon"
+                                           Data="{StaticResource IconBowl}"
+                                           Size="24"
+                                           Foreground="{DynamicResource BrushTextMuted}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            <Image x:Name="PreviewImage"
+                                   Stretch="UniformToFill"
+                                   Visibility="Collapsed" />
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <TextBlock Text="Taom rasmi (baza bilan sinxron)" Style="{StaticResource TextLabel}" />
+                        <TextBlock x:Name="ImageFileText"
+                                   Text="Rasm tanlanmagan (ixtiyoriy)"
+                                   Style="{StaticResource TextCaption}"
+                                   Foreground="{DynamicResource BrushTextSecondary}"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="0,3,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="Rasm tanlash" Style="{StaticResource SecondaryButton}" MinHeight="42" Padding="12,6" Click="OnPickImageClick" />
+                        <Button x:Name="ClearImageBtn"
+                                Style="{StaticResource GhostButton}"
+                                MinHeight="42"
+                                Padding="10,6"
+                                Margin="6,0,0,0"
+                                ToolTip="Rasmni oʻchirish"
+                                Visibility="Collapsed"
+                                Click="OnClearImageClick">
+                            <controls:Icon Data="{StaticResource IconTrash}" Size="16" Foreground="{DynamicResource BrushErrorBright}" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
             <CheckBox x:Name="IsAvailableCheck"
                       Style="{StaticResource ToggleSwitch}"

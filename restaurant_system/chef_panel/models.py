@@ -2,7 +2,10 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
+from decimal import Decimal
 import datetime
+import hashlib
+import mimetypes
 
 class Category(models.Model):
     """Mahsulot kategoriyalari"""
@@ -16,6 +19,14 @@ class Category(models.Model):
     ]
 
     name = models.CharField(max_length=100, verbose_name="Kategoriya nomi")
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='subcategories',
+        verbose_name="Yuqori kategoriya",
+    )
     department = models.CharField(
         max_length=20,
         choices=DEPARTMENT_CHOICES,
@@ -71,6 +82,9 @@ class Product(models.Model):
     description = models.TextField(blank=True, verbose_name="Tavsif")
     price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Narxi (so'm)")
     image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name="Rasm")
+    image_blob = models.BinaryField(blank=True, null=True, editable=False, verbose_name="Rasm (Baza kesh)")
+    image_mime = models.CharField(max_length=50, blank=True, default='', editable=False)
+    image_hash = models.CharField(max_length=32, blank=True, default='', editable=False)
     is_available = models.BooleanField(default=True, verbose_name="Mavjud")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -83,6 +97,55 @@ class Product(models.Model):
     def __str__(self):
         return f"{self.name} - {self.price:,} so'm"
 
+    def set_image_bytes(self, raw_bytes: bytes, filename: str = "dish.jpg"):
+        if not raw_bytes:
+            self.image_blob = None
+            self.image_mime = ''
+            self.image_hash = ''
+            return
+        mime, _ = mimetypes.guess_type(filename or "dish.jpg")
+        self.image_blob = raw_bytes
+        self.image_mime = mime or 'image/jpeg'
+        self.image_hash = hashlib.md5(raw_bytes).hexdigest()
+
+    def clear_image_data(self):
+        if self.image:
+            try:
+                self.image.delete(save=False)
+            except Exception:
+                pass
+        self.image = None
+        self.image_blob = None
+        self.image_mime = ''
+        self.image_hash = ''
+
+    def sync_image_blob_from_field(self):
+        if not self.image:
+            return False
+        try:
+            if not self.image.storage.exists(self.image.name):
+                return False
+            with self.image.storage.open(self.image.name, 'rb') as f:
+                raw = f.read()
+            if raw:
+                new_hash = hashlib.md5(raw).hexdigest()
+                if new_hash != self.image_hash or not self.image_blob:
+                    self.set_image_bytes(raw, self.image.name)
+                    return True
+        except Exception:
+            pass
+        return False
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.image:
+            if self.sync_image_blob_from_field():
+                Product.objects.filter(pk=self.pk).update(
+                    image_blob=self.image_blob,
+                    image_mime=self.image_mime,
+                    image_hash=self.image_hash,
+                )
+
     def get_department(self):
         # 1. Asosiy: Menyudagi Kategoriya bo'limi
         if self.category:
@@ -91,6 +154,25 @@ class Product(models.Model):
                 return cat_dept
         # 2. Agar kategoriya bo'lmasa, nomidan aniqlash
         return Category.infer_department(self.name)
+
+    def get_recipe_cost(self):
+        """Tex-karta bo'yicha 1 porsiya taomning hisoblangan tannarxi"""
+        total = Decimal('0.00')
+        for item in self.recipe_items.select_related('ingredient').all():
+            total += item.get_cost()
+        return total
+
+    def get_profit_margin(self):
+        """1 porsiya taomdan olinadigan yalpi foyda (so'mda)"""
+        cost = self.get_recipe_cost()
+        return max(Decimal('0.00'), (self.price or Decimal('0.00')) - cost)
+
+    def get_margin_percent(self):
+        """Foyda marjasi (foizda)"""
+        cost = self.get_recipe_cost()
+        if not self.price or self.price <= 0:
+            return 0.0
+        return round(float((self.price - cost) / self.price * 100), 1)
 
 class Customer(models.Model):
     """Mijozlar"""
@@ -332,10 +414,28 @@ class BotSettings(models.Model):
         return settings
 
 
+class Hall(models.Model):
+    """Restoran zallari (Asosiy zal, Terrasa, VIP va boshqalar)"""
+    name = models.CharField(max_length=100, unique=True, verbose_name="Zal nomi")
+    description = models.TextField(blank=True, verbose_name="Tavsif")
+    sort_order = models.PositiveIntegerField(default=0, verbose_name="Tartib raqami")
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Zal"
+        verbose_name_plural = "Zallar"
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return self.name
+
+
 class RestaurantTable(models.Model):
     """Restoran stollari - QR kodli elektron menyu uchun"""
     number = models.PositiveIntegerField(unique=True, verbose_name="Stol raqami")
     name = models.CharField(max_length=50, blank=True, verbose_name="Stol nomi/zali")
+    hall = models.ForeignKey(Hall, on_delete=models.SET_NULL, null=True, blank=True, related_name='tables', verbose_name="Zal")
     capacity = models.PositiveIntegerField(default=4, verbose_name="O'rinlar soni")
     guests_count = models.PositiveIntegerField(default=0, verbose_name="Hozirgi mehmonlar")
     opened_at = models.DateTimeField(null=True, blank=True, verbose_name="Ochilgan vaqti")
@@ -440,6 +540,374 @@ class CourierProfile(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.phone}) - {'Faol' if self.is_active else 'Nofaol'}"
+
+
+class PrinterDevice(models.Model):
+    """Tarmoq chek printerlari (bo'limlar va kassa uchun qo'shish/tahrirlash/o'chirish)"""
+    name = models.CharField(max_length=100, verbose_name="Printer nomi")
+    department = models.CharField(max_length=30, default='kitchen', verbose_name="Bo'lim kodi")
+    ip_address = models.CharField(max_length=100, blank=True, verbose_name="IP manzili")
+    port = models.PositiveIntegerField(default=9100, verbose_name="Port")
+    paper_width = models.PositiveIntegerField(default=80, verbose_name="Qog'oz kengligi (mm)")
+    subtitle = models.CharField(max_length=150, blank=True, verbose_name="Tavsif")
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
+    sort_order = models.PositiveIntegerField(default=0, verbose_name="Tartib")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Printer"
+        verbose_name_plural = "Printerlar"
+        ordering = ['sort_order', 'id']
+
+    def effective_address(self):
+        ip = (self.ip_address or '').strip()
+        if not ip:
+            return ''
+        if ':' in ip:
+            return ip
+        return f"{ip}:{self.port or 9100}"
+
+    def __str__(self):
+        return f"{self.name} ({self.department}) - {self.effective_address()}"
+
+
+class CashierProfile(models.Model):
+    """Kassir profili va shaxsiy kassa sozlamalari"""
+    name = models.CharField(max_length=150, default="Jasur Rahimov", verbose_name="Kassir ismi")
+    phone = models.CharField(max_length=30, blank=True, default="", verbose_name="Telefon raqami")
+    role_title = models.CharField(max_length=80, default="Bosh kassir", verbose_name="Lavozim")
+    pin_code = models.CharField(max_length=20, default="1234", verbose_name="PIN-kod")
+    avatar_color = models.CharField(max_length=20, default="#10B981", verbose_name="Avatar rangi")
+    require_pin_on_unlock = models.BooleanField(default=False, verbose_name="Qulfdan chiqishda PIN so'rash")
+    notification_sound = models.BooleanField(default=True, verbose_name="Ovozli bildirishnoma")
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
+    is_primary = models.BooleanField(default=True, verbose_name="Asosiy kassir")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Kassir profili"
+        verbose_name_plural = "Kassir profillari"
+        ordering = ['-is_primary', 'id']
+
+    @classmethod
+    def get_primary(cls):
+        obj = cls.objects.filter(is_active=True).order_by('-is_primary', 'id').first()
+        if obj:
+            return obj
+        return cls.objects.create(
+            name="Jasur Rahimov",
+            phone="+998901112233",
+            role_title="Bosh kassir",
+            pin_code="1234",
+            is_primary=True,
+            is_active=True,
+        )
+
+    def __str__(self):
+        return f"{self.name} ({self.role_title})"
+
+
+# ==============================================================================
+# OMBORXONA VA KALKULYATSIYA MODELLARI (INVENTORY & RECIPE MANAGEMENT)
+# ==============================================================================
+
+def convert_unit_quantity(qty: Decimal, from_unit: str, to_unit: str) -> Decimal:
+    """O'lchov birliklari o'rtasida miqdorni konvertatsiya qilish (g <-> kg, ml <-> l)."""
+    if from_unit == to_unit:
+        return qty
+    if from_unit == 'g' and to_unit == 'kg':
+        return qty / Decimal('1000')
+    if from_unit == 'kg' and to_unit == 'g':
+        return qty * Decimal('1000')
+    if from_unit == 'ml' and to_unit == 'l':
+        return qty / Decimal('1000')
+    if from_unit == 'l' and to_unit == 'ml':
+        return qty * Decimal('1000')
+    return qty
+
+
+class Ingredient(models.Model):
+    """Ombordagi xomashyo va mahsulotlar"""
+    CATEGORY_CHOICES = [
+        ('meat', "Goʻsht va parranda"),
+        ('vegetables', "Sabzavot va koʻkatlar"),
+        ('groceries', "Quruq oziq-ovqat va un"),
+        ('beverages', "Ichimliklar va bar"),
+        ('spices', "Ziravorlar va souslar"),
+        ('dairy', "Sut va yogʻ mahsulotlari"),
+        ('packaging', "Qadoq va bir martalik idishlar"),
+        ('other', "Boshqa"),
+    ]
+
+    UNIT_CHOICES = [
+        ('kg', "Kilogramm (kg)"),
+        ('g', "Gramm (g)"),
+        ('l', "Litr (l)"),
+        ('ml', "Millilitr (ml)"),
+        ('pcs', "Dona (dona)"),
+        ('portion', "Porsiya (por)"),
+    ]
+
+    name = models.CharField(max_length=150, verbose_name="Xomashyo / Mahsulot nomi")
+    category = models.CharField(max_length=40, choices=CATEGORY_CHOICES, default='groceries', verbose_name="Toifasi")
+    unit = models.CharField(max_length=20, choices=UNIT_CHOICES, default='kg', verbose_name="Oʻlchov birligi")
+    current_stock = models.DecimalField(max_digits=12, decimal_places=3, default=Decimal('0.000'), verbose_name="Joriy qoldiq")
+    min_stock_alert = models.DecimalField(max_digits=12, decimal_places=3, default=Decimal('5.000'), verbose_name="Minimal qoldiq chegarasi")
+    cost_price = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="1 birlik tannarxi (soʻm)")
+    description = models.TextField(blank=True, default="", verbose_name="Tavsif")
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Xomashyo / Mahsulot"
+        verbose_name_plural = "Ombor: Xomashyolar"
+        ordering = ['category', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({self.current_stock:g} {self.unit})"
+
+    @property
+    def is_low_stock(self) -> bool:
+        """Qoldiq xavfsiz minimal miqdordan kam qolganmi"""
+        return self.current_stock <= self.min_stock_alert
+
+    @property
+    def total_valuation(self) -> Decimal:
+        """Ushbu mahsulot qoldigʻining umumiy qiymati (soʻmda)"""
+        if self.current_stock <= 0:
+            return Decimal('0.00')
+        return round(self.current_stock * self.cost_price, 2)
+
+
+class Supplier(models.Model):
+    """Yetkazib beruvchilar (Ta'minotchilar)"""
+    name = models.CharField(max_length=150, verbose_name="Taʼminotchi / Korxona nomi")
+    phone = models.CharField(max_length=40, blank=True, default="", verbose_name="Telefon raqami")
+    contact_person = models.CharField(max_length=100, blank=True, default="", verbose_name="Masʼul shaxs")
+    address = models.CharField(max_length=255, blank=True, default="", verbose_name="Manzil")
+    balance = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'), verbose_name="Balans (soʻm)", help_text="Musbat: bizning qarzimiz, Manfiy: ularning qarzi")
+    notes = models.TextField(blank=True, default="", verbose_name="Izohlar")
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Yetkazib beruvchi"
+        verbose_name_plural = "Ombor: Yetkazib beruvchilar"
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.phone or 'Tel yoʻq'})"
+
+
+class StockSupply(models.Model):
+    """Kirim hujjati (Приход)"""
+    PAYMENT_CHOICES = [
+        ('paid', "Toʻlangan"),
+        ('partial', "Qisman toʻlangan"),
+        ('debt', "Nasiya / Qarz"),
+    ]
+
+    doc_number = models.CharField(max_length=40, unique=True, verbose_name="Hujjat raqami")
+    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, related_name='supplies', verbose_name="Taʼminotchi")
+    date = models.DateTimeField(default=timezone.now, verbose_name="Kirim sanasi")
+    total_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'), verbose_name="Jami summa (soʻm)")
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default='paid', verbose_name="Toʻlov holati")
+    paid_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'), verbose_name="Toʻlangan summa (soʻm)")
+    notes = models.TextField(blank=True, default="", verbose_name="Izoh")
+    created_by = models.CharField(max_length=100, default="Kassir", verbose_name="Kiritgan xodim")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Kirim hujjati"
+        verbose_name_plural = "Ombor: Kirim hujjatlari"
+        ordering = ['-date', '-id']
+
+    def __str__(self):
+        return f"{self.doc_number} ({self.total_cost:,} soʻm)"
+
+
+class StockSupplyItem(models.Model):
+    """Kirim hujjati tarkibidagi tovarlar"""
+    supply = models.ForeignKey(StockSupply, on_delete=models.CASCADE, related_name='items', verbose_name="Kirim hujjati")
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.PROTECT, related_name='supply_items', verbose_name="Xomashyo")
+    quantity = models.DecimalField(max_digits=12, decimal_places=3, verbose_name="Kirim miqdori")
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="1 birlik narxi (soʻm)")
+    total_price = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="Jami narxi (soʻm)")
+
+    class Meta:
+        verbose_name = "Kirim tovari"
+        verbose_name_plural = "Kirim tovarlari"
+
+    def __str__(self):
+        return f"{self.ingredient.name}: {self.quantity:g} x {self.unit_price:,} = {self.total_price:,} soʻm"
+
+
+class StockWriteOff(models.Model):
+    """Chiqim hujjati (Списание)"""
+    REASON_CHOICES = [
+        ('spoilage', "Yaroqsiz / Aynigan"),
+        ('staff_meal', "Xodimlar tushligi"),
+        ('loss', "Yoʻqotish / Kamomad"),
+        ('cooking_loss', "Ishlov berishdagi yoʻqotish"),
+        ('other', "Boshqa"),
+    ]
+
+    doc_number = models.CharField(max_length=40, unique=True, verbose_name="Chiqim raqami")
+    date = models.DateTimeField(default=timezone.now, verbose_name="Chiqim sanasi")
+    reason = models.CharField(max_length=30, choices=REASON_CHOICES, default='spoilage', verbose_name="Chiqim sababi")
+    total_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'), verbose_name="Jami chiqim tannarxi")
+    notes = models.TextField(blank=True, default="", verbose_name="Izoh")
+    created_by = models.CharField(max_length=100, default="Kassir", verbose_name="Kiritgan xodim")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Chiqim hujjati"
+        verbose_name_plural = "Ombor: Chiqim hujjatlari"
+        ordering = ['-date', '-id']
+
+    def __str__(self):
+        return f"{self.doc_number} ({self.get_reason_display()})"
+
+
+class StockWriteOffItem(models.Model):
+    """Chiqim hujjati tarkibi"""
+    write_off = models.ForeignKey(StockWriteOff, on_delete=models.CASCADE, related_name='items', verbose_name="Chiqim hujjati")
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.PROTECT, related_name='write_off_items', verbose_name="Xomashyo")
+    quantity = models.DecimalField(max_digits=12, decimal_places=3, verbose_name="Chiqim miqdori")
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="1 birlik tannarxi")
+    total_cost = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="Jami tannarx")
+
+    class Meta:
+        verbose_name = "Chiqim tovari"
+        verbose_name_plural = "Chiqim tovarlari"
+
+    def __str__(self):
+        return f"{self.ingredient.name}: {self.quantity:g} ({self.total_cost:,} soʻm)"
+
+
+class RecipeItem(models.Model):
+    """Taomning texnologik xaritasi (Kalkulyatsiya tarkibi)"""
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='recipe_items', verbose_name="Taom")
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.PROTECT, related_name='recipe_usages', verbose_name="Xomashyo")
+    quantity = models.DecimalField(max_digits=12, decimal_places=3, verbose_name="Miqdori (1 porsiya uchun)")
+    unit = models.CharField(max_length=20, choices=Ingredient.UNIT_CHOICES, default='kg', verbose_name="Oʻlchov birligi")
+    notes = models.CharField(max_length=255, blank=True, default="", verbose_name="Izoh / Tayyorlash eslatmasi")
+
+    class Meta:
+        verbose_name = "Tex-karta moddasi"
+        verbose_name_plural = "Tex-karta moddalari"
+        unique_together = ['product', 'ingredient']
+        ordering = ['product', 'ingredient']
+
+    def __str__(self):
+        return f"{self.product.name} <- {self.ingredient.name} ({self.quantity:g} {self.unit})"
+
+    def get_ingredient_quantity(self) -> Decimal:
+        """Retsept miqdorini ingredientning asosiy oʻlchov birligiga oʻtkazish"""
+        return convert_unit_quantity(self.quantity, self.unit, self.ingredient.unit)
+
+    def get_cost(self) -> Decimal:
+        """1 porsiya taomga ketadigan ushbu xomashyo tannarxi"""
+        needed_qty = self.get_ingredient_quantity()
+        return round(needed_qty * (self.ingredient.cost_price or Decimal('0.00')), 2)
+
+
+class StockMovementLog(models.Model):
+    """Ombor harakatlari jurnali (Audit trail)"""
+    MOVEMENT_CHOICES = [
+        ('supply', "Kirim (Приход)"),
+        ('sale_deduction', "Sotuv chiqimi (Avtomatik)"),
+        ('write_off', "Qoʻlda chiqim (Списание)"),
+        ('adjustment', "Qayta hisob (Inventarizatsiya)"),
+    ]
+
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE, related_name='movements', verbose_name="Xomashyo")
+    movement_type = models.CharField(max_length=30, choices=MOVEMENT_CHOICES, verbose_name="Harakat turi")
+    quantity_delta = models.DecimalField(max_digits=12, decimal_places=3, verbose_name="Oʻzgarish (+ kirim / - chiqim)")
+    stock_before = models.DecimalField(max_digits=12, decimal_places=3, verbose_name="Harakatdan oldingi qoldiq")
+    stock_after = models.DecimalField(max_digits=12, decimal_places=3, verbose_name="Harakatdan keyingi qoldiq")
+    unit_cost = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'), verbose_name="Birlik tannarxi")
+    related_order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True, related_name='stock_deductions', verbose_name="Bogʻlangan buyurtma")
+    related_supply = models.ForeignKey(StockSupply, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Bogʻlangan kirim")
+    related_write_off = models.ForeignKey(StockWriteOff, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Bogʻlangan chiqim")
+    notes = models.CharField(max_length=255, blank=True, default="", verbose_name="Tafsilot")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Vaqti")
+
+    class Meta:
+        verbose_name = "Harakat jurnali yozuvi"
+        verbose_name_plural = "Ombor: Harakatlar jurnali"
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f"{self.created_at:%Y-%m-%d %H:%M} | {self.ingredient.name} | {self.quantity_delta:+g} ({self.get_movement_type_display()})"
+
+
+def process_order_inventory_deduction(order, cashier_name: str = "POS"):
+    """
+    Buyurtma boʻyicha taomlarning retseptlariga koʻra ombordan xomashyolarni avtomatik hisobdan chiqarish.
+    Bir xil buyurtma uchun takroran chiqim qilinmasligi tekshiriladi.
+    """
+    if not order or not getattr(order, 'id', None):
+        return []
+
+    # Bir xil buyurtma uchun avval chiqim qilinganmi?
+    if StockMovementLog.objects.filter(related_order=order).exists():
+        return []
+
+    logs = []
+    for item in order.items.select_related('product').all():
+        product = item.product
+        order_qty = Decimal(str(item.quantity))
+        recipe_items = product.recipe_items.select_related('ingredient').all()
+
+        if recipe_items.exists():
+            for r_item in recipe_items:
+                ingredient = r_item.ingredient
+                needed_qty = r_item.get_ingredient_quantity() * order_qty
+
+                stock_before = ingredient.current_stock
+                stock_after = stock_before - needed_qty
+
+                ingredient.current_stock = stock_after
+                ingredient.save(update_fields=['current_stock', 'updated_at'])
+
+                log = StockMovementLog.objects.create(
+                    ingredient=ingredient,
+                    movement_type='sale_deduction',
+                    quantity_delta=-needed_qty,
+                    stock_before=stock_before,
+                    stock_after=stock_after,
+                    unit_cost=ingredient.cost_price,
+                    related_order=order,
+                    notes=f"Sotuv: {item.quantity} x {product.name} (Retsept)",
+                )
+                logs.append(log)
+        else:
+            # Agar alohida tex-karta bo'lmasa, lekin to'g'ridan-to'g'ri nomdosh ingredient bo'lsa (masalan: Coca-Cola 1.5L)
+            direct_ing = Ingredient.objects.filter(name__iexact=product.name, is_active=True).first()
+            if direct_ing:
+                stock_before = direct_ing.current_stock
+                stock_after = stock_before - order_qty
+
+                direct_ing.current_stock = stock_after
+                direct_ing.save(update_fields=['current_stock', 'updated_at'])
+
+                log = StockMovementLog.objects.create(
+                    ingredient=direct_ing,
+                    movement_type='sale_deduction',
+                    quantity_delta=-order_qty,
+                    stock_before=stock_before,
+                    stock_after=stock_after,
+                    unit_cost=direct_ing.cost_price,
+                    related_order=order,
+                    notes=f"Sotuv: {item.quantity} x {product.name} (1:1 tovar)",
+                )
+                logs.append(log)
+
+    return logs
+
 
 
 

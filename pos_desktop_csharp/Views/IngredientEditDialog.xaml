@@ -1,0 +1,105 @@
+<Window x:Class="DilkashPos.Views.IngredientEditDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:DilkashPos.Controls"
+        Title="Xomashyo"
+        Width="540"
+        SizeToContent="Height"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
+    <controls:DialogChrome x:Name="Chrome" Title="Yangi xomashyo" Subtitle="Ombor xomashyosi, oʻlchov birligi va tan narxi">
+        <StackPanel Margin="24,20">
+            <TextBlock x:Name="ErrorBanner"
+                       Foreground="{DynamicResource BrushError}"
+                       Style="{StaticResource TextLabel}"
+                       Margin="0,0,0,12"
+                       Visibility="Collapsed" />
+
+            <controls:Field Label="Xomashyo / Mahsulot nomi" Margin="0,0,0,14">
+                <TextBox x:Name="NameBox" />
+            </controls:Field>
+
+            <Grid Margin="0,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <controls:Field Grid.Column="0" Label="Kategoriya">
+                    <ComboBox x:Name="CategoryCombo">
+                        <ComboBoxItem Content="Goʻsht mahsulotlari" Tag="meat" IsSelected="True" />
+                        <ComboBoxItem Content="Sabzavot va koʻkatlar" Tag="vegetables" />
+                        <ComboBoxItem Content="Don, guruch va un" Tag="grains" />
+                        <ComboBoxItem Content="Yogʻ va sut mahsulotlari" Tag="dairy_oil" />
+                        <ComboBoxItem Content="Ziravorlar va souslar" Tag="spices" />
+                        <ComboBoxItem Content="Qadoqlangan ichimliklar" Tag="drinks" />
+                        <ComboBoxItem Content="Qadoq va xoʻjalik mollari" Tag="packaging" />
+                        <ComboBoxItem Content="Boshqa xomashyolar" Tag="groceries" />
+                    </ComboBox>
+                </controls:Field>
+
+                <controls:Field Grid.Column="2" Label="Oʻlchov birligi">
+                    <ComboBox x:Name="UnitCombo">
+                        <ComboBoxItem Content="Kilogramm (kg)" Tag="kg" IsSelected="True" />
+                        <ComboBoxItem Content="Gramm (g)" Tag="g" />
+                        <ComboBoxItem Content="Litr (l)" Tag="l" />
+                        <ComboBoxItem Content="Millilitr (ml)" Tag="ml" />
+                        <ComboBoxItem Content="Dona (dona)" Tag="dona" />
+                        <ComboBoxItem Content="Pachka (pachka)" Tag="pachka" />
+                    </ComboBox>
+                </controls:Field>
+            </Grid>
+
+            <Grid Margin="0,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <controls:Field Grid.Column="0" Label="Mavjud qoldiq">
+                    <TextBox x:Name="CurrentStockBox" Text="0" Typography.NumeralAlignment="Tabular" />
+                </controls:Field>
+
+                <controls:Field Grid.Column="2" Label="Ogohlantirish chegarasi" HelperText="Kam qolganda">
+                    <TextBox x:Name="MinAlertBox" Text="5" Typography.NumeralAlignment="Tabular" />
+                </controls:Field>
+
+                <controls:Field Grid.Column="4" Label="Tan narxi (soʻm)" HelperText="1 birlik uchun">
+                    <TextBox x:Name="CostPriceBox" Text="0" Typography.NumeralAlignment="Tabular" />
+                </controls:Field>
+            </Grid>
+
+            <controls:Field Label="Tavsif yoki eslatma (ixtiyoriy)" Margin="0,0,0,14">
+                <TextBox x:Name="DescriptionBox" Height="54" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" Padding="12,8" />
+            </controls:Field>
+
+            <CheckBox x:Name="IsActiveCheck"
+                      Style="{StaticResource ToggleSwitch}"
+                      Content="Faol holatda (retsept va kirimda ishlatiladi)"
+                      IsChecked="True" />
+        </StackPanel>
+
+        <controls:DialogChrome.FooterContent>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="Bekor qilish" Style="{StaticResource GhostButton}" MinHeight="48" Padding="20,10" Click="OnCancelClick" />
+                <Button Grid.Column="2" Content="Saqlash" Style="{StaticResource PrimaryButton}" MinHeight="48" Click="OnSaveClick" />
+            </Grid>
+        </controls:DialogChrome.FooterContent>
+    </controls:DialogChrome>
+</Window>

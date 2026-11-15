@@ -188,6 +188,13 @@ class _SearchScreenState extends State<SearchScreen> {
                             cartQuantity: cartItem?.quantity ?? 0,
                             onTap: () => DishDetailSheet.show(context, dish),
                             onAddToCart: () {
+                              if (!dish.isAvailable) {
+                                DilkashFeedback.showWarning(
+                                  context,
+                                  '${dish.name} vaqtincha mavjud emas (Stop-list)',
+                                );
+                                return;
+                              }
                               cart.addItem(dish);
                               DilkashFeedback.showSuccess(
                                 context,

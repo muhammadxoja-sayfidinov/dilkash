@@ -246,6 +246,23 @@ namespace DilkashPos.Services
                         return;
                     }
 
+                    if (req.Method == "GET" && req.Path.StartsWith("/api/pos/products/", StringComparison.OrdinalIgnoreCase) &&
+                        req.Path.TrimEnd('/').EndsWith("/image", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var seg = req.Path.Trim('/').Split('/');
+                        if (seg.Length >= 4 && int.TryParse(seg[3], out int pid))
+                        {
+                            var imgBytes = await ResolveCachedProductImageBytesAsync(pid);
+                            if (imgBytes != null && imgBytes.Length > 0)
+                            {
+                                await WriteBinaryResponseAsync(stream, 200, "OK", "image/jpeg", imgBytes);
+                                return;
+                            }
+                            await WriteHttpResponseAsync(stream, 404, "Not Found", JsonError("Rasm topilmadi"));
+                            return;
+                        }
+                    }
+
                     var (statusCode, jsonBody) = await RouteRequestAsync(req.Method, req.Path, req.Body);
                     await WriteHttpResponseAsync(stream, statusCode, statusCode == 200 ? "OK" : "Error", jsonBody);
                 }
@@ -354,6 +371,37 @@ namespace DilkashPos.Services
             if (bodyBytes.Length > 0)
                 await stream.WriteAsync(bodyBytes, 0, bodyBytes.Length);
             await stream.FlushAsync();
+        }
+
+        private static async Task WriteBinaryResponseAsync(NetworkStream stream, int statusCode, string reason, string contentType, byte[] bodyBytes)
+        {
+            var headers = new StringBuilder();
+            headers.Append($"HTTP/1.1 {statusCode} {reason}\r\n");
+            headers.Append($"Content-Type: {contentType}\r\n");
+            headers.Append($"Content-Length: {bodyBytes.Length}\r\n");
+            headers.Append("Cache-Control: public, max-age=86400\r\n");
+            headers.Append("Access-Control-Allow-Origin: *\r\n");
+            headers.Append("Connection: close\r\n\r\n");
+
+            var headerBytes = Encoding.ASCII.GetBytes(headers.ToString());
+            await stream.WriteAsync(headerBytes, 0, headerBytes.Length);
+            if (bodyBytes.Length > 0)
+                await stream.WriteAsync(bodyBytes, 0, bodyBytes.Length);
+            await stream.FlushAsync();
+        }
+
+        private async Task<byte[]?> ResolveCachedProductImageBytesAsync(int productId)
+        {
+            string? localPath = null;
+            lock (_stateLock)
+            {
+                localPath = _getProducts().FirstOrDefault(p => p.Id == productId)?.ImageLocalPath;
+            }
+            var fromFile = ImageCacheService.GetCachedBytesForProduct(productId, localPath);
+            if (fromFile != null && fromFile.Length > 0) return fromFile;
+
+            var (_, dbBlob) = await _db.GetProductImageBlobAsync(productId);
+            return dbBlob;
         }
 
         private static string JsonError(string message) =>

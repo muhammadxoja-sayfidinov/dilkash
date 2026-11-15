@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:dilkash_design_system/dilkash_design_system.dart';
@@ -20,27 +21,44 @@ class OrderTrackingScreen extends StatefulWidget {
   State<OrderTrackingScreen> createState() => _OrderTrackingScreenState();
 }
 
-class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
+class _OrderTrackingScreenState extends State<OrderTrackingScreen>
+    with SingleTickerProviderStateMixin {
   CustomerOrder? _order;
   bool _isLoading = true;
   String? _errorMessage;
   Timer? _timer;
+  final MapController _mapController = MapController();
+  late final AnimationController _pulseController;
 
-  // Map coordinates (Restaurant & Customer)
-  static const double restaurantLat = 41.311081;
-  static const double restaurantLng = 69.240562;
-  final double _customerLat = 41.2825;
-  final double _customerLng = 69.2155;
+  // Live Map coordinates (Restaurant, Customer & Courier)
+  double _restaurantLat = 41.311081;
+  double _restaurantLng = 69.240562;
+  double _customerLat = 41.2825;
+  double _customerLng = 69.2155;
   double _courierLat = 41.2980;
   double _courierLng = 69.2300;
+  bool _isSimulating = false;
 
   @override
   void initState() {
     super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+
     _loadOrderStatus();
-    // Lifecycle-friendly update polling (har 8 soniyada yangilash)
-    _timer = Timer.periodic(const Duration(seconds: 8), (timer) {
+
+    // Jonli GPS kuzatuv: faol buyurtmalarda har 4 soniyada telemetriyani yangilash
+    _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (mounted) {
+        if (_order != null &&
+            (_order!.status == 'yetkazildi' ||
+                _order!.status == 'olib_ketildi' ||
+                _order!.status == 'bekor_qilindi')) {
+          timer.cancel();
+          return;
+        }
         _loadOrderStatus(silent: true);
       }
     });
@@ -48,7 +66,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
 
   @override
   void dispose() {
+    _pulseController.dispose();
     _timer?.cancel();
+    _mapController.dispose();
     super.dispose();
   }
 
@@ -62,10 +82,18 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           _isLoading = false;
           _errorMessage = null;
 
-          // If courier is on the way, interpolate position towards customer
-          if (order.status == 'yolda') {
-            _courierLat = (restaurantLat + _customerLat) / 2 + 0.004;
-            _courierLng = (restaurantLng + _customerLng) / 2 + 0.003;
+          if (order.customerLat != null) _customerLat = order.customerLat!;
+          if (order.customerLng != null) _customerLng = order.customerLng!;
+          if (order.restaurantLat != null) _restaurantLat = order.restaurantLat!;
+          if (order.restaurantLng != null) _restaurantLng = order.restaurantLng!;
+
+          if (order.courier?.currentLat != null &&
+              order.courier?.currentLng != null) {
+            _courierLat = order.courier!.currentLat!;
+            _courierLng = order.courier!.currentLng!;
+          } else if (order.status == 'yolda' || order.status == 'kuryerda') {
+            _courierLat = (_restaurantLat + _customerLat) / 2 + 0.003;
+            _courierLng = (_restaurantLng + _customerLng) / 2 + 0.002;
           }
         });
       }
@@ -79,21 +107,134 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     }
   }
 
+  void _centerOnCourier() {
+    _mapController.move(LatLng(_courierLat, _courierLng), 14.5);
+  }
+
+  void _fitRouteBounds() {
+    final centerLat = (_restaurantLat + _customerLat) / 2;
+    final centerLng = (_restaurantLng + _customerLng) / 2;
+    _mapController.move(LatLng(centerLat, centerLng), 13.0);
+  }
+
+  Future<void> _simulateCourierStep() async {
+    if (_isSimulating) return;
+    setState(() => _isSimulating = true);
+
+    try {
+      final res = await ApiService.simulateCourierStep(widget.orderId);
+      if (res['courier_lat'] != null && res['courier_lng'] != null) {
+        if (mounted) {
+          setState(() {
+            _courierLat = (res['courier_lat'] as num).toDouble();
+            _courierLng = (res['courier_lng'] as num).toDouble();
+          });
+          _mapController.move(LatLng(_courierLat, _courierLng), 14.0);
+          DilkashFeedback.showSuccess(
+            context,
+            'Kuryer koordinatasi yangilandi (Jonli simulyatsiya)',
+          );
+        }
+      }
+      await _loadOrderStatus(silent: true);
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _isSimulating = false);
+    }
+  }
+
+  void _showCourierContactModal(String name, String phone) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: DilkashColors.surface(isDark),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 30),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white24 : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? DilkashColors.surfaceDarkElevated
+                    : DilkashColors.primary50,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.two_wheeler_rounded,
+                size: 40,
+                color: DilkashColors.primary500,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              name,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: DilkashColors.textPrimary(isDark),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              phone,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: DilkashColors.textSecondary(isDark),
+              ),
+            ),
+            const SizedBox(height: 20),
+            DilkashButton(
+              label: 'Telefon raqamidan nusxa olish',
+              leadingIcon: Icons.copy_rounded,
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: phone));
+                Navigator.pop(ctx);
+                DilkashFeedback.showSuccess(
+                  context,
+                  'Kuryer raqami nusxalandi: $phone',
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   int _getStatusStep(String status) {
-    switch (status.toLowerCase()) {
+    final s = status.toLowerCase();
+    switch (s) {
       case 'yangi':
         return 0;
       case 'tasdiqlangan':
       case 'oshxonada':
+      case 'tayyorlanmoqda':
         return 1;
       case 'tayor':
       case 'tayyor':
         return 2;
       case 'yolda':
+      case 'kuryerda':
         return 3;
       case 'yetkazildi':
+      case 'olib_ketildi':
       case 'yakunlandi':
-        return 4;
+        return _order?.serviceType == 'pickup' ? 3 : 4;
       default:
         return 0;
     }
@@ -121,163 +262,20 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
           : _errorMessage != null
               ? DilkashErrorState(
                   message: _errorMessage!,
-                  onRetry: _loadMenu,
+                  onRetry: () => _loadOrderStatus(),
                 )
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 1. Live Interactive Courier Map View
+                      // 1. Live Interactive Courier Map View (Delivery holatida)
                       if (_order!.serviceType == 'delivery') ...[
-                        Container(
-                          height: 220,
-                          decoration: BoxDecoration(
-                            borderRadius: DilkashRadii.radiusLg,
-                            border: Border.all(
-                              color: isDark
-                                  ? DilkashColors.borderDark
-                                  : DilkashColors.borderLight,
-                            ),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: DilkashRadii.radiusLg,
-                            child: Stack(
-                              children: [
-                                FlutterMap(
-                                  options: MapOptions(
-                                    initialCenter: LatLng(
-                                      (restaurantLat + _customerLat) / 2,
-                                      (restaurantLng + _customerLng) / 2,
-                                    ),
-                                    initialZoom: 13.0,
-                                  ),
-                                  children: [
-                                    TileLayer(
-                                      urlTemplate:
-                                          'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-                                      subdomains: const ['0', '1', '2', '3'],
-                                      fallbackUrl:
-                                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                      userAgentPackageName:
-                                          'uz.dilkash.customer',
-                                      maxZoom: 20,
-                                    ),
-                                    PolylineLayer(
-                                      polylines: [
-                                        Polyline(
-                                          points: [
-                                            const LatLng(
-                                                restaurantLat, restaurantLng),
-                                            LatLng(_courierLat, _courierLng),
-                                            LatLng(_customerLat, _customerLng),
-                                          ],
-                                          color: DilkashColors.primary500,
-                                          strokeWidth: 4.0,
-                                        ),
-                                      ],
-                                    ),
-                                    MarkerLayer(
-                                      markers: [
-                                        // Restaurant Marker
-                                        Marker(
-                                          point: const LatLng(
-                                              restaurantLat, restaurantLng),
-                                          width: 36,
-                                          height: 36,
-                                          child: Container(
-                                            decoration: const BoxDecoration(
-                                              color: DilkashColors.primary500,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(
-                                              Icons.restaurant_rounded,
-                                              color: Colors.white,
-                                              size: 20,
-                                            ),
-                                          ),
-                                        ),
-                                        // Courier Marker (Moving)
-                                        if (_order!.status == 'yolda')
-                                          Marker(
-                                            point: LatLng(
-                                                _courierLat, _courierLng),
-                                            width: 44,
-                                            height: 44,
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                color: DilkashColors.info,
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                    color: Colors.white,
-                                                    width: 2),
-                                              ),
-                                              child: const Icon(
-                                                Icons.two_wheeler_rounded,
-                                                color: Colors.white,
-                                                size: 24,
-                                              ),
-                                            ),
-                                          ),
-                                        // Customer Delivery Marker
-                                        Marker(
-                                          point: LatLng(
-                                              _customerLat, _customerLng),
-                                          width: 38,
-                                          height: 38,
-                                          child: const Icon(
-                                            Icons.location_on_rounded,
-                                            color: Colors.redAccent,
-                                            size: 38,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                        _buildLiveTrackingMap(isDark),
+                        const SizedBox(height: 14),
 
-                                // Top live status pill
-                                Positioned(
-                                  top: 12,
-                                  left: 12,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 5),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.8),
-                                      borderRadius: DilkashRadii.radiusFull,
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          width: 8,
-                                          height: 8,
-                                          decoration: const BoxDecoration(
-                                            color: DilkashColors.success,
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          _order!.status == 'yolda'
-                                              ? 'Kuryer yoʻlda • ~12 daqiqa'
-                                              : 'Jonli kuzatuv xaritasi',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        // Dedicated Live Courier Card
+                        _buildCourierCard(isDark),
                         const SizedBox(height: 16),
                       ],
 
@@ -374,7 +372,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
 
                       // 3. Status Progress Timeline
                       Container(
@@ -426,10 +424,12 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                                 if (_order!.serviceType == 'delivery')
                                   DilkashStatusStep(
                                     title: 'Kuryer yoʻlda',
-                                    subtitle: _order!.courierName != null &&
-                                            _order!.courierName!.isNotEmpty
-                                        ? 'Kuryer: ${_order!.courierName}'
-                                        : 'Kuryer manzilingiz tomon yoʻl oldi',
+                                    subtitle: _order!.courier != null
+                                        ? '${_order!.courier!.name} (${_order!.courier!.vehicle})'
+                                        : (_order!.courierName != null &&
+                                                _order!.courierName!.isNotEmpty
+                                            ? 'Kuryer: ${_order!.courierName}'
+                                            : 'Kuryer manzilingiz tomon yoʻl oldi'),
                                     icon: Icons.two_wheeler_rounded,
                                   ),
                                 const DilkashStatusStep(
@@ -443,7 +443,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
 
                       // 4. Order Items Summary
                       Container(
@@ -513,7 +513,491 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     );
   }
 
-  void _loadMenu() {
-    _loadOrderStatus();
+  /// Live Interactive Courier Map View
+  Widget _buildLiveTrackingMap(bool isDark) {
+    final isEnRoute =
+        _order!.status == 'yolda' || _order!.status == 'kuryerda';
+
+    return Container(
+      height: 260,
+      decoration: BoxDecoration(
+        borderRadius: DilkashRadii.radiusLg,
+        border: Border.all(
+          color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: DilkashRadii.radiusLg,
+        child: Stack(
+          children: [
+            FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: LatLng(
+                  (_restaurantLat + _customerLat) / 2,
+                  (_restaurantLng + _customerLng) / 2,
+                ),
+                initialZoom: 13.0,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+                  subdomains: const ['0', '1', '2', '3'],
+                  fallbackUrl:
+                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'uz.dilkash.customer',
+                  maxZoom: 20,
+                ),
+
+                // Polyline: Restoran -> Kuryer -> Mijoz
+                PolylineLayer(
+                  polylines: [
+                    // Restorandan kuryergacha bo'lgan yo'l
+                    Polyline(
+                      points: [
+                        LatLng(_restaurantLat, _restaurantLng),
+                        LatLng(_courierLat, _courierLng),
+                      ],
+                      color: DilkashColors.primary500.withValues(alpha: 0.5),
+                      strokeWidth: 3.5,
+                    ),
+                    // Kuryerdan mijozgacha bo'lgan faol marshrut
+                    Polyline(
+                      points: [
+                        LatLng(_courierLat, _courierLng),
+                        LatLng(_customerLat, _customerLng),
+                      ],
+                      color: DilkashColors.primary500,
+                      strokeWidth: 4.5,
+                    ),
+                  ],
+                ),
+
+                MarkerLayer(
+                  markers: [
+                    // Restoran belgisi
+                    Marker(
+                      point: LatLng(_restaurantLat, _restaurantLng),
+                      width: 40,
+                      height: 40,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: DilkashColors.primary500,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.restaurant_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+
+                    // Jonli Kuryer belgisi (Pulsatsiya animatsiyasi bilan)
+                    if (isEnRoute)
+                      Marker(
+                        point: LatLng(_courierLat, _courierLng),
+                        width: 58,
+                        height: 58,
+                        child: AnimatedBuilder(
+                          animation: _pulseController,
+                          builder: (context, _) {
+                            final pulse = _pulseController.value;
+                            return Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Radar to'lqini
+                                Container(
+                                  width: 36 + (22 * pulse),
+                                  height: 36 + (22 * pulse),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: DilkashColors.primary500
+                                        .withValues(alpha: 0.3 * (1 - pulse)),
+                                  ),
+                                ),
+                                // Asosiy kuryer ikonasi
+                                Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: DilkashColors.primary600,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color: Colors.white, width: 2.5),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color:
+                                            Colors.black.withValues(alpha: 0.3),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.delivery_dining_rounded,
+                                    color: Colors.white,
+                                    size: 24,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+
+                    // Mijoz yetkazish manzili belgisi
+                    Marker(
+                      point: LatLng(_customerLat, _customerLng),
+                      width: 42,
+                      height: 42,
+                      child: const Icon(
+                        Icons.location_on_rounded,
+                        color: Colors.redAccent,
+                        size: 42,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            // Yuqori Jonli Status Pilli (Live Indicator)
+            Positioned(
+              top: 12,
+              left: 12,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.8),
+                  borderRadius: DilkashRadii.radiusFull,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: DilkashColors.success,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isEnRoute
+                          ? 'Kuryer yoʻlda • ~${_order!.etaMinutes ?? 12} daqiqa'
+                          : 'Jonli kuzatuv xaritasi',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // O'ng tomondagi Xarita boshqaruv tugmalari (Fokus & Fit)
+            Positioned(
+              top: 12,
+              right: 12,
+              child: Column(
+                children: [
+                  Material(
+                    color: Colors.black.withValues(alpha: 0.75),
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: _centerOnCourier,
+                      child: const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Icon(
+                          Icons.my_location_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Material(
+                    color: Colors.black.withValues(alpha: 0.75),
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: _fitRouteBounds,
+                      child: const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Icon(
+                          Icons.crop_free_rounded,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (isEnRoute) ...[
+                    const SizedBox(height: 8),
+                    Material(
+                      color: DilkashColors.primary600,
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: _simulateCourierStep,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: _isSimulating
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Dedicated Live Courier Profile Card
+  Widget _buildCourierCard(bool isDark) {
+    final courier = _order!.courier;
+    final courierName =
+        courier?.name ?? _order!.courierName ?? 'Kuryer tayinlanmoqda';
+    final courierPhone = courier?.phone ?? '+998 90 111 22 33';
+    final courierVehicle =
+        courier?.vehicle ?? 'Tezkor Skuter (Yashil) - 01 A 777 BC';
+    final etaMins = _order!.etaMinutes ?? 12;
+    final distKm = _order!.distanceKm ?? 2.4;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: DilkashColors.surface(isDark),
+        borderRadius: DilkashRadii.radiusLg,
+        border: Border.all(
+          color: isDark ? DilkashColors.borderDark : DilkashColors.borderLight,
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              // Avatar
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? DilkashColors.surfaceDarkElevated
+                      : DilkashColors.primary50,
+                  borderRadius: DilkashRadii.radiusMd,
+                  border: Border.all(
+                    color: isDark
+                        ? DilkashColors.borderDark
+                        : DilkashColors.primary200,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    courierName.isNotEmpty
+                        ? courierName
+                            .split(' ')
+                            .map((e) => e.isNotEmpty ? e[0] : '')
+                            .take(2)
+                            .join('')
+                        : 'K',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: DilkashColors.primary500,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Courier details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            courierName,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: DilkashColors.textPrimary(isDark),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color:
+                                DilkashColors.success.withValues(alpha: 0.15),
+                            borderRadius: DilkashRadii.radiusXs,
+                          ),
+                          child: const Text(
+                            'Yoʻlda',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: DilkashColors.success,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      courierVehicle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: DilkashColors.textSecondary(isDark),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+
+              // Call Button
+              Material(
+                color: DilkashColors.success,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: () =>
+                      _showCourierContactModal(courierName, courierPhone),
+                  child: const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: Icon(
+                      Icons.phone_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1),
+          const SizedBox(height: 12),
+
+          // Telemetry Row: ETA, Distance, Speed
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildTelemetryItem(
+                isDark,
+                icon: Icons.timer_outlined,
+                iconColor: DilkashColors.primary500,
+                label: 'Kutilmoqda',
+                value: '~$etaMins daq',
+              ),
+              Container(
+                height: 24,
+                width: 1,
+                color: isDark
+                    ? DilkashColors.borderDark
+                    : DilkashColors.borderLight,
+              ),
+              _buildTelemetryItem(
+                isDark,
+                icon: Icons.route_outlined,
+                iconColor: DilkashColors.info,
+                label: 'Qolgan masofa',
+                value: '$distKm km',
+              ),
+              Container(
+                height: 24,
+                width: 1,
+                color: isDark
+                    ? DilkashColors.borderDark
+                    : DilkashColors.borderLight,
+              ),
+              _buildTelemetryItem(
+                isDark,
+                icon: Icons.speed_rounded,
+                iconColor: DilkashColors.amber500,
+                label: 'Oʻrtacha tezlik',
+                value: '26 km/soat',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTelemetryItem(
+    bool isDark, {
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+  }) {
+    return Column(
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: iconColor),
+            const SizedBox(width: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: DilkashColors.textPrimary(isDark),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: DilkashColors.textSecondary(isDark),
+          ),
+        ),
+      ],
+    );
   }
 }

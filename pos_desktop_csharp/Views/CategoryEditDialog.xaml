@@ -26,16 +26,28 @@
                 <TextBox x:Name="NameBox" />
             </controls:Field>
 
-            <controls:Field Label="Chiqish printeri boʻlimi" HelperText="Ushbu guruhdagi taomlar cheki qaysi boʻlim printeriga chiqadi" Margin="0,0,0,14">
-                <ComboBox x:Name="DepartmentCombo">
-                    <ComboBoxItem Content="Issiq oshxona (Milliy taomlar)" Tag="kitchen" IsSelected="True" />
-                    <ComboBoxItem Content="Shashlikxona / Mangal" Tag="shashlik" />
-                    <ComboBoxItem Content="Somsaxona / Tandir" Tag="somsa" />
-                    <ComboBoxItem Content="Fast-Food &amp; Burger" Tag="fastfood" />
-                    <ComboBoxItem Content="Bar &amp; Ichimliklar &amp; Desert" Tag="bar" />
-                    <ComboBoxItem Content="Kassa (Umumiy)" Tag="kassa" />
-                </ComboBox>
-            </controls:Field>
+            <Grid Margin="0,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <controls:Field Grid.Column="0" Label="Yuqori kategoriya (ixtiyoriy)" HelperText="Ichma-ich boʻlim yaratish uchun">
+                    <ComboBox x:Name="ParentCategoryCombo" DisplayMemberPath="Name" SelectedValuePath="Id" />
+                </controls:Field>
+
+                <controls:Field Grid.Column="2" Label="Chiqish printeri boʻlimi" HelperText="Taom cheki printeri">
+                    <ComboBox x:Name="DepartmentCombo">
+                        <ComboBoxItem Content="Issiq oshxona (Milliy taomlar)" Tag="kitchen" IsSelected="True" />
+                        <ComboBoxItem Content="Shashlikxona / Mangal" Tag="shashlik" />
+                        <ComboBoxItem Content="Somsaxona / Tandir" Tag="somsa" />
+                        <ComboBoxItem Content="Fast-Food &amp; Burger" Tag="fastfood" />
+                        <ComboBoxItem Content="Bar &amp; Ichimliklar &amp; Desert" Tag="bar" />
+                        <ComboBoxItem Content="Kassa (Umumiy)" Tag="kassa" />
+                    </ComboBox>
+                </controls:Field>
+            </Grid>
 
             <controls:Field Label="Tavsif (ixtiyoriy)" Margin="0,0,0,14">
                 <TextBox x:Name="DescriptionBox" Height="64" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" Padding="12,10" />

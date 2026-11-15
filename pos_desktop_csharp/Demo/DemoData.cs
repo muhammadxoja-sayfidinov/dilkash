@@ -25,8 +25,10 @@ namespace DilkashPos.Demo
                 new Category { Id = 3, Name = "Issiq taomlar", Department = "kitchen", Icon = "bowl" },
                 new Category { Id = 4, Name = "Fast-food", Department = "fastfood", Icon = "burger" },
                 new Category { Id = 5, Name = "Salatlar va gazaklar", Department = "kitchen", Icon = "bowl" },
-                new Category { Id = 6, Name = "Choy va ichimliklar", Department = "bar", Icon = "coffee" },
-                new Category { Id = 7, Name = "Shirinliklar", Department = "bar", Icon = "coffee" }
+                new Category { Id = 6, Name = "Choy va ichimliklar", Department = "bar", Icon = "coffee", SubcategoriesCount = 2 },
+                new Category { Id = 7, Name = "Shirinliklar", Department = "bar", Icon = "coffee" },
+                new Category { Id = 8, Name = "Issiq choy va qahva", Department = "bar", Icon = "coffee", ParentId = 6 },
+                new Category { Id = 9, Name = "Salqin ichimliklar", Department = "bar", Icon = "coffee", ParentId = 6 }
             };
 
             var products = new List<Product>
@@ -77,14 +79,14 @@ namespace DilkashPos.Demo
                 new Product { Id = 503, CategoryId = 5, CategoryName = "Salatlar va gazaklar", Department = "kitchen", Name = "Sezar salat tovuqli", Price = 32000, IsAvailable = true },
                 new Product { Id = 504, CategoryId = 5, CategoryName = "Salatlar va gazaklar", Department = "kitchen", Name = "Grecheskiy zaytunli salat", Price = 29000, IsAvailable = true },
 
-                // Choy va ichimliklar
-                new Product { Id = 601, CategoryId = 6, CategoryName = "Choy va ichimliklar", Department = "bar", Name = "Koʻk choy limon bilan (choynak)", Price = 10000, IsAvailable = true },
-                new Product { Id = 602, CategoryId = 6, CategoryName = "Choy va ichimliklar", Department = "bar", Name = "Qora choy togʻ giyohlari bilan", Price = 12000, IsAvailable = true },
-                new Product { Id = 603, CategoryId = 6, CategoryName = "Choy va ichimliklar", Department = "bar", Name = "Yangi siqilgan apelsin sharbati", Price = 25000, IsAvailable = true },
-                new Product { Id = 604, CategoryId = 6, CategoryName = "Choy va ichimliklar", Department = "bar", Name = "Moxito qulupnayli sovuq", Price = 22000, IsAvailable = true },
-                new Product { Id = 605, CategoryId = 6, CategoryName = "Choy va ichimliklar", Department = "bar", Name = "Coca-Cola 1.5L shisha", Price = 16000, IsAvailable = true },
-                new Product { Id = 606, CategoryId = 6, CategoryName = "Choy va ichimliklar", Department = "bar", Name = "Americano qahva", Price = 18000, IsAvailable = true },
-                new Product { Id = 607, CategoryId = 6, CategoryName = "Choy va ichimliklar", Department = "bar", Name = "Cappuccino koʻpikli", Price = 22000, IsAvailable = true },
+                // Choy va ichimliklar (subkategoriyalar: Issiq choy va qahva / Salqin ichimliklar)
+                new Product { Id = 601, CategoryId = 8, CategoryName = "Issiq choy va qahva", Department = "bar", Name = "Koʻk choy limon bilan (choynak)", Price = 10000, IsAvailable = true },
+                new Product { Id = 602, CategoryId = 8, CategoryName = "Issiq choy va qahva", Department = "bar", Name = "Qora choy togʻ giyohlari bilan", Price = 12000, IsAvailable = true },
+                new Product { Id = 603, CategoryId = 9, CategoryName = "Salqin ichimliklar", Department = "bar", Name = "Yangi siqilgan apelsin sharbati", Price = 25000, IsAvailable = true },
+                new Product { Id = 604, CategoryId = 9, CategoryName = "Salqin ichimliklar", Department = "bar", Name = "Moxito qulupnayli sovuq", Price = 22000, IsAvailable = true },
+                new Product { Id = 605, CategoryId = 9, CategoryName = "Salqin ichimliklar", Department = "bar", Name = "Coca-Cola 1.5L shisha", Price = 16000, IsAvailable = true },
+                new Product { Id = 606, CategoryId = 8, CategoryName = "Issiq choy va qahva", Department = "bar", Name = "Americano qahva", Price = 18000, IsAvailable = true },
+                new Product { Id = 607, CategoryId = 8, CategoryName = "Issiq choy va qahva", Department = "bar", Name = "Cappuccino koʻpikli", Price = 22000, IsAvailable = true },
 
                 // Shirinliklar
                 new Product { Id = 701, CategoryId = 7, CategoryName = "Shirinliklar", Department = "bar", Name = "Medovik anʼanaviy asal torti", Price = 24000, IsAvailable = true },
@@ -309,6 +311,136 @@ namespace DilkashPos.Demo
             cart.RecalculateTotals();
             return cart;
         }
+
+        public static List<Hall> GetDemoHalls() => new()
+        {
+            new Hall { Id = 1, Name = "Zal", Description = "Asosiy zal", SortOrder = 1, IsActive = true },
+            new Hall { Id = 2, Name = "Terrasa", Description = "Yozgi ochiq ayvon", SortOrder = 2, IsActive = true },
+            new Hall { Id = 3, Name = "VIP", Description = "Alohida kabinalar", SortOrder = 3, IsActive = true }
+        };
+
+        public static List<PosPrinter> GetDemoPrinters() => new()
+        {
+            new PosPrinter { Id = 1, Name = "Kassa hisob printeri", Department = "kassa", IpAddress = "192.168.1.100", Port = 9100, PaperWidth = 80, Subtitle = "Mijoz hisob-kitob cheki", IsActive = true, SortOrder = 1 },
+            new PosPrinter { Id = 2, Name = "Shashlikxona", Department = "shashlik", IpAddress = "192.168.1.101", Port = 9100, PaperWidth = 80, Subtitle = "Mangal boʻlimi", IsActive = true, SortOrder = 2 },
+            new PosPrinter { Id = 3, Name = "Somsaxona", Department = "somsa", IpAddress = "192.168.1.102", Port = 9100, PaperWidth = 80, Subtitle = "Tandir boʻlimi", IsActive = true, SortOrder = 3 },
+            new PosPrinter { Id = 4, Name = "Issiq oshxona", Department = "kitchen", IpAddress = "192.168.1.103", Port = 9100, PaperWidth = 80, Subtitle = "Oshxona boʻlimi", IsActive = true, SortOrder = 4 },
+            new PosPrinter { Id = 5, Name = "Fast-food (58mm)", Department = "fastfood", IpAddress = "192.168.1.104", Port = 9100, PaperWidth = 58, Subtitle = "Burger va lavash", IsActive = true, SortOrder = 5 },
+            new PosPrinter { Id = 6, Name = "Bar va ichimliklar", Department = "bar", IpAddress = "192.168.1.105", Port = 9100, PaperWidth = 80, Subtitle = "Choy, qahva, salqin ichimliklar", IsActive = false, SortOrder = 6 }
+        };
+
+        public static CashierProfile GetDemoCashierProfile() => new()
+        {
+            Id = 1,
+            Name = "Jasur Rahimov",
+            Phone = "+998901112233",
+            RoleTitle = "Bosh kassir",
+            AvatarColor = "#10B981",
+            RequirePinOnUnlock = false,
+            NotificationSound = true,
+            HasPin = true,
+            IsActive = true,
+            IsPrimary = true
+        };
+
+        public static List<Ingredient> GetDemoIngredients() => new()
+        {
+            new Ingredient { Id = 1, Name = "Mol goʻshti (lahm)", Category = "meat", CategoryDisplay = "Goʻsht mahsulotlari", Unit = "kg", UnitDisplay = "kg", CurrentStock = 45.5m, MinStockAlert = 10m, CostPrice = 90000m, IsActive = true, IsLowStock = false, TotalValuation = 45.5m * 90000m },
+            new Ingredient { Id = 2, Name = "Qoʻy goʻshti (lahm)", Category = "meat", CategoryDisplay = "Goʻsht mahsulotlari", Unit = "kg", UnitDisplay = "kg", CurrentStock = 28.0m, MinStockAlert = 8m, CostPrice = 98000m, IsActive = true, IsLowStock = false, TotalValuation = 28.0m * 98000m },
+            new Ingredient { Id = 3, Name = "Qoʻy dumbasi", Category = "meat", CategoryDisplay = "Goʻsht mahsulotlari", Unit = "kg", UnitDisplay = "kg", CurrentStock = 14.2m, MinStockAlert = 5m, CostPrice = 85000m, IsActive = true, IsLowStock = false, TotalValuation = 14.2m * 85000m },
+            new Ingredient { Id = 4, Name = "Tovuq goʻshti (file)", Category = "meat", CategoryDisplay = "Goʻsht mahsulotlari", Unit = "kg", UnitDisplay = "kg", CurrentStock = 32.0m, MinStockAlert = 10m, CostPrice = 42000m, IsActive = true, IsLowStock = false, TotalValuation = 32.0m * 42000m },
+            new Ingredient { Id = 5, Name = "Devzira guruch", Category = "grains", CategoryDisplay = "Don, guruch va un", Unit = "kg", UnitDisplay = "kg", CurrentStock = 60.0m, MinStockAlert = 15m, CostPrice = 32000m, IsActive = true, IsLowStock = false, TotalValuation = 60.0m * 32000m },
+            new Ingredient { Id = 6, Name = "Lazer guruch", Category = "grains", CategoryDisplay = "Don, guruch va un", Unit = "kg", UnitDisplay = "kg", CurrentStock = 85.0m, MinStockAlert = 20m, CostPrice = 26000m, IsActive = true, IsLowStock = false, TotalValuation = 85.0m * 26000m },
+            new Ingredient { Id = 7, Name = "Oliy navli un", Category = "grains", CategoryDisplay = "Don, guruch va un", Unit = "kg", UnitDisplay = "kg", CurrentStock = 120.0m, MinStockAlert = 25m, CostPrice = 7500m, IsActive = true, IsLowStock = false, TotalValuation = 120.0m * 7500m },
+            new Ingredient { Id = 8, Name = "Sabzi sariq", Category = "vegetables", CategoryDisplay = "Sabzavot va koʻkatlar", Unit = "kg", UnitDisplay = "kg", CurrentStock = 4.5m, MinStockAlert = 10m, CostPrice = 4000m, IsActive = true, IsLowStock = true, TotalValuation = 4.5m * 4000m }, // Low stock!
+            new Ingredient { Id = 9, Name = "Piyoz", Category = "vegetables", CategoryDisplay = "Sabzavot va koʻkatlar", Unit = "kg", UnitDisplay = "kg", CurrentStock = 55.0m, MinStockAlert = 15m, CostPrice = 3500m, IsActive = true, IsLowStock = false, TotalValuation = 55.0m * 3500m },
+            new Ingredient { Id = 10, Name = "Pomidor", Category = "vegetables", CategoryDisplay = "Sabzavot va koʻkatlar", Unit = "kg", UnitDisplay = "kg", CurrentStock = 3.2m, MinStockAlert = 8m, CostPrice = 18000m, IsActive = true, IsLowStock = true, TotalValuation = 3.2m * 18000m }, // Low stock!
+            new Ingredient { Id = 11, Name = "Paxta yogʻi", Category = "dairy_oil", CategoryDisplay = "Yogʻ va sut mahsulotlari", Unit = "l", UnitDisplay = "l", CurrentStock = 40.0m, MinStockAlert = 10m, CostPrice = 18000m, IsActive = true, IsLowStock = false, TotalValuation = 40.0m * 18000m },
+            new Ingredient { Id = 12, Name = "Zira xushboʻy", Category = "spices", CategoryDisplay = "Ziravorlar va souslar", Unit = "kg", UnitDisplay = "kg", CurrentStock = 2.5m, MinStockAlert = 1m, CostPrice = 120000m, IsActive = true, IsLowStock = false, TotalValuation = 2.5m * 120000m },
+            new Ingredient { Id = 13, Name = "Coca-Cola 1.5L shisha", Category = "drinks", CategoryDisplay = "Qadoqlangan ichimliklar", Unit = "dona", UnitDisplay = "dona", CurrentStock = 48m, MinStockAlert = 12m, CostPrice = 11500m, IsActive = true, IsLowStock = false, TotalValuation = 48m * 11500m },
+            new Ingredient { Id = 14, Name = "Koʻk choy (quruq)", Category = "spices", CategoryDisplay = "Ziravorlar va souslar", Unit = "kg", UnitDisplay = "kg", CurrentStock = 6.0m, MinStockAlert = 2m, CostPrice = 65000m, IsActive = true, IsLowStock = false, TotalValuation = 6.0m * 65000m }
+        };
+
+        public static List<Supplier> GetDemoSuppliers() => new()
+        {
+            new Supplier { Id = 1, Name = "Chorsu Goʻsht Markazi", Phone = "+998901234567", ContactPerson = "Alisher aka", Address = "Toshkent, Chorsu bozori, 4-rastaxona", Balance = 1250000m, IsActive = true },
+            new Supplier { Id = 2, Name = "Qoʻyliq Sabzavot Ulgurji", Phone = "+998912345678", ContactPerson = "Bobur aka", Address = "Qoʻyliq dehqon bozori, 12-ombor", Balance = 0m, IsActive = true },
+            new Supplier { Id = 3, Name = "Voha Guruch va Don Savdosi", Phone = "+998933456789", ContactPerson = "Rustam aka", Address = "Chilonzor 19-mavze", Balance = 450000m, IsActive = true },
+            new Supplier { Id = 4, Name = "Coca-Cola Bottlers Uzbekistan", Phone = "+998712005555", ContactPerson = "Menejer Sardor", Address = "Toshkent sh., Yashnobod tumani", Balance = 0m, IsActive = true }
+        };
+
+        public static List<RecipeItem> GetDemoRecipes() => new()
+        {
+            // Osh (301)
+            new RecipeItem { Id = 1, ProductId = 301, ProductName = "Toshkent toʻy oshi", IngredientId = 1, IngredientName = "Mol goʻshti (lahm)", Quantity = 150m, Unit = "g", IngredientUnit = "kg", Cost = 13500m },
+            new RecipeItem { Id = 2, ProductId = 301, ProductName = "Toshkent toʻy oshi", IngredientId = 6, IngredientName = "Lazer guruch", Quantity = 200m, Unit = "g", IngredientUnit = "kg", Cost = 5200m },
+            new RecipeItem { Id = 3, ProductId = 301, ProductName = "Toshkent toʻy oshi", IngredientId = 8, IngredientName = "Sabzi sariq", Quantity = 250m, Unit = "g", IngredientUnit = "kg", Cost = 1000m },
+            new RecipeItem { Id = 4, ProductId = 301, ProductName = "Toshkent toʻy oshi", IngredientId = 9, IngredientName = "Piyoz", Quantity = 80m, Unit = "g", IngredientUnit = "kg", Cost = 280m },
+            new RecipeItem { Id = 5, ProductId = 301, ProductName = "Toshkent toʻy oshi", IngredientId = 11, IngredientName = "Paxta yogʻi", Quantity = 50m, Unit = "ml", IngredientUnit = "l", Cost = 900m },
+            new RecipeItem { Id = 6, ProductId = 301, ProductName = "Toshkent toʻy oshi", IngredientId = 12, IngredientName = "Zira xushboʻy", Quantity = 5m, Unit = "g", IngredientUnit = "kg", Cost = 600m },
+
+            // Shashlik (101)
+            new RecipeItem { Id = 7, ProductId = 101, ProductName = "Qoʻy goʻshti shashlik", IngredientId = 2, IngredientName = "Qoʻy goʻshti (lahm)", Quantity = 160m, Unit = "g", IngredientUnit = "kg", Cost = 15680m },
+            new RecipeItem { Id = 8, ProductId = 101, ProductName = "Qoʻy goʻshti shashlik", IngredientId = 3, IngredientName = "Qoʻy dumbasi", Quantity = 40m, Unit = "g", IngredientUnit = "kg", Cost = 3400m },
+            new RecipeItem { Id = 9, ProductId = 101, ProductName = "Qoʻy goʻshti shashlik", IngredientId = 9, IngredientName = "Piyoz", Quantity = 50m, Unit = "g", IngredientUnit = "kg", Cost = 175m },
+
+            // Tandir somsa (201)
+            new RecipeItem { Id = 10, ProductId = 201, ProductName = "Tandir goʻshtli somsa", IngredientId = 1, IngredientName = "Mol goʻshti (lahm)", Quantity = 60m, Unit = "g", IngredientUnit = "kg", Cost = 5400m },
+            new RecipeItem { Id = 11, ProductId = 201, ProductName = "Tandir goʻshtli somsa", IngredientId = 3, IngredientName = "Qoʻy dumbasi", Quantity = 20m, Unit = "g", IngredientUnit = "kg", Cost = 1700m },
+            new RecipeItem { Id = 12, ProductId = 201, ProductName = "Tandir goʻshtli somsa", IngredientId = 7, IngredientName = "Oliy navli un", Quantity = 70m, Unit = "g", IngredientUnit = "kg", Cost = 525m },
+            new RecipeItem { Id = 13, ProductId = 201, ProductName = "Tandir goʻshtli somsa", IngredientId = 9, IngredientName = "Piyoz", Quantity = 40m, Unit = "g", IngredientUnit = "kg", Cost = 140m },
+
+            // Choy (601)
+            new RecipeItem { Id = 14, ProductId = 601, ProductName = "Koʻk choy limon bilan (choynak)", IngredientId = 14, IngredientName = "Koʻk choy (quruq)", Quantity = 15m, Unit = "g", IngredientUnit = "kg", Cost = 975m }
+        };
+
+        public static InventoryKpiSummary GetDemoInventoryKpi(List<Ingredient>? ings = null)
+        {
+            var list = ings ?? GetDemoIngredients();
+            var totalVal = list.Sum(i => i.TotalValuation);
+            var lowCount = list.Count(i => i.IsLowStock);
+            return new InventoryKpiSummary
+            {
+                TotalIngredients = list.Count,
+                LowStockCount = lowCount,
+                TotalValuation = totalVal,
+                TodaySuppliesTotal = 3450000m,
+                TodayWriteoffsTotal = 85000m,
+                SuppliersCount = 4
+            };
+        }
+
+        public static List<StockSupply> GetDemoSupplies() => new()
+        {
+            new StockSupply
+            {
+                Id = 1,
+                DocNumber = "KIR-20261115-001",
+                SupplierId = 1,
+                SupplierName = "Chorsu Goʻsht Markazi",
+                Date = DateTime.Now.AddHours(-3),
+                TotalCost = 3450000m,
+                PaymentStatus = "paid",
+                PaymentStatusDisplay = "Toʻlangan",
+                PaidAmount = 3450000m,
+                Notes = "Mol va qoʻy goʻshti yangi partiya",
+                CreatedBy = "Jasur Rahimov",
+                ItemsCount = 2,
+                Items = new List<StockSupplyItem>
+                {
+                    new StockSupplyItem { Id = 1, IngredientId = 1, IngredientName = "Mol goʻshti (lahm)", IngredientUnit = "kg", Quantity = 25m, UnitPrice = 90000m, TotalPrice = 2250000m },
+                    new StockSupplyItem { Id = 2, IngredientId = 2, IngredientName = "Qoʻy goʻshti (lahm)", IngredientUnit = "kg", Quantity = 12m, UnitPrice = 100000m, TotalPrice = 1200000m }
+                }
+            }
+        };
+
+        public static List<StockMovementLogItem> GetDemoMovements() => new()
+        {
+            new StockMovementLogItem { Id = 1, CreatedAt = DateTime.Now.AddMinutes(-15), CreatedAtDisplay = "Bugun 14:45", IngredientId = 1, IngredientName = "Mol goʻshti (lahm)", IngredientUnit = "kg", MovementType = "order_deduction", MovementTypeDisplay = "Savdo (Avto chegirish)", QuantityDelta = -0.300m, StockBefore = 45.8m, StockAfter = 45.5m, UnitCost = 90000m, Notes = "Stol #3 toʻlovidan avtomatik chegirildi" },
+            new StockMovementLogItem { Id = 2, CreatedAt = DateTime.Now.AddMinutes(-40), CreatedAtDisplay = "Bugun 14:20", IngredientId = 6, IngredientName = "Lazer guruch", IngredientUnit = "kg", MovementType = "order_deduction", MovementTypeDisplay = "Savdo (Avto chegirish)", QuantityDelta = -0.400m, StockBefore = 85.4m, StockAfter = 85.0m, UnitCost = 26000m, Notes = "Saboy buyurtmasidan avtomatik chegirildi" },
+            new StockMovementLogItem { Id = 3, CreatedAt = DateTime.Now.AddHours(-2), CreatedAtDisplay = "Bugun 13:00", IngredientId = 8, IngredientName = "Sabzi sariq", IngredientUnit = "kg", MovementType = "write_off", MovementTypeDisplay = "Chiqim (Spisaniye)", QuantityDelta = -2.5m, StockBefore = 7.0m, StockAfter = 4.5m, UnitCost = 4000m, Notes = "Aynigan sabzavotlar hisobdan chiqarildi" },
+            new StockMovementLogItem { Id = 4, CreatedAt = DateTime.Now.AddHours(-3), CreatedAtDisplay = "Bugun 12:00", IngredientId = 1, IngredientName = "Mol goʻshti (lahm)", IngredientUnit = "kg", MovementType = "supply", MovementTypeDisplay = "Kirim (Prihod)", QuantityDelta = 25m, StockBefore = 20.8m, StockAfter = 45.8m, UnitCost = 90000m, Notes = "KIR-20261115-001 partiyasi qabul qilindi" }
+        };
     }
 }
 

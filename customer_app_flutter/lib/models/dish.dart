@@ -3,13 +3,33 @@ import '../services/api_service.dart';
 class Category {
   final int id;
   final String name;
+  final String department;
+  final String description;
+  final int? parentId;
+  final int subcategoriesCount;
+  final int productsCount;
 
-  Category({required this.id, required this.name});
+  Category({
+    required this.id,
+    required this.name,
+    this.department = '',
+    this.description = '',
+    this.parentId,
+    this.subcategoriesCount = 0,
+    this.productsCount = 0,
+  });
+
+  bool get isSubcategory => parentId != null && parentId! > 0;
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
       id: json['id'] ?? 0,
       name: json['name'] ?? '',
+      department: json['department'] ?? '',
+      description: json['description'] ?? '',
+      parentId: json['parent_id'],
+      subcategoriesCount: json['subcategories_count'] ?? 0,
+      productsCount: json['products_count'] ?? 0,
     );
   }
 }
@@ -19,7 +39,9 @@ class Dish {
   final String name;
   final String description;
   final double price;
+  final int categoryId;
   final String category;
+  final String department;
   final String imageUrl;
   final bool isAvailable;
   final int prepTime;
@@ -31,7 +53,9 @@ class Dish {
     required this.name,
     required this.description,
     required this.price,
+    this.categoryId = 0,
     required this.category,
+    this.department = '',
     required this.imageUrl,
     required this.isAvailable,
     required this.prepTime,
@@ -49,7 +73,9 @@ class Dish {
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      categoryId: json['category_id'] ?? 0,
       category: json['category'] ?? '',
+      department: json['department'] ?? '',
       imageUrl: img,
       isAvailable: json['is_available'] ?? true,
       prepTime: json['prep_time'] ?? 15,

@@ -1,0 +1,113 @@
+<Window x:Class="DilkashPos.Views.RecipeEditDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:DilkashPos.Controls"
+        Title="Tex-karta (Kalkulyatsiya)"
+        Width="700"
+        Height="620"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
+    <controls:DialogChrome x:Name="Chrome" Title="Tex-karta (Retsept) tahrirlash" Subtitle="Taom tarkibi, xomashyo meʼyorlari va tannarx hisobi">
+        <Grid Margin="24,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Dish Info Header -->
+            <StackPanel Grid.Row="0">
+                <TextBlock x:Name="ErrorBanner"
+                           Foreground="{DynamicResource BrushError}"
+                           Style="{StaticResource TextLabel}"
+                           Margin="0,0,0,10"
+                           Visibility="Collapsed" />
+
+                <Border Background="{DynamicResource BrushSurfaceVariant}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Padding="14,10" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock x:Name="DishNameText" Text="Taom nomi" Style="{StaticResource TextTitle}" />
+                            <TextBlock x:Name="DishCategoryText" Text="Issiq taomlar" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" Margin="0,2,0,0" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <TextBlock Text="Sotuv narxi" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" HorizontalAlignment="Right" />
+                            <TextBlock x:Name="DishPriceText" Text="0 soʻm" Style="{StaticResource TextTitle}" Foreground="{DynamicResource BrushPrimaryBright}" Typography.NumeralAlignment="Tabular" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Grid Margin="0,0,0,6">
+                    <TextBlock Text="Taom uchun sarflanadigan xomashyolar (1 porsiya uchun)" Style="{StaticResource TextBodyBold}" VerticalAlignment="Center" />
+                    <Button HorizontalAlignment="Right" Style="{StaticResource GhostButton}" Padding="8,4" Click="OnAddRowClick">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:Icon Data="{StaticResource IconPlus}" Size="14" Foreground="{DynamicResource BrushPrimary}" Margin="0,0,4,0" />
+                            <TextBlock Text="Xomashyo qoʻshish" Foreground="{DynamicResource BrushPrimary}" FontWeight="SemiBold" FontSize="12" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </StackPanel>
+
+            <!-- Scrollable Items List -->
+            <Border Grid.Row="1" Background="{DynamicResource BrushSurfaceVariant}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Padding="8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="ItemsStackPanel" />
+                </ScrollViewer>
+            </Border>
+
+            <!-- Bottom KPI Bar -->
+            <Border Grid.Row="2" Background="{DynamicResource BrushSurface}" BorderBrush="{DynamicResource BrushBorder}" BorderThickness="1" CornerRadius="{StaticResource RadiusSm}" Padding="14,10" Margin="0,12,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Xomashyo soni" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                        <TextBlock x:Name="RecipeItemsCountText" Text="0 ta" Style="{StaticResource TextBodyBold}" Margin="0,2,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="Tannarx (Xomashyo)" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                        <TextBlock x:Name="TotalCostText" Text="0 soʻm" Style="{StaticResource TextBodyBold}" Foreground="{DynamicResource BrushAmberBright}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Sof foyda (1 porsiya)" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                        <TextBlock x:Name="ProfitMarginText" Text="0 soʻm" Style="{StaticResource TextBodyBold}" Foreground="{DynamicResource BrushPrimaryBright}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="3">
+                        <TextBlock Text="Rentabellik (%)" Style="{StaticResource TextLabel}" Foreground="{DynamicResource BrushTextSecondary}" />
+                        <TextBlock x:Name="MarginPercentText" Text="0%" Style="{StaticResource TextBodyBold}" Foreground="{DynamicResource BrushPrimaryBright}" Typography.NumeralAlignment="Tabular" Margin="0,2,0,0" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <controls:DialogChrome.FooterContent>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="Bekor qilish" Style="{StaticResource GhostButton}" MinHeight="48" Padding="20,10" Click="OnCancelClick" />
+                <Button Grid.Column="2" Content="Tex-kartani saqlash" Style="{StaticResource PrimaryButton}" MinHeight="48" Click="OnSaveClick" />
+            </Grid>
+        </controls:DialogChrome.FooterContent>
+    </controls:DialogChrome>
+</Window>

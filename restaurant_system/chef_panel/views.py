@@ -14,7 +14,13 @@ from datetime import timedelta, datetime, time
 
 from django.conf import settings
 from .utils import send_telegram_message, send_telegram_location
-from .models import Order, Product, Category, OrderItem, OrderStatusHistory, Customer, RestaurantTable, BotSettings, WaiterCall, WaiterProfile, CourierProfile
+from .models import (
+    Order, Product, Category, OrderItem, OrderStatusHistory, Customer,
+    RestaurantTable, BotSettings, WaiterCall, WaiterProfile, CourierProfile,
+    Ingredient, Supplier, StockSupply, StockSupplyItem, StockWriteOff, StockWriteOffItem,
+    RecipeItem, StockMovementLog
+)
+from .inventory_service import get_inventory_kpi_summary, ensure_default_inventory
 from .forms import ProductForm, CategoryForm
 from .payments import generate_click_url, generate_payme_url
 from .printer_service import (
@@ -2339,7 +2345,7 @@ def table_guest_bill_view(request, table_number):
 
 def mobile_customer_menu_api(request):
     """Flutter Mijoz Ilovasi: Barcha faol kategoriyalar va taomlar menyusi"""
-    categories = Category.objects.filter(is_active=True).prefetch_related('product_set')
+    categories = Category.objects.filter(is_active=True).prefetch_related('product_set', 'subcategories')
     
     result = []
     dishes_list = []
@@ -2352,7 +2358,9 @@ def mobile_customer_menu_api(request):
                 'name': prod.name,
                 'description': prod.description or "",
                 'price': float(prod.price),
+                'category_id': cat.id,
                 'category': cat.name,
+                'department': prod.department or cat.department or "",
                 'image': img_url,
                 'image_url': img_url,
                 'is_available': prod.is_available,
@@ -2364,7 +2372,11 @@ def mobile_customer_menu_api(request):
         result.append({
             'id': cat.id,
             'name': cat.name,
+            'department': cat.department or "",
             'description': cat.description or "",
+            'parent_id': cat.parent_id,
+            'subcategories_count': cat.subcategories.filter(is_active=True).count(),
+            'products_count': len(products_list),
             'products': products_list
         })
 
@@ -2542,7 +2554,7 @@ def mobile_customer_orders_api(request, phone):
 
 
 def mobile_customer_order_status_api(request, order_id):
-    """Flutter Mijoz Ilovasi: Bitta buyurtmaning jonli holatini kuzatish"""
+    """Flutter Mijoz Ilovasi: Bitta buyurtmaning jonli holatini va kuryer live tracking ma'lumotlarini olish"""
     order = get_object_or_404(Order, id=order_id)
     items_data = []
     for it in order.items.all():
@@ -2554,6 +2566,65 @@ def mobile_customer_order_status_api(request, order_id):
             'price': float(it.price),
             'total': float(it.total)
         })
+
+    # Mijoz manzili koordinatalari
+    cust_lat = order.latitude if order.latitude is not None else 41.2825
+    cust_lng = order.longitude if order.longitude is not None else 69.2155
+
+    # Restoran bosh binosi koordinatalari
+    rest_lat = 41.311081
+    rest_lng = 69.240562
+    rest_name = "Dilkash Restorani (Markaziy filial)"
+    rest_phone = "+998 71 200 00 00"
+    rest_address = "Toshkent sh., Navoiy ko'chasi 14-uy"
+
+    # Kuryer ma'lumotlari va jonli telemetriya
+    courier_data = None
+    distance_km = None
+    eta_minutes = None
+
+    courier = order.courier
+    if not courier and order.courier_name:
+        courier = CourierProfile.objects.filter(name=order.courier_name).first()
+    if not courier and order.status in ['yolda', 'kuryerda']:
+        courier = CourierProfile.objects.filter(is_active=True).first()
+
+    if courier or order.status in ['yolda', 'kuryerda']:
+        c_lat = courier.current_lat if (courier and courier.current_lat is not None) else None
+        c_lng = courier.current_lng if (courier and courier.current_lng is not None) else None
+
+        # Agar kuryer qurilmasidan hali koordinata kelmagan bo'lsa va status 'yolda' bo'lsa,
+        # marshrut o'rtasidagi realistik boshlang'ich nuqtani hisoblash
+        if (c_lat is None or c_lng is None) and order.status in ['yolda', 'kuryerda']:
+            c_lat = round(rest_lat + (cust_lat - rest_lat) * 0.58 + 0.002, 6)
+            c_lng = round(rest_lng + (cust_lng - rest_lng) * 0.58 + 0.001, 6)
+
+        if c_lat is not None and c_lng is not None:
+            import math
+            R = 6371.0  # km
+            d_lat = math.radians(cust_lat - c_lat)
+            d_lng = math.radians(cust_lng - c_lng)
+            a = (math.sin(d_lat / 2) ** 2 +
+                 math.cos(math.radians(c_lat)) * math.cos(math.radians(cust_lat)) *
+                 math.sin(d_lng / 2) ** 2)
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+            distance_km = round(R * c, 2)
+            eta_minutes = max(3, int(distance_km / 22.0 * 60) + 3)
+        elif order.status in ['yolda', 'kuryerda']:
+            distance_km = 2.4
+            eta_minutes = 12
+
+        courier_data = {
+            'id': courier.id if courier else 1,
+            'name': courier.name if courier else (order.courier_name or "Jasur Rahimov"),
+            'phone': courier.phone if courier else "+998 90 111 22 33",
+            'vehicle': (courier.vehicle_info if courier and courier.vehicle_info else "Tezkor Skuter (Yashil) - 01 A 777 BC"),
+            'current_lat': c_lat,
+            'current_lng': c_lng,
+            'distance_km': distance_km,
+            'eta_minutes': eta_minutes,
+            'is_live': order.status in ['yolda', 'kuryerda'],
+        }
 
     return JsonResponse({
         'status': 'success',
@@ -2567,11 +2638,64 @@ def mobile_customer_order_status_api(request, order_id):
         'service_type_display': order.get_service_type_display(),
         'delivery_address': order.address or "",
         'address': order.address or "",
-        'courier_name': order.courier_name or "",
+        'customer_lat': cust_lat,
+        'customer_lng': cust_lng,
+        'latitude': cust_lat,
+        'longitude': cust_lng,
+        'restaurant_lat': rest_lat,
+        'restaurant_lng': rest_lng,
+        'restaurant_name': rest_name,
+        'restaurant_phone': rest_phone,
+        'restaurant_address': rest_address,
+        'courier_name': (courier_data['name'] if courier_data else order.courier_name) or "",
+        'courier': courier_data,
+        'distance_km': distance_km,
+        'eta_minutes': eta_minutes,
         'total_amount': float(order.total_amount),
         'delivery_cost': float(order.delivery_cost),
         'created_at': order.created_at.strftime('%H:%M'),
         'items': items_data
+    })
+
+
+@csrf_exempt
+def mobile_customer_simulate_courier_api(request, order_id):
+    """Mijoz ilovasiga kuryer jonli harakatini simulyatsiya qilish (test/demo uchun)"""
+    order = get_object_or_404(Order, id=order_id)
+    cust_lat = order.latitude if order.latitude is not None else 41.2825
+    cust_lng = order.longitude if order.longitude is not None else 69.2155
+    rest_lat = 41.311081
+    rest_lng = 69.240562
+
+    courier = order.courier
+    if not courier:
+        courier = CourierProfile.objects.filter(is_active=True).first()
+        if not courier:
+            courier = CourierProfile.objects.create(
+                name="Jasur Rahimov",
+                phone="+998901112233",
+                vehicle_info="Tezkor Skuter (Yashil) - 01 A 777 BC"
+            )
+        order.courier = courier
+        order.courier_name = courier.name
+        order.save(update_fields=['courier', 'courier_name'])
+
+    cur_lat = courier.current_lat if courier.current_lat is not None else rest_lat
+    cur_lng = courier.current_lng if courier.current_lng is not None else rest_lng
+
+    step_lat = cur_lat + (cust_lat - cur_lat) * 0.15
+    step_lng = cur_lng + (cust_lng - cur_lng) * 0.15
+
+    courier.current_lat = round(step_lat, 6)
+    courier.current_lng = round(step_lng, 6)
+    courier.save(update_fields=['current_lat', 'current_lng'])
+
+    return JsonResponse({
+        'status': 'success',
+        'success': True,
+        'courier_lat': courier.current_lat,
+        'courier_lng': courier.current_lng,
+        'message': "Kuryer koordinatasi yangilandi"
     })
 
 
@@ -2869,6 +2993,14 @@ def mobile_courier_location_api(request):
 
     token = request.headers.get('Authorization', '').replace('Bearer ', '').strip() or data.get('token')
     courier = CourierProfile.objects.filter(auth_token=token).first() if token else None
+    if not courier and data.get('courier_id'):
+        courier = CourierProfile.objects.filter(id=data.get('courier_id')).first()
+    if not courier and data.get('phone'):
+        courier = CourierProfile.objects.filter(phone=data.get('phone')).first()
+    if not courier and data.get('order_id'):
+        order_obj = Order.objects.filter(id=data.get('order_id')).first()
+        if order_obj and order_obj.courier:
+            courier = order_obj.courier
     if not courier:
         return JsonResponse({'success': False, 'message': 'Kuryer topilmadi'}, status=401)
 
@@ -3121,4 +3253,31 @@ def waiter_release_table_api(request, table_number):
         'success': True,
         'message': f"Stol #{table_number} ofitsiantdan bo'shatildi."
     })
+
+
+def inventory_dashboard_view(request):
+    """Omborxona va taomlar kalkulyatsiyasi (tex-karta) veb-paneli."""
+    ensure_default_inventory()
+    kpi = get_inventory_kpi_summary()
+    ingredients = Ingredient.objects.filter(is_active=True).order_by('category', 'name')
+    suppliers = Supplier.objects.filter(is_active=True).order_by('name')
+    products = Product.objects.filter(is_available=True).select_related('category').order_by('name')
+    recent_supplies = StockSupply.objects.select_related('supplier').prefetch_related('items__ingredient').order_by('-date', '-id')[:20]
+    recent_write_offs = StockWriteOff.objects.prefetch_related('items__ingredient').order_by('-date', '-id')[:20]
+    recent_movements = StockMovementLog.objects.select_related('ingredient', 'related_order').order_by('-created_at', '-id')[:30]
+
+    context = {
+        'kpi': kpi,
+        'ingredients': ingredients,
+        'suppliers': suppliers,
+        'products': products,
+        'recent_supplies': recent_supplies,
+        'recent_write_offs': recent_write_offs,
+        'recent_movements': recent_movements,
+        'category_choices': Ingredient.CATEGORY_CHOICES,
+        'unit_choices': Ingredient.UNIT_CHOICES,
+        'reason_choices': StockWriteOff.REASON_CHOICES,
+    }
+    return render(request, 'chef_panel/inventory.html', context)
+
 

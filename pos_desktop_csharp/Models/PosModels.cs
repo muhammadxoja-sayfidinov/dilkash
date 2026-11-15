@@ -36,17 +36,22 @@ namespace DilkashPos.Models
     public class Category : BaseModel
     {
         public int Id { get; set; }
+        public int? ParentId { get; set; }
         public string Name { get; set; } = "";
         public string Department { get; set; } = "kitchen";
         public string Description { get; set; } = "";
         public string Icon { get; set; } = "🍽";
         public int ProductsCount { get; set; }
+        public int SubcategoriesCount { get; set; }
         public bool IsActive { get; set; } = true;
     }
 
     public class Product : BaseModel
     {
         private bool _isAvailable = true;
+        private string? _imageUrl;
+        private string? _imageLocalPath;
+        private string? _imageHash;
 
         public int Id { get; set; }
         public string Name { get; set; } = "";
@@ -56,7 +61,45 @@ namespace DilkashPos.Models
         public string Department { get; set; } = "kitchen";
         public string DepartmentName { get; set; } = "";
         public string Description { get; set; } = "";
-        public string? ImageUrl { get; set; }
+
+        public string? ImageUrl
+        {
+            get => _imageUrl;
+            set
+            {
+                if (_imageUrl != value)
+                {
+                    _imageUrl = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string? ImageLocalPath
+        {
+            get => _imageLocalPath;
+            set
+            {
+                if (_imageLocalPath != value)
+                {
+                    _imageLocalPath = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public string? ImageHash
+        {
+            get => _imageHash;
+            set
+            {
+                if (_imageHash != value)
+                {
+                    _imageHash = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
 
         public bool IsAvailable
         {
@@ -89,7 +132,8 @@ namespace DilkashPos.Models
         public int Id { get; set; }
         public int Number { get; set; }
         public string Name { get; set; } = "";
-        public string Zone { get; set; } = "Zal"; // 'Zal', 'Terrasa', 'VIP'
+        public int? HallId { get; set; }
+        public string Zone { get; set; } = "Zal"; // Zal nomi
         public int Capacity { get; set; } = 4;
         public bool IsActive { get; set; } = true;
         public string? AssignedWaiter { get; set; }
@@ -358,5 +402,297 @@ namespace DilkashPos.Models
         public string ServerUrl { get; set; } = "https://dilkash-django-production.up.railway.app";
         public string CashierName { get; set; } = "Jasur Rahimov";
         public bool KioskMode { get; set; } = true;
+    }
+
+    public class Hall : BaseModel
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public int SortOrder { get; set; } = 1;
+        public bool IsActive { get; set; } = true;
+        public int TablesCount { get; set; }
+    }
+
+    public class PosPrinter : BaseModel
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Department { get; set; } = "kitchen";
+        public string IpAddress { get; set; } = "";
+        public int Port { get; set; } = 9100;
+        public int PaperWidth { get; set; } = 80;
+        public string Subtitle { get; set; } = "";
+        public bool IsActive { get; set; } = true;
+        public int SortOrder { get; set; } = 1;
+
+        public string EffectiveAddress
+        {
+            get
+            {
+                var ip = (IpAddress ?? "").Trim();
+                if (string.IsNullOrEmpty(ip)) return "";
+                return ip.Contains(':') ? ip : $"{ip}:{(Port > 0 ? Port : 9100)}";
+            }
+        }
+
+        public bool IsOnline => IsActive && !string.IsNullOrWhiteSpace(IpAddress);
+    }
+
+    public class CashierProfile : BaseModel
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "Jasur Rahimov";
+        public string Phone { get; set; } = "+998901112233";
+        public string RoleTitle { get; set; } = "Bosh kassir";
+        public string PinHash { get; set; } = "";
+        public bool HasPin { get; set; } = true;
+        public string AvatarColor { get; set; } = "#10B981";
+        public bool RequirePinOnUnlock { get; set; }
+        public bool NotificationSound { get; set; } = true;
+        public bool IsActive { get; set; } = true;
+        public bool IsPrimary { get; set; } = true;
+
+        public string Initials
+        {
+            get
+            {
+                var parts = (Name ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 0) return "K";
+                if (parts.Length == 1) return parts[0][..Math.Min(2, parts[0].Length)].ToUpperInvariant();
+                return $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[1][0])}";
+            }
+        }
+    }
+
+    public class Ingredient : BaseModel
+    {
+        private decimal _currentStock;
+        private decimal _costPrice;
+        private bool _isLowStock;
+        private decimal _totalValuation;
+
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Category { get; set; } = "groceries";
+        public string CategoryDisplay { get; set; } = "";
+        public string Unit { get; set; } = "kg";
+        public string UnitDisplay { get; set; } = "";
+        public decimal MinStockAlert { get; set; } = 5m;
+        public string Description { get; set; } = "";
+        public bool IsActive { get; set; } = true;
+
+        public decimal CurrentStock
+        {
+            get => _currentStock;
+            set
+            {
+                if (_currentStock != value)
+                {
+                    _currentStock = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(FormattedStock));
+                    IsLowStock = _currentStock <= MinStockAlert;
+                    TotalValuation = Math.Round(_currentStock * CostPrice, 2);
+                }
+            }
+        }
+
+        public decimal CostPrice
+        {
+            get => _costPrice;
+            set
+            {
+                if (_costPrice != value)
+                {
+                    _costPrice = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(FormattedCost));
+                    TotalValuation = Math.Round(CurrentStock * _costPrice, 2);
+                }
+            }
+        }
+
+        public bool IsLowStock
+        {
+            get => _isLowStock;
+            set
+            {
+                if (_isLowStock != value)
+                {
+                    _isLowStock = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(StockStatusBadge));
+                    OnPropertyChanged(nameof(StockStatusColor));
+                }
+            }
+        }
+
+        public decimal TotalValuation
+        {
+            get => _totalValuation;
+            set
+            {
+                if (_totalValuation != value)
+                {
+                    _totalValuation = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(FormattedValuation));
+                }
+            }
+        }
+
+        public string FormattedStock => $"{CurrentStock:0.###} {Unit}";
+        public string FormattedCost => $"{CostPrice:N0} soʻm";
+        public string FormattedValuation => $"{TotalValuation:N0} soʻm";
+        public string StockStatusBadge => IsLowStock ? "KAM QOLGAN" : "YETARLI";
+        public string StockStatusColor => IsLowStock ? "#EF4444" : "#10B981";
+    }
+
+    public class Supplier : BaseModel
+    {
+        private decimal _balance;
+
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Phone { get; set; } = "";
+        public string ContactPerson { get; set; } = "";
+        public string Address { get; set; } = "";
+        public string Notes { get; set; } = "";
+        public bool IsActive { get; set; } = true;
+
+        public decimal Balance
+        {
+            get => _balance;
+            set
+            {
+                if (_balance != value)
+                {
+                    _balance = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(FormattedBalance));
+                }
+            }
+        }
+
+        public string FormattedBalance => Balance > 0 ? $"{Balance:N0} soʻm (qarz)" : "0 soʻm";
+    }
+
+    public class RecipeItem : BaseModel
+    {
+        public int Id { get; set; }
+        public int ProductId { get; set; }
+        public string ProductName { get; set; } = "";
+        public int IngredientId { get; set; }
+        public string IngredientName { get; set; } = "";
+        public string IngredientUnit { get; set; } = "kg";
+        public decimal Quantity { get; set; }
+        public string Unit { get; set; } = "kg";
+        public decimal Cost { get; set; }
+        public string Notes { get; set; } = "";
+
+        public string FormattedQuantity => $"{Quantity:0.###} {Unit}";
+        public string FormattedCost => $"{Cost:N0} soʻm";
+    }
+
+    public class InventoryKpiSummary : BaseModel
+    {
+        public int TotalIngredients { get; set; }
+        public int LowStockCount { get; set; }
+        public decimal TotalValuation { get; set; }
+        public decimal TodaySuppliesTotal { get; set; }
+        public decimal TodayWriteoffsTotal { get; set; }
+        public int SuppliersCount { get; set; }
+
+        public string FormattedValuation => $"{TotalValuation:N0} soʻm";
+        public string FormattedTodaySupplies => $"{TodaySuppliesTotal:N0} soʻm";
+    }
+
+    public class StockSupply : BaseModel
+    {
+        public int Id { get; set; }
+        public string DocNumber { get; set; } = "";
+        public int? SupplierId { get; set; }
+        public string SupplierName { get; set; } = "";
+        public DateTime Date { get; set; } = DateTime.Now;
+        public decimal TotalCost { get; set; }
+        public string PaymentStatus { get; set; } = "paid";
+        public string PaymentStatusDisplay { get; set; } = "Toʻlangan";
+        public decimal PaidAmount { get; set; }
+        public string Notes { get; set; } = "";
+        public string CreatedBy { get; set; } = "Kassir";
+        public int ItemsCount { get; set; }
+        public List<StockSupplyItem> Items { get; set; } = new();
+
+        public string FormattedTotal => $"{TotalCost:N0} soʻm";
+        public string FormattedDate => Date.ToString("dd.MM.yyyy HH:mm");
+    }
+
+    public class StockSupplyItem : BaseModel
+    {
+        public int Id { get; set; }
+        public int IngredientId { get; set; }
+        public string IngredientName { get; set; } = "";
+        public string IngredientUnit { get; set; } = "kg";
+        public decimal Quantity { get; set; }
+        public decimal UnitPrice { get; set; }
+        public decimal TotalPrice { get; set; }
+
+        public string FormattedQuantity => $"{Quantity:0.###} {IngredientUnit}";
+        public string FormattedPrice => $"{UnitPrice:N0} soʻm";
+        public string FormattedTotal => $"{TotalPrice:N0} soʻm";
+    }
+
+    public class StockWriteOff : BaseModel
+    {
+        public int Id { get; set; }
+        public string DocNumber { get; set; } = "";
+        public DateTime Date { get; set; } = DateTime.Now;
+        public string Reason { get; set; } = "spoilage";
+        public string ReasonDisplay { get; set; } = "Yaroqsiz / Aynigan";
+        public decimal TotalCost { get; set; }
+        public string Notes { get; set; } = "";
+        public string CreatedBy { get; set; } = "Kassir";
+        public int ItemsCount { get; set; }
+        public List<StockWriteOffItem> Items { get; set; } = new();
+
+        public string FormattedTotal => $"{TotalCost:N0} soʻm";
+        public string FormattedDate => Date.ToString("dd.MM.yyyy HH:mm");
+    }
+
+    public class StockWriteOffItem : BaseModel
+    {
+        public int Id { get; set; }
+        public int IngredientId { get; set; }
+        public string IngredientName { get; set; } = "";
+        public string IngredientUnit { get; set; } = "kg";
+        public decimal Quantity { get; set; }
+        public decimal UnitCost { get; set; }
+        public decimal TotalCost { get; set; }
+
+        public string FormattedQuantity => $"{Quantity:0.###} {IngredientUnit}";
+        public string FormattedCost => $"{UnitCost:N0} soʻm";
+        public string FormattedTotal => $"{TotalCost:N0} soʻm";
+    }
+
+    public class StockMovementLogItem : BaseModel
+    {
+        public int Id { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string CreatedAtDisplay { get; set; } = "";
+        public int IngredientId { get; set; }
+        public string IngredientName { get; set; } = "";
+        public string IngredientUnit { get; set; } = "kg";
+        public string MovementType { get; set; } = "supply";
+        public string MovementTypeDisplay { get; set; } = "Kirim";
+        public decimal QuantityDelta { get; set; }
+        public decimal StockBefore { get; set; }
+        public decimal StockAfter { get; set; }
+        public decimal UnitCost { get; set; }
+        public int? RelatedOrderId { get; set; }
+        public string Notes { get; set; } = "";
+
+        public string FormattedDelta => $"{(QuantityDelta > 0 ? "+" : "")}{QuantityDelta:0.###} {IngredientUnit}";
+        public string DeltaColor => QuantityDelta > 0 ? "#10B981" : "#EF4444";
     }
 }

@@ -1,42 +1,72 @@
 using System;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media.Imaging;
+using DilkashPos.Services;
 using DilkashPos.ViewModels;
 
 namespace DilkashPos.Controls
 {
     public partial class ProductTile : UserControl
     {
+        private ProductTileVM? _subscribedVm;
+
         public ProductTile()
         {
             InitializeComponent();
             DataContextChanged += OnDataContextChanged;
+            Unloaded += (_, _) => UnsubscribeVm();
         }
 
         public event EventHandler<ProductTileVM>? TileClicked;
 
+        private void UnsubscribeVm()
+        {
+            if (_subscribedVm != null)
+            {
+                _subscribedVm.PropertyChanged -= OnVmPropertyChanged;
+                _subscribedVm = null;
+            }
+        }
+
         private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (e.NewValue is ProductTileVM vm && !string.IsNullOrWhiteSpace(vm.ImageUrl))
+            UnsubscribeVm();
+            if (e.NewValue is ProductTileVM vm)
             {
-                try
-                {
-                    var bmp = new BitmapImage();
-                    bmp.BeginInit();
-                    bmp.UriSource = new Uri(vm.ImageUrl, UriKind.RelativeOrAbsolute);
-                    bmp.CacheOption = BitmapCacheOption.OnLoad;
-                    bmp.EndInit();
-                    ProductImage.Source = bmp;
-                    ProductImage.Visibility = Visibility.Visible;
-                }
-                catch
-                {
-                    ProductImage.Visibility = Visibility.Collapsed;
-                }
+                _subscribedVm = vm;
+                vm.PropertyChanged += OnVmPropertyChanged;
+                ApplyProductImage(vm);
             }
             else
             {
+                ProductImage.Source = null;
+                ProductImage.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName is nameof(ProductTileVM.ImageLocalPath) or nameof(ProductTileVM.ImageUrl) or nameof(ProductTileVM.HasImage))
+            {
+                if (_subscribedVm != null)
+                {
+                    Dispatcher.InvokeAsync(() => ApplyProductImage(_subscribedVm));
+                }
+            }
+        }
+
+        private void ApplyProductImage(ProductTileVM vm)
+        {
+            var bmp = ImageCacheService.LoadBitmap(vm.ImageLocalPath, vm.ImageUrl, ImageCacheService.ActiveBaseUrl);
+            if (bmp != null)
+            {
+                ProductImage.Source = bmp;
+                ProductImage.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                ProductImage.Source = null;
                 ProductImage.Visibility = Visibility.Collapsed;
             }
         }

@@ -13,6 +13,8 @@ namespace DilkashPos.Controls
         }
 
         public event EventHandler<PrinterCardVM>? TestPrintClicked;
+        public event EventHandler<PrinterCardVM>? EditClicked;
+        public event EventHandler<PrinterCardVM>? DeleteClicked;
         public event EventHandler? IpChanged;
 
         private void OnTestPrintClick(object sender, RoutedEventArgs e)
@@ -20,6 +22,22 @@ namespace DilkashPos.Controls
             if (DataContext is PrinterCardVM vm)
             {
                 TestPrintClicked?.Invoke(this, vm);
+            }
+        }
+
+        private void OnEditClick(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is PrinterCardVM vm)
+            {
+                EditClicked?.Invoke(this, vm);
+            }
+        }
+
+        private void OnDeleteClick(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is PrinterCardVM vm)
+            {
+                DeleteClicked?.Invoke(this, vm);
             }
         }
 

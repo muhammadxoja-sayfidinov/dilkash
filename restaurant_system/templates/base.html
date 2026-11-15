@@ -688,6 +688,12 @@
                         <span class="badge-counter" id="sidebar-order-count">KDS</span>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if 'inventory' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'chef_panel:inventory_dashboard' %}">
+                        <i class="fas fa-boxes-stacked text-success"></i>
+                        <span>Omborxona & Tex-karta</span>
+                    </a>
+                </li>
             </ul>
 
             <!-- SOZLAMALAR (YAGONA VA TOZA HAVOLA) -->

@@ -9,6 +9,82 @@ import 'auth_screen.dart';
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
 
+  void _showServerSettingsDialog(BuildContext context) {
+    final controller = TextEditingController(text: ApiService.baseUrl);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Server sozlamasi'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Backend Django server manzili:',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: 'https://dilkash-django-production.up.railway.app',
+                labelText: 'Server Base URL',
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Tezkor tanlov:',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                ActionChip(
+                  avatar: const Icon(Icons.cloud_done_rounded, size: 16, color: Color(0xFF10B981)),
+                  label: const Text('Railway Cloud'),
+                  onPressed: () => controller.text = ApiService.defaultProductionUrl,
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.computer_rounded, size: 16),
+                  label: const Text('127.0.0.1:8000'),
+                  onPressed: () => controller.text = ApiService.defaultLocalUrl,
+                ),
+                ActionChip(
+                  avatar: const Icon(Icons.wifi_rounded, size: 16),
+                  label: const Text('Wi-Fi tarmogʻi'),
+                  onPressed: () => controller.text = ApiService.defaultWifiUrl,
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Bekor qilish'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newUrl = controller.text.trim();
+              if (newUrl.isNotEmpty) {
+                await ApiService.setBaseUrl(newUrl);
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) {
+                  DilkashFeedback.showSuccess(
+                      context, 'Server manzili yangilandi');
+                }
+              }
+            },
+            child: const Text('Saqlash'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showThemeSelectionSheet(BuildContext context, ThemeProvider themeProv) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final currentMode = themeProv.themeMode;
@@ -410,18 +486,15 @@ class AccountScreen extends StatelessWidget {
                     leading: const Icon(Icons.dns_outlined),
                     title: const Text('Server manzili (Base URL)'),
                     subtitle: Text(
-                      ApiService.baseUrl,
+                      ApiService.isProduction
+                          ? '${ApiService.baseUrl} (Railway Cloud)'
+                          : ApiService.baseUrl,
                       style: TextStyle(
                           fontSize: 12,
                           color: DilkashColors.textSecondary(isDark)),
                     ),
                     trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AuthScreen()),
-                      );
-                    },
+                    onTap: () => _showServerSettingsDialog(context),
                   ),
                   Divider(
                       height: 1,
