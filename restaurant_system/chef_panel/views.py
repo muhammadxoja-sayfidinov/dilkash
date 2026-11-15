@@ -2439,15 +2439,30 @@ def mobile_customer_menu_api(request):
     for cat in categories:
         products_list = []
         for prod in cat.product_set.all():
-            img_url = request.build_absolute_uri(prod.image.url) if prod.image else ""
+            img_url = ""
+            if prod.image:
+                try:
+                    img_url = request.build_absolute_uri(prod.image.url)
+                except Exception:
+                    img_url = ""
+
+            dept = ""
+            if hasattr(prod, 'get_department'):
+                try:
+                    dept = prod.get_department()
+                except Exception:
+                    dept = ""
+            if not dept:
+                dept = getattr(cat, 'department', '') or ""
+
             item_data = {
                 'id': prod.id,
                 'name': prod.name,
                 'description': prod.description or "",
-                'price': float(prod.price),
+                'price': float(prod.price) if prod.price is not None else 0.0,
                 'category_id': cat.id,
                 'category': cat.name,
-                'department': prod.department or cat.department or "",
+                'department': dept,
                 'image': img_url,
                 'image_url': img_url,
                 'is_available': prod.is_available,
