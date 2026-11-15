@@ -583,6 +583,29 @@ namespace DilkashPos.Services
                 return (false, false, list, ex.Message);
             }
         }
+
+        public async Task<(bool NetworkOk, bool Success, JsonElement Data, string Error)> GetFeedbacksAsync(string query = "")
+        {
+            string url = $"{_baseUrl}/api/pos/feedback/";
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                url += $"?q={Uri.EscapeDataString(query)}";
+            }
+            try
+            {
+                var resp = await _http.GetAsync(url);
+                if (!resp.IsSuccessStatusCode)
+                {
+                    return (true, false, default, $"Server xatosi: {resp.StatusCode}");
+                }
+                var doc = await resp.Content.ReadFromJsonAsync<JsonElement>();
+                return (true, true, doc, "");
+            }
+            catch (Exception ex)
+            {
+                return (false, false, default, ex.Message);
+            }
+        }
     }
 }
 

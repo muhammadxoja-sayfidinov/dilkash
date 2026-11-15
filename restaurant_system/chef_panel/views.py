@@ -18,7 +18,7 @@ from .models import (
     Order, Product, Category, OrderItem, OrderStatusHistory, Customer,
     RestaurantTable, BotSettings, WaiterCall, WaiterProfile, CourierProfile,
     Ingredient, Supplier, StockSupply, StockSupplyItem, StockWriteOff, StockWriteOffItem,
-    RecipeItem, StockMovementLog
+    RecipeItem, StockMovementLog, WaiterFeedback, DishFeedback
 )
 from .inventory_service import get_inventory_kpi_summary, ensure_default_inventory
 from .forms import ProductForm, CategoryForm
@@ -2337,6 +2337,93 @@ def table_guest_bill_view(request, table_number):
         'now': timezone.now(),
     }
     return render(request, 'chef_panel/table_guest_bill.html', context)
+
+
+@csrf_exempt
+def table_feedback_submit_api(request):
+    """
+    QR Chek / Stol orqali mijozning ofitsiant va aytilgan taomlarni baholash APIsi.
+    Ofitsiant bu baholarni aslo ko'ra olmaydi (faqat POS/ma'muriyat ko'radi).
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Faqat POST'}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except Exception:
+        data = request.POST
+
+    table_number = str(data.get('table_number', '')).strip()
+    order_id = data.get('order_id')
+    waiter_rating = int(data.get('waiter_rating', 5))
+    waiter_comment = (data.get('waiter_comment') or '').strip()
+    dish_ratings = data.get('dish_ratings', [])
+
+    order_obj = None
+    if order_id:
+        order_obj = Order.objects.filter(id=order_id).first()
+    if not order_obj and table_number:
+        order_obj = Order.objects.filter(
+            service_type='dine_in',
+            table_number=table_number
+        ).order_by('-created_at').first()
+
+    # Ofitsiantni aniqlash
+    waiter_obj = None
+    if order_obj and order_obj.waiter:
+        waiter_obj = order_obj.waiter
+    elif table_number:
+        t_int = int(table_number) if table_number.isdigit() else 1
+        t_obj = RestaurantTable.objects.filter(number=t_int).first()
+        if t_obj and t_obj.assigned_waiter:
+            waiter_obj = t_obj.assigned_waiter
+
+    waiter_name = (order_obj.waiter_name if (order_obj and order_obj.waiter_name) else (waiter_obj.name if waiter_obj else "Ofitsiant"))
+
+    # 1. Ofitsiant bahosini saqlash
+    if waiter_obj or waiter_name:
+        if not waiter_obj:
+            waiter_obj = WaiterProfile.objects.filter(name=waiter_name).first()
+        if not waiter_obj:
+            waiter_obj = WaiterProfile.objects.first()
+
+        if waiter_obj:
+            WaiterFeedback.objects.create(
+                waiter=waiter_obj,
+                waiter_name=waiter_name,
+                table_number=table_number,
+                order=order_obj,
+                rating=max(1, min(5, waiter_rating)),
+                comment=waiter_comment,
+            )
+
+    # 2. Taomlar baholarini saqlash
+    for dr in dish_ratings:
+        p_id = dr.get('product_id')
+        p_name = dr.get('product_name', '')
+        d_rating = int(dr.get('rating', 5))
+        d_comment = (dr.get('comment') or '').strip()
+
+        prod_obj = Product.objects.filter(id=p_id).first() if p_id else None
+        if not prod_obj and p_name:
+            prod_obj = Product.objects.filter(name__icontains=p_name).first()
+
+        if prod_obj:
+            DishFeedback.objects.create(
+                product=prod_obj,
+                product_name=prod_obj.name,
+                table_number=table_number,
+                order=order_obj,
+                rating=max(1, min(5, d_rating)),
+                comment=d_comment,
+            )
+
+    return JsonResponse({
+        'status': 'success',
+        'success': True,
+        'message': "Katta rahmat! Sizning baho va izohlaringiz qabul qilindi. Fikringiz xizmat sifatini oshirishda juda qadrli!"
+    })
+
 
 
 # ==============================================================================

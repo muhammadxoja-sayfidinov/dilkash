@@ -19,7 +19,8 @@ from .models import (
     RestaurantTable, WaiterProfile, CourierProfile, BotSettings, WaiterCall,
     Hall, PrinterDevice, CashierProfile,
     Ingredient, Supplier, StockSupply, StockSupplyItem, StockWriteOff, StockWriteOffItem,
-    RecipeItem, StockMovementLog, process_order_inventory_deduction
+    RecipeItem, StockMovementLog, process_order_inventory_deduction,
+    WaiterFeedback, DishFeedback
 )
 from .inventory_service import ensure_default_inventory, get_inventory_kpi_summary
 from .printer_service import (
@@ -2446,6 +2447,111 @@ def pos_inventory_movements_api(request):
     logs = [_serialize_stock_movement(m) for m in qs[:limit]]
 
     return JsonResponse({'status': 'ok', 'movements': logs})
+
+
+@csrf_exempt
+def pos_feedbacks_api(request):
+    """
+    POS Tizimi uchun: Mijozlarning ofitsiantlar va taomlar bo'yicha baholari va sharhlari.
+    Faqat POS/kassa/rahbariyat ko'radi (ofitsiantlar ko'rmaydi).
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Faqat GET qabul qilinadi'}, status=405)
+
+    from django.db.models import Avg
+
+    w_qs = WaiterFeedback.objects.select_related('waiter', 'order').order_by('-created_at', '-id')
+    d_qs = DishFeedback.objects.select_related('product', 'order').order_by('-created_at', '-id')
+
+    q = (request.GET.get('q') or '').strip()
+    if q:
+        w_qs = w_qs.filter(Q(waiter_name__icontains=q) | Q(comment__icontains=q) | Q(table_number__icontains=q))
+        d_qs = d_qs.filter(Q(product_name__icontains=q) | Q(comment__icontains=q) | Q(table_number__icontains=q))
+
+    w_avg = WaiterFeedback.objects.aggregate(avg=Avg('rating'), cnt=Count('id'))
+    d_avg = DishFeedback.objects.aggregate(avg=Avg('rating'), cnt=Count('id'))
+
+    total_waiter_reviews = w_avg['cnt'] or 0
+    avg_waiter_rating = round(float(w_avg['avg'] or 5.0), 1)
+
+    total_dish_reviews = d_avg['cnt'] or 0
+    avg_dish_rating = round(float(d_avg['avg'] or 5.0), 1)
+
+    # Ofitsiantlar umumiy reytingi
+    waiters_summary = []
+    for w in WaiterProfile.objects.all():
+        stats = WaiterFeedback.objects.filter(waiter=w).aggregate(avg=Avg('rating'), cnt=Count('id'))
+        cnt = stats['cnt'] or 0
+        avg_r = round(float(stats['avg'] or 5.0), 1) if cnt > 0 else 5.0
+        waiters_summary.append({
+            'waiter_id': w.id,
+            'name': w.name,
+            'phone': w.phone,
+            'avg_rating': avg_r,
+            'reviews_count': cnt,
+            'stars_display': '★' * int(round(avg_r)) + '☆' * (5 - int(round(avg_r))),
+        })
+    waiters_summary.sort(key=lambda x: (x['reviews_count'] > 0, x['avg_rating']), reverse=True)
+
+    # Taomlar umumiy reytingi
+    dishes_summary = []
+    for p in Product.objects.filter(is_available=True):
+        stats = DishFeedback.objects.filter(product=p).aggregate(avg=Avg('rating'), cnt=Count('id'))
+        cnt = stats['cnt'] or 0
+        if cnt > 0:
+            avg_r = round(float(stats['avg'] or 5.0), 1)
+            dishes_summary.append({
+                'product_id': p.id,
+                'name': p.name,
+                'category': p.category.name if p.category else "",
+                'avg_rating': avg_r,
+                'reviews_count': cnt,
+                'stars_display': '★' * int(round(avg_r)) + '☆' * (5 - int(round(avg_r))),
+            })
+    dishes_summary.sort(key=lambda x: (x['reviews_count'], x['avg_rating']), reverse=True)
+
+    limit = int(request.GET.get('limit', 100))
+
+    waiter_feedbacks_data = []
+    for fb in w_qs[:limit]:
+        waiter_feedbacks_data.append({
+            'id': fb.id,
+            'waiter_id': fb.waiter_id,
+            'waiter_name': fb.waiter_name,
+            'table_number': fb.table_number,
+            'rating': fb.rating,
+            'stars_display': '★' * fb.rating + '☆' * (5 - fb.rating),
+            'comment': fb.comment or "Izoh qoldirilmagan",
+            'created_at': fb.created_at.strftime('%Y-%m-%d %H:%M'),
+        })
+
+    dish_feedbacks_data = []
+    for df in d_qs[:limit]:
+        dish_feedbacks_data.append({
+            'id': df.id,
+            'product_id': df.product_id,
+            'product_name': df.product_name,
+            'table_number': df.table_number,
+            'rating': df.rating,
+            'stars_display': '★' * df.rating + '☆' * (5 - df.rating),
+            'comment': df.comment or "Izoh qoldirilmagan",
+            'created_at': df.created_at.strftime('%Y-%m-%d %H:%M'),
+        })
+
+    return JsonResponse({
+        'status': 'ok',
+        'stats': {
+            'total_waiter_reviews': total_waiter_reviews,
+            'avg_waiter_rating': avg_waiter_rating,
+            'total_dish_reviews': total_dish_reviews,
+            'avg_dish_rating': avg_dish_rating,
+        },
+        'waiters_summary': waiters_summary,
+        'dishes_summary': dishes_summary,
+        'waiter_feedbacks': waiter_feedbacks_data,
+        'dish_feedbacks': dish_feedbacks_data,
+    })
+
 
 
 

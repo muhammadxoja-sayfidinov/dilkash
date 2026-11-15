@@ -909,5 +909,44 @@ def process_order_inventory_deduction(order, cashier_name: str = "POS"):
     return logs
 
 
+class WaiterFeedback(models.Model):
+    """Mijoz tomonidan QR chek/stol orqali ofitsiantga berilgan maxfiy baho (faqat POS va ma'muriyat ko'radi)"""
+    waiter = models.ForeignKey('WaiterProfile', on_delete=models.CASCADE, related_name='feedbacks', verbose_name="Ofitsiant")
+    waiter_name = models.CharField(max_length=150, blank=True, verbose_name="Ofitsiant ismi")
+    table_number = models.CharField(max_length=20, verbose_name="Stol raqami")
+    order = models.ForeignKey('Order', on_delete=models.SET_NULL, null=True, blank=True, related_name='waiter_feedbacks', verbose_name="Buyurtma")
+    rating = models.PositiveSmallIntegerField(default=5, verbose_name="Baho (1-5 yulduz)")
+    comment = models.TextField(blank=True, default="", verbose_name="Mijoz izohi / fikri")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Baholangan vaqt")
+
+    class Meta:
+        verbose_name = "Ofitsiant bahosi (Maxfiy)"
+        verbose_name_plural = "Ofitsiantlar baholari (Maxfiy)"
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f"Stol #{self.table_number} | {self.waiter_name} | {self.rating}★"
+
+
+class DishFeedback(models.Model):
+    """Mijoz tomonidan QR chek/stol orqali aytilgan taomga berilgan baho"""
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='feedbacks', verbose_name="Taom")
+    product_name = models.CharField(max_length=150, blank=True, verbose_name="Taom nomi")
+    table_number = models.CharField(max_length=20, verbose_name="Stol raqami")
+    order = models.ForeignKey('Order', on_delete=models.SET_NULL, null=True, blank=True, related_name='dish_feedbacks', verbose_name="Buyurtma")
+    rating = models.PositiveSmallIntegerField(default=5, verbose_name="Baho (1-5 yulduz)")
+    comment = models.TextField(blank=True, default="", verbose_name="Mijoz izohi")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Baholangan vaqt")
+
+    class Meta:
+        verbose_name = "Taom bahosi"
+        verbose_name_plural = "Taomlar baholari"
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f"Stol #{self.table_number} | {self.product_name} | {self.rating}★"
+
+
+
 
 

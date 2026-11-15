@@ -101,6 +101,8 @@ namespace DilkashPos
         private readonly ObservableCollection<ManageTableRow> _manageTables = new();
         private readonly ObservableCollection<ManageHallRow> _manageHalls = new();
         private readonly ObservableCollection<ManageHallRow> _settingsHalls = new();
+        private readonly ObservableCollection<WaiterFeedbackItem> _manageWaiterFeedbacks = new();
+        private readonly ObservableCollection<DishFeedbackItem> _manageDishFeedbacks = new();
 
         private void InitializeManagementLists()
         {
@@ -110,6 +112,10 @@ namespace DilkashPos
             ManageTablesItemsControl.ItemsSource = _manageTables;
             ManageHallsItemsControl.ItemsSource = _manageHalls;
             SettingsHallsItemsControl.ItemsSource = _settingsHalls;
+            if (ManageWaiterFeedbacksItemsControl != null)
+                ManageWaiterFeedbacksItemsControl.ItemsSource = _manageWaiterFeedbacks;
+            if (ManageDishFeedbacksItemsControl != null)
+                ManageDishFeedbacksItemsControl.ItemsSource = _manageDishFeedbacks;
         }
 
         private void OnManageSubTabClick(object sender, RoutedEventArgs e)
@@ -135,6 +141,18 @@ namespace DilkashPos
             ManageStaffItemsControl.Visibility = _activeManageSubTab == "staff" ? Visibility.Visible : Visibility.Collapsed;
             ManageTablesItemsControl.Visibility = _activeManageSubTab == "tables" ? Visibility.Visible : Visibility.Collapsed;
             ManageHallsItemsControl.Visibility = _activeManageSubTab == "halls" ? Visibility.Visible : Visibility.Collapsed;
+            if (ManageFeedbackContainer != null)
+                ManageFeedbackContainer.Visibility = _activeManageSubTab == "feedback" ? Visibility.Visible : Visibility.Collapsed;
+
+            if (ManageAddBtn != null)
+                ManageAddBtn.Visibility = _activeManageSubTab == "feedback" ? Visibility.Collapsed : Visibility.Visible;
+
+            if (ManageSearchBox != null)
+            {
+                ManageSearchBox.Placeholder = _activeManageSubTab == "feedback"
+                    ? "Sharh, ofitsiant yoki taom qidirish..."
+                    : "Qidirish...";
+            }
 
             ManageAddBtnText.Text = _activeManageSubTab switch
             {
@@ -229,7 +247,84 @@ namespace DilkashPos
                     _manageHalls.Add(new ManageHallRow { Model = h });
                 }
             }
+            else if (_activeManageSubTab == "feedback")
+            {
+                _ = LoadFeedbacksAsync(q);
+            }
             RenderSettingsHallsList();
+        }
+
+        public async Task LoadFeedbacksAsync(string query = "")
+        {
+            try
+            {
+                var (networkOk, success, data, error) = await _api.GetFeedbacksAsync(query);
+                if (!networkOk || !success)
+                {
+                    System.Diagnostics.Debug.WriteLine($"LoadFeedbacksAsync xatosi: {error}");
+                    return;
+                }
+
+                if (data.ValueKind == JsonValueKind.Object && data.TryGetProperty("stats", out var statsEl))
+                {
+                    double avgWaiter = 5.0;
+                    int totalWaiter = 0;
+                    double avgDish = 5.0;
+                    int totalDish = 0;
+
+                    if (statsEl.TryGetProperty("avg_waiter_rating", out var aw) && aw.TryGetDouble(out var vAw))
+                        avgWaiter = vAw;
+                    if (statsEl.TryGetProperty("total_waiter_reviews", out var tw) && tw.TryGetInt32(out var vTw))
+                        totalWaiter = vTw;
+                    if (statsEl.TryGetProperty("avg_dish_rating", out var ad) && ad.TryGetDouble(out var vAd))
+                        avgDish = vAd;
+                    if (statsEl.TryGetProperty("total_dish_reviews", out var td) && td.TryGetInt32(out var vTd))
+                        totalDish = vTd;
+
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (FeedbackKpiAvgWaiterRatingText != null)
+                            FeedbackKpiAvgWaiterRatingText.Text = $"{avgWaiter:0.0} ★";
+                        if (FeedbackKpiTotalWaiterReviewsText != null)
+                            FeedbackKpiTotalWaiterReviewsText.Text = $"{totalWaiter} ta";
+                        if (FeedbackKpiAvgDishRatingText != null)
+                            FeedbackKpiAvgDishRatingText.Text = $"{avgDish:0.0} ★";
+                        if (FeedbackKpiTotalDishReviewsText != null)
+                            FeedbackKpiTotalDishReviewsText.Text = $"{totalDish} ta";
+                    });
+                }
+
+                var jsonOpts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                List<WaiterFeedbackItem> waiterList = new();
+                List<DishFeedbackItem> dishList = new();
+
+                if (data.ValueKind == JsonValueKind.Object && data.TryGetProperty("waiter_feedbacks", out var wfEl) && wfEl.ValueKind == JsonValueKind.Array)
+                {
+                    var parsed = JsonSerializer.Deserialize<List<WaiterFeedbackItem>>(wfEl.GetRawText(), jsonOpts);
+                    if (parsed != null) waiterList = parsed;
+                }
+
+                if (data.ValueKind == JsonValueKind.Object && data.TryGetProperty("dish_feedbacks", out var dfEl) && dfEl.ValueKind == JsonValueKind.Array)
+                {
+                    var parsed = JsonSerializer.Deserialize<List<DishFeedbackItem>>(dfEl.GetRawText(), jsonOpts);
+                    if (parsed != null) dishList = parsed;
+                }
+
+                Dispatcher.Invoke(() =>
+                {
+                    _manageWaiterFeedbacks.Clear();
+                    foreach (var item in waiterList)
+                        _manageWaiterFeedbacks.Add(item);
+
+                    _manageDishFeedbacks.Clear();
+                    foreach (var item in dishList)
+                        _manageDishFeedbacks.Add(item);
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadFeedbacksAsync exception: {ex.Message}");
+            }
         }
 
         private void RenderSettingsHallsList()
