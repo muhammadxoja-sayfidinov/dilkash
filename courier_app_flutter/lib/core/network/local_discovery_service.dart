@@ -8,6 +8,7 @@ class LocalDiscoveryService {
 
   static const int discoveryPort = 8089;
   static const int hubHttpPort = 8088;
+  static bool disableDiscoveryInTests = false;
 
   static Future<bool> probeHealth(
     String baseUrl, {
@@ -35,6 +36,7 @@ class LocalDiscoveryService {
     http.Client? client,
     Duration timeout = const Duration(milliseconds: 1600),
   }) async {
+    if (disableDiscoveryInTests) return null;
     final candidates = <String>[];
 
     // 1. Check already-saved LAN POS URL first
@@ -75,10 +77,9 @@ class LocalDiscoveryService {
 
       final msg = utf8.encode('DILKASH_DISCOVER');
       socket.send(msg, InternetAddress('255.255.255.255'), discoveryPort);
-      await Future.any([
-        completer.future,
-        Future<void>.delayed(timeout),
-      ]);
+      try {
+        await completer.future.timeout(timeout);
+      } catch (_) {}
       await sub.cancel();
     } catch (_) {
       // Broadcast may be unavailable in restricted sandboxes / unit tests
