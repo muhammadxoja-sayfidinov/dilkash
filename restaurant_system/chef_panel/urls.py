@@ -88,6 +88,9 @@ api_urlpatterns = [
     path('api/mobile/courier/available-orders/', views.mobile_courier_available_orders_api, name='mobile_courier_available_orders_api'),
     path('api/mobile/courier/order/<int:order_id>/update-status/', views.mobile_courier_update_status_api, name='mobile_courier_update_status_api'),
     path('api/mobile/courier/location/update/', views.mobile_courier_location_api, name='mobile_courier_location_api'),
+    path('api/mobile/staff/notifications/', views.mobile_staff_notifications_api, name='mobile_staff_notifications_api'),
+    path('api/mobile/staff/notifications/<int:notif_id>/respond/', views.mobile_staff_notification_respond_api, name='mobile_staff_notification_respond_api'),
+    path('api/mobile/order/<int:order_id>/dispatch/', views.order_dispatch_api, name='order_dispatch_api'),
 
     # C# WPF POS Desktop API lari
     path('api/pos/bootstrap/', pos_api.pos_bootstrap_api, name='pos_bootstrap_api'),

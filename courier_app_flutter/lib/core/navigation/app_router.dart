@@ -63,6 +63,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RoleSelectionScreen(),
       ),
       GoRoute(
+        path: '/order/:id',
+        redirect: (context, state) {
+          final idStr = state.pathParameters['id'] ?? '0';
+          return '/courier/order/$idStr';
+        },
+      ),
+      GoRoute(
         path: '/courier',
         builder: (context, state) => const CourierHomeScreen(),
         routes: [

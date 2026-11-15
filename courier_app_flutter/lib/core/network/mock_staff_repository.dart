@@ -592,4 +592,17 @@ class MockStaffRepository implements StaffRepository {
     }
     throw Exception('Stol topilmadi');
   }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchStaffNotifications() async {
+    return [];
+  }
+
+  @override
+  Future<Map<String, dynamic>> respondStaffNotification({
+    required int notificationId,
+    required String action,
+  }) async {
+    return {'success': true, 'message': 'Mock javob qabul qilindi'};
+  }
 }
