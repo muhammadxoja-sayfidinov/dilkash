@@ -18,7 +18,7 @@ void main() {
       );
 
       expect(total, 145000.0);
-      expect(UzbekFormatters.formatCurrency(total), '145 000 so’m');
+      expect(UzbekFormatters.formatCurrency(total), '145 000 soʻm');
     });
 
     test('Courier Today Summary: calculates cash collected to hand over', () {
@@ -36,7 +36,7 @@ void main() {
       }
 
       expect(cashToHandOver, 130000.0);
-      expect(UzbekFormatters.formatCurrency(cashToHandOver), '130 000 so’m');
+      expect(UzbekFormatters.formatCurrency(cashToHandOver), '130 000 soʻm');
     });
   });
 }

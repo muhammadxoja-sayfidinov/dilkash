@@ -4,6 +4,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../auth/auth_notifier.dart';
+import '../../features/auth/screens/staff_splash_screen.dart';
 import '../../features/auth/screens/unified_login_screen.dart';
 import '../../features/auth/screens/role_selection_screen.dart';
 import '../../features/courier/screens/courier_home_screen.dart';
@@ -17,9 +18,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
 
   return GoRouter(
-    initialLocation: '/login',
+    initialLocation: '/splash',
     redirect: (context, state) {
       final session = authState.value;
+      final isSplash = state.uri.path == '/splash';
+      if (isSplash) return null;
+
       final isLoggingIn = state.uri.path == '/login';
 
       if (session == null) {
@@ -46,6 +50,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const StaffSplashScreen(),
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const UnifiedLoginScreen(),
