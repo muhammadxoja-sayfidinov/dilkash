@@ -947,6 +947,42 @@ class DishFeedback(models.Model):
         return f"Stol #{self.table_number} | {self.product_name} | {self.rating}★"
 
 
+class StaffNotification(models.Model):
+    """Xodimlar (Kuryer va Ofitsiantlar) uchun tizim va buyurtma xabarnomalari / DeepLinklar"""
+    NOTIFICATION_TYPES = [
+        ('delivery_offer', "Dastavka buyurtmasi taklifi"),
+        ('order_assigned', "Buyurtma biriktirildi"),
+        ('waiter_call', "Ofitsiant chaqiruvi"),
+        ('system_alert', "Tizim xabari"),
+    ]
+
+    phone = models.CharField(max_length=30, db_index=True, verbose_name="Xodim telefoni")
+    waiter = models.ForeignKey('WaiterProfile', on_delete=models.SET_NULL, null=True, blank=True, related_name='notifications', verbose_name="Ofitsiant")
+    courier = models.ForeignKey('CourierProfile', on_delete=models.SET_NULL, null=True, blank=True, related_name='notifications', verbose_name="Kuryer")
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, null=True, blank=True, related_name='staff_notifications', verbose_name="Buyurtma")
+
+    title = models.CharField(max_length=200, verbose_name="Sarlavha")
+    message = models.TextField(verbose_name="Xabar matni")
+    notification_type = models.CharField(max_length=30, choices=NOTIFICATION_TYPES, default='delivery_offer', verbose_name="Turi")
+    deeplink = models.CharField(max_length=255, blank=True, default="", verbose_name="DeepLink URL")
+
+    is_dual_role_prompt = models.BooleanField(default=False, verbose_name="2 rollik ofitsiant uchun taklif")
+    is_read = models.BooleanField(default=False, verbose_name="O'qilgan")
+    is_accepted = models.BooleanField(null=True, blank=True, verbose_name="Qabul qilinganmi (True/False/None)")
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Yaratilgan vaqt")
+    expires_at = models.DateTimeField(null=True, blank=True, verbose_name="Amal qilish muddati")
+
+    class Meta:
+        verbose_name = "Xodim xabarnomasi"
+        verbose_name_plural = "Xodimlar xabarnomalari"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.phone} - {self.title} ({self.created_at.strftime('%H:%M')})"
+
+
+
 
 
 

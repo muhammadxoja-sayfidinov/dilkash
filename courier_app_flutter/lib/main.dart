@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/config/app_config.dart';
 import 'core/navigation/app_router.dart';
+import 'core/notifications/staff_notification_listener.dart';
 import 'theme/staff_theme.dart';
 
 typedef CourierApp = StaffApp;
@@ -29,6 +30,11 @@ class StaffApp extends ConsumerWidget {
           darkTheme: StaffTheme.darkTheme,
           themeMode: StaffThemeController.instance.themeMode,
           routerConfig: router,
+          builder: (context, child) {
+            return StaffNotificationListenerWidget(
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
         );
       },
     );

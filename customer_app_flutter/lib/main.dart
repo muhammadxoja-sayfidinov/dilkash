@@ -6,8 +6,7 @@ import 'services/cart_provider.dart';
 import 'services/theme_provider.dart';
 import 'theme/app_theme.dart';
 import 'screens/splash_screen.dart';
-import 'screens/onboarding_screen.dart';
-import 'screens/main_navigation_shell.dart';
+import 'screens/order_tracking_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +37,28 @@ class CustomerApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: themeProvider.themeMode,
       home: const CustomerSplashScreen(),
+      onGenerateRoute: (settings) {
+        final uri = Uri.tryParse(settings.name ?? '');
+        if (uri != null) {
+          final segments = uri.pathSegments;
+          if (segments.isNotEmpty && segments.contains('order')) {
+            final idx = segments.indexOf('order');
+            if (idx + 1 < segments.length) {
+              final idStr = segments[idx + 1];
+              final orderId = int.tryParse(idStr) ?? 0;
+              if (orderId > 0) {
+                return MaterialPageRoute(
+                  builder: (_) => OrderTrackingScreen(
+                    orderId: orderId,
+                    orderNumber: '$orderId',
+                  ),
+                );
+              }
+            }
+          }
+        }
+        return null;
+      },
     );
   }
 }

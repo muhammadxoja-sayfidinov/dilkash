@@ -18,7 +18,7 @@ from .models import (
     Order, Product, Category, OrderItem, OrderStatusHistory, Customer,
     RestaurantTable, BotSettings, WaiterCall, WaiterProfile, CourierProfile,
     Ingredient, Supplier, StockSupply, StockSupplyItem, StockWriteOff, StockWriteOffItem,
-    RecipeItem, StockMovementLog, WaiterFeedback, DishFeedback
+    RecipeItem, StockMovementLog, WaiterFeedback, DishFeedback, StaffNotification
 )
 from .inventory_service import get_inventory_kpi_summary, ensure_default_inventory
 from .forms import ProductForm, CategoryForm
@@ -180,13 +180,40 @@ def create_order_api(request):
         try:
             data = json.loads(request.body)
             
-            # Mijozni topish yoki yaratish
+            # Mijoz ma'lumotlarini qat'iy tekshirish
             telegram_id = data.get('user_id')
-            full_name = data.get('full_name', 'Noma\'lum')
-            phone_number = data.get('phone', 'Noma\'lum')
+            full_name = (data.get('full_name') or '').strip()
+            phone_number = (data.get('phone') or '').strip()
+
+            clean_phone = ''.join(c for c in str(phone_number) if c.isdigit())
+            if len(clean_phone) < 9:
+                return JsonResponse({
+                    'status': 'error',
+                    'success': False,
+                    'message': "Telefon raqami kiritilishi shart (+998...)!"
+                }, status=400)
+
+            if not full_name or full_name.lower() in ['noma\'lum', 'nomalum', 'none', 'null']:
+                return JsonResponse({
+                    'status': 'error',
+                    'success': False,
+                    'message': "Ismni kiritish shart!"
+                }, status=400)
+
+            service_type = data.get('service_type', 'delivery')
+            if service_type == 'delivery':
+                addr = (data.get('address') or '').strip()
+                loc_lat = data.get('latitude') or (data.get('location', {}) or {}).get('latitude')
+                loc_lng = data.get('longitude') or (data.get('location', {}) or {}).get('longitude')
+                if not addr and not (loc_lat and loc_lng):
+                    return JsonResponse({
+                        'status': 'error',
+                        'success': False,
+                        'message': "Yetkazib berish uchun manzil yoki lokatsiya kiritilishi shart!"
+                    }, status=400)
             
             if not telegram_id:
-                digits = ''.join(c for c in str(phone_number) if c.isdigit())
+                digits = clean_phone
                 telegram_id = int(digits[-9:]) if len(digits) >= 7 else int(timezone.now().timestamp())
             
             customer, created = Customer.objects.get_or_create(
@@ -194,7 +221,6 @@ def create_order_api(request):
                 defaults={'full_name': full_name, 'phone_number': phone_number}
             )
             if not created:
-                # Agar mijoz mavjud bo'lsa, ma'lumotlarini yangilash
                 customer.full_name = full_name
                 customer.phone_number = phone_number
                 customer.save()
@@ -2439,15 +2465,30 @@ def mobile_customer_menu_api(request):
     for cat in categories:
         products_list = []
         for prod in cat.product_set.all():
-            img_url = request.build_absolute_uri(prod.image.url) if prod.image else ""
+            img_url = ""
+            if prod.image:
+                try:
+                    img_url = request.build_absolute_uri(prod.image.url)
+                except Exception:
+                    img_url = ""
+
+            dept = ""
+            if hasattr(prod, 'get_department'):
+                try:
+                    dept = prod.get_department()
+                except Exception:
+                    dept = ""
+            if not dept:
+                dept = getattr(cat, 'department', '') or ""
+
             item_data = {
                 'id': prod.id,
                 'name': prod.name,
                 'description': prod.description or "",
-                'price': float(prod.price),
+                'price': float(prod.price) if prod.price is not None else 0.0,
                 'category_id': cat.id,
                 'category': cat.name,
-                'department': prod.department or cat.department or "",
+                'department': dept,
                 'image': img_url,
                 'image_url': img_url,
                 'is_available': prod.is_available,
@@ -2486,12 +2527,12 @@ def mobile_customer_order_create_api(request):
     except Exception:
         data = request.POST
 
-    full_name = data.get('full_name') or data.get('customer_name', 'Mijoz')
-    phone = data.get('phone') or data.get('customer_phone', '+998900000000')
+    full_name = (data.get('full_name') or data.get('customer_name') or '').strip()
+    phone = (data.get('phone') or data.get('customer_phone') or '').strip()
     service_type = data.get('service_type', 'delivery')  # 'delivery', 'pickup' or 'dine_in'
     payment_method = data.get('payment_method', 'naqd')
     table_number = data.get('table_number')
-    address = data.get('address') or data.get('delivery_address', '')
+    address = (data.get('address') or data.get('delivery_address') or '').strip()
     lat = data.get('latitude')
     lng = data.get('longitude')
     notes = data.get('notes', '')
@@ -2499,6 +2540,30 @@ def mobile_customer_order_create_api(request):
 
     if not products_raw:
         return JsonResponse({'status': 'error', 'success': False, 'message': "Savatcha bo'sh"}, status=400)
+
+    # Qat'iy maydonlar tekshiruvi (Bo'sh qolishiga yo'l qo'yilmaydi)
+    clean_digits = ''.join(c for c in str(phone) if c.isdigit())
+    if len(clean_digits) < 9:
+        return JsonResponse({
+            'status': 'error',
+            'success': False,
+            'message': "Telefon raqami kiritilishi shart (+998...)!"
+        }, status=400)
+
+    if not full_name or full_name.lower() in ['noma\'lum', 'nomalum', 'none', 'null']:
+        return JsonResponse({
+            'status': 'error',
+            'success': False,
+            'message': "Ismni kiritish shart!"
+        }, status=400)
+
+    if service_type == 'delivery':
+        if not address and not (lat and lng):
+            return JsonResponse({
+                'status': 'error',
+                'success': False,
+                'message': "Yetkazib berish uchun manzil yoki lokatsiya kiritilishi shart!"
+            }, status=400)
 
     # Stolga ofitsiant biriktirilganligini qat'iy tekshirish
     table_obj = None
@@ -2585,6 +2650,13 @@ def mobile_customer_order_create_api(request):
         new_status='yangi',
         notes='Flutter Mobile App orqali buyurtma berildi'
     )
+
+    if order.service_type == 'delivery':
+        try:
+            from .dispatch_service import dispatch_delivery_order
+            dispatch_delivery_order(order)
+        except Exception as e:
+            pass
 
     return JsonResponse({
         'status': 'success',
@@ -3366,5 +3438,102 @@ def inventory_dashboard_view(request):
         'reason_choices': StockWriteOff.REASON_CHOICES,
     }
     return render(request, 'chef_panel/inventory.html', context)
+
+
+@csrf_exempt
+def mobile_staff_notifications_api(request):
+    """
+    Flutter Xodimlar Ilovasi:
+    Kuryer yoki Ofitsiant (ayniqsa 2-rollik ofitsiant) uchun xabarnomalar ro'yxati.
+    """
+    token = request.headers.get('Authorization', '').replace('Bearer ', '').strip() or request.GET.get('token')
+    phone = request.GET.get('phone', '').strip()
+
+    clean_last9 = ''.join(c for c in phone if c.isdigit())[-9:] if phone else ''
+    if not clean_last9 and token:
+        c_prof = CourierProfile.objects.filter(auth_token=token).first()
+        w_prof = WaiterProfile.objects.filter(auth_token=token).first()
+        prof = c_prof or w_prof
+        if prof:
+            clean_last9 = ''.join(c for c in prof.phone if c.isdigit())[-9:]
+
+    if not clean_last9:
+        return JsonResponse({'status': 'error', 'success': False, 'message': 'Xodim aniqlanmadi'}, status=401)
+
+    cutoff = timezone.now() - timedelta(minutes=15)
+    notifs = StaffNotification.objects.filter(
+        phone__icontains=clean_last9,
+        created_at__gte=cutoff,
+        is_accepted__isnull=True,
+    ).order_by('-created_at')[:10]
+
+    result = []
+    for n in notifs:
+        order_obj = n.order
+        result.append({
+            'id': n.id,
+            'title': n.title,
+            'message': n.message,
+            'order_id': order_obj.id if order_obj else None,
+            'order_number': order_obj.order_number if order_obj else "",
+            'total_amount': float(order_obj.total_amount) if order_obj else 0.0,
+            'delivery_address': order_obj.address if order_obj else "",
+            'deeplink': n.deeplink,
+            'is_dual_role_prompt': n.is_dual_role_prompt,
+            'notification_type': n.notification_type,
+            'created_at': n.created_at.strftime('%H:%M'),
+        })
+
+    return JsonResponse({
+        'status': 'success',
+        'success': True,
+        'unread_count': len(result),
+        'notifications': result
+    })
+
+
+@csrf_exempt
+def mobile_staff_notification_respond_api(request, notif_id):
+    """
+    Flutter Xodimlar Ilovasi:
+    Kuryer yoki 2-rollik ofitsiant buyurtma taklifini qabul qiladi yoki rad etadi.
+    POST: {"action": "accept" / "decline"}
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Faqat POST'}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8')) if request.body else {}
+    except Exception:
+        data = request.POST
+
+    action = str(data.get('action', '')).strip().lower()
+    from .dispatch_service import respond_to_dispatch_offer
+    res = respond_to_dispatch_offer(notif_id, action)
+    status_code = 200 if res.get('success') else 400
+    return JsonResponse(res, status=status_code)
+
+
+@csrf_exempt
+def order_dispatch_api(request, order_id):
+    """Buyurtmani aqlli qoida bo'yicha taqsimlashni qayta chaqirish"""
+    order = get_object_or_404(Order, id=order_id)
+    from .dispatch_service import dispatch_delivery_order
+    notif = dispatch_delivery_order(order)
+    if notif:
+        return JsonResponse({
+            'status': 'success',
+            'success': True,
+            'message': f"Buyurtma #{order.order_number} {notif.courier.name if notif.courier else ''} ga taqsimlandi.",
+            'notif_id': notif.id,
+            'deeplink': notif.deeplink,
+            'is_dual_role': notif.is_dual_role_prompt
+        })
+    return JsonResponse({
+        'status': 'error',
+        'success': False,
+        'message': "Buyurtmani taqsimlab bo'lmadi (bo'sh kuryer topilmadi)."
+    }, status=400)
+
 
 

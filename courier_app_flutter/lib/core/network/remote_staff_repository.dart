@@ -527,4 +527,32 @@ class RemoteStaffRepository implements StaffRepository {
       'history': history,
     };
   }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchStaffNotifications() async {
+    final phone = _session?.phone ?? '';
+    if (phone.isEmpty) return [];
+    try {
+      final res = await _get(
+        '/api/mobile/staff/notifications/?phone=${Uri.encodeComponent(phone)}',
+        preferCourier: false,
+      );
+      final list = (res['notifications'] as List<dynamic>?) ?? [];
+      return list.map((e) => e as Map<String, dynamic>).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> respondStaffNotification({
+    required int notificationId,
+    required String action,
+  }) async {
+    return _post(
+      '/api/mobile/staff/notifications/$notificationId/respond/',
+      {'action': action},
+      preferCourier: false,
+    );
+  }
 }

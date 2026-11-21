@@ -58,23 +58,26 @@ class DilkashButton extends StatelessWidget {
     Color fgColor;
     BorderSide border = BorderSide.none;
 
+    final primaryTheme = Theme.of(context).colorScheme.primary;
+    final onPrimaryTheme = Theme.of(context).colorScheme.onPrimary;
+
     switch (variant) {
       case DilkashButtonVariant.primary:
         bgColor = isDisabled
             ? (isDark ? const Color(0xFF1E3529) : const Color(0xFFCBD5E1))
-            : (isDark ? DilkashColors.primary400 : DilkashColors.primary500);
+            : primaryTheme;
         fgColor = isDisabled
             ? (isDark
                 ? DilkashColors.textMutedDark
                 : DilkashColors.textMutedLight)
-            : (isDark ? Colors.black : Colors.white);
+            : onPrimaryTheme;
         break;
 
       case DilkashButtonVariant.secondary:
         bgColor = isDark
             ? DilkashColors.surfaceDarkElevated
-            : DilkashColors.primary50;
-        fgColor = isDark ? DilkashColors.primary300 : DilkashColors.primary700;
+            : Theme.of(context).colorScheme.primaryContainer;
+        fgColor = isDark ? primaryTheme : Theme.of(context).colorScheme.onPrimaryContainer;
         break;
 
       case DilkashButtonVariant.outline:

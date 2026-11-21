@@ -41,4 +41,11 @@ abstract class StaffRepository {
     required String tableNumber,
     required String paymentMethod,
   });
+
+  // Staff Notifications & Dispatch Offer DeepLinks
+  Future<List<Map<String, dynamic>>> fetchStaffNotifications();
+  Future<Map<String, dynamic>> respondStaffNotification({
+    required int notificationId,
+    required String action,
+  });
 }
