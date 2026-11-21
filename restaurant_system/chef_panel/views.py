@@ -180,13 +180,40 @@ def create_order_api(request):
         try:
             data = json.loads(request.body)
             
-            # Mijozni topish yoki yaratish
+            # Mijoz ma'lumotlarini qat'iy tekshirish
             telegram_id = data.get('user_id')
-            full_name = data.get('full_name', 'Noma\'lum')
-            phone_number = data.get('phone', 'Noma\'lum')
+            full_name = (data.get('full_name') or '').strip()
+            phone_number = (data.get('phone') or '').strip()
+
+            clean_phone = ''.join(c for c in str(phone_number) if c.isdigit())
+            if len(clean_phone) < 9:
+                return JsonResponse({
+                    'status': 'error',
+                    'success': False,
+                    'message': "Telefon raqami kiritilishi shart (+998...)!"
+                }, status=400)
+
+            if not full_name or full_name.lower() in ['noma\'lum', 'nomalum', 'none', 'null']:
+                return JsonResponse({
+                    'status': 'error',
+                    'success': False,
+                    'message': "Ismni kiritish shart!"
+                }, status=400)
+
+            service_type = data.get('service_type', 'delivery')
+            if service_type == 'delivery':
+                addr = (data.get('address') or '').strip()
+                loc_lat = data.get('latitude') or (data.get('location', {}) or {}).get('latitude')
+                loc_lng = data.get('longitude') or (data.get('location', {}) or {}).get('longitude')
+                if not addr and not (loc_lat and loc_lng):
+                    return JsonResponse({
+                        'status': 'error',
+                        'success': False,
+                        'message': "Yetkazib berish uchun manzil yoki lokatsiya kiritilishi shart!"
+                    }, status=400)
             
             if not telegram_id:
-                digits = ''.join(c for c in str(phone_number) if c.isdigit())
+                digits = clean_phone
                 telegram_id = int(digits[-9:]) if len(digits) >= 7 else int(timezone.now().timestamp())
             
             customer, created = Customer.objects.get_or_create(
@@ -194,7 +221,6 @@ def create_order_api(request):
                 defaults={'full_name': full_name, 'phone_number': phone_number}
             )
             if not created:
-                # Agar mijoz mavjud bo'lsa, ma'lumotlarini yangilash
                 customer.full_name = full_name
                 customer.phone_number = phone_number
                 customer.save()
@@ -2501,12 +2527,12 @@ def mobile_customer_order_create_api(request):
     except Exception:
         data = request.POST
 
-    full_name = data.get('full_name') or data.get('customer_name', 'Mijoz')
-    phone = data.get('phone') or data.get('customer_phone', '+998900000000')
+    full_name = (data.get('full_name') or data.get('customer_name') or '').strip()
+    phone = (data.get('phone') or data.get('customer_phone') or '').strip()
     service_type = data.get('service_type', 'delivery')  # 'delivery', 'pickup' or 'dine_in'
     payment_method = data.get('payment_method', 'naqd')
     table_number = data.get('table_number')
-    address = data.get('address') or data.get('delivery_address', '')
+    address = (data.get('address') or data.get('delivery_address') or '').strip()
     lat = data.get('latitude')
     lng = data.get('longitude')
     notes = data.get('notes', '')
@@ -2514,6 +2540,30 @@ def mobile_customer_order_create_api(request):
 
     if not products_raw:
         return JsonResponse({'status': 'error', 'success': False, 'message': "Savatcha bo'sh"}, status=400)
+
+    # Qat'iy maydonlar tekshiruvi (Bo'sh qolishiga yo'l qo'yilmaydi)
+    clean_digits = ''.join(c for c in str(phone) if c.isdigit())
+    if len(clean_digits) < 9:
+        return JsonResponse({
+            'status': 'error',
+            'success': False,
+            'message': "Telefon raqami kiritilishi shart (+998...)!"
+        }, status=400)
+
+    if not full_name or full_name.lower() in ['noma\'lum', 'nomalum', 'none', 'null']:
+        return JsonResponse({
+            'status': 'error',
+            'success': False,
+            'message': "Ismni kiritish shart!"
+        }, status=400)
+
+    if service_type == 'delivery':
+        if not address and not (lat and lng):
+            return JsonResponse({
+                'status': 'error',
+                'success': False,
+                'message': "Yetkazib berish uchun manzil yoki lokatsiya kiritilishi shart!"
+            }, status=400)
 
     # Stolga ofitsiant biriktirilganligini qat'iy tekshirish
     table_obj = None

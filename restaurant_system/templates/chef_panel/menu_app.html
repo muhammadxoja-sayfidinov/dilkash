@@ -22,32 +22,32 @@
     
     <style>
         :root {
-            /* Dilkash Emerald Green Brand */
-            --brand-primary: #0d6b4e;
-            --brand-primary-light: #10866a;
-            --brand-primary-dark: #095c42;
-            --brand-primary-soft: rgba(13, 107, 78, 0.08);
-            --brand-gradient: linear-gradient(135deg, #10866a 0%, #0d6b4e 50%, #095c42 100%);
-            --brand-gradient-soft: linear-gradient(135deg, rgba(16,134,106,0.1) 0%, rgba(13,107,78,0.05) 100%);
+            /* Uzum Tezkor Signature Royal Purple Brand */
+            --brand-primary: #7000FF;
+            --brand-primary-light: #8A2BE2;
+            --brand-primary-dark: #5600CC;
+            --brand-primary-soft: rgba(112, 0, 255, 0.08);
+            --brand-gradient: linear-gradient(135deg, #8A2BE2 0%, #7000FF 50%, #5600CC 100%);
+            --brand-gradient-soft: linear-gradient(135deg, rgba(138,43,226,0.1) 0%, rgba(112,0,255,0.05) 100%);
             
-            --accent-emerald: #0d6b4e;
-            --accent-emerald-soft: rgba(13, 107, 78, 0.1);
-            --accent-rose: #c0392b;
-            --accent-rose-soft: rgba(192, 57, 43, 0.08);
-            --accent-gold: #c0a36f;
-            --accent-gold-soft: rgba(192, 163, 111, 0.12);
+            --accent-emerald: #00C853;
+            --accent-emerald-soft: rgba(0, 200, 83, 0.1);
+            --accent-rose: #e53935;
+            --accent-rose-soft: rgba(229, 57, 53, 0.08);
+            --accent-gold: #FFB703;
+            --accent-gold-soft: rgba(255, 183, 3, 0.15);
 
-            /* Light Theme Surfaces — cool green tint */
-            --bg-page: #f7faf8;
+            /* Light Theme Surfaces — clean neutral Uzum tint */
+            --bg-page: #f5f6f8;
             --bg-card: #ffffff;
             --bg-card-elevated: #ffffff;
-            --bg-input: #f0f5f2;
-            --bg-chip: #e8f0eb;
-            --border-light: rgba(13,107,78,0.06);
-            --border-medium: rgba(13,107,78,0.12);
-            --text-primary: #0a1f16;
-            --text-secondary: #3d5a4c;
-            --text-tertiary: #6b8577;
+            --bg-input: #f0f2f5;
+            --bg-chip: #ede7f6;
+            --border-light: rgba(112,0,255,0.08);
+            --border-medium: rgba(112,0,255,0.16);
+            --text-primary: #18181b;
+            --text-secondary: #52525b;
+            --text-tertiary: #a1a1aa;
             --text-on-brand: #ffffff;
             
             --shadow-xs: 0 1px 3px rgba(10,31,22,0.04);
@@ -2047,11 +2047,32 @@
             return;
         }
 
-        const fullName = document.getElementById('input-name').value.trim() || 'Mijoz';
-        const phone = document.getElementById('input-phone').value.trim() || '+998';
-        const address = document.getElementById('input-address').value.trim();
+        const fullName = (document.getElementById('input-name')?.value || '').trim();
+        if (!fullName || fullName.toLowerCase() === 'mijoz') {
+            showToast('⚠️ Iltimos, ismingizni kiriting!');
+            document.getElementById('input-name')?.focus();
+            return;
+        }
+
+        const phone = (document.getElementById('input-phone')?.value || '').trim();
+        const phoneDigits = phone.replace(/\D/g, '');
+        if (phoneDigits.length < 9) {
+            showToast('⚠️ Iltimos, telefon raqamingizni to\'liq kiriting (+998...)!');
+            document.getElementById('input-phone')?.focus();
+            return;
+        }
+
+        const address = (document.getElementById('input-address')?.value || '').trim();
         const latVal = parseFloat(document.getElementById('input-lat')?.value) || null;
         const lngVal = parseFloat(document.getElementById('input-lng')?.value) || null;
+
+        if (currentServiceType === 'delivery') {
+            if (!address && !(latVal && lngVal)) {
+                showToast('⚠️ Yetkazib berish manzilini (ko\'cha, uy raqami) kiriting!');
+                document.getElementById('input-address')?.focus();
+                return;
+            }
+        }
 
         const payload = {
             user_id: tg?.initDataUnsafe?.user?.id || 12345678,

@@ -433,56 +433,97 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     web_app_url = getattr(settings, 'WEB_APP_URL', '')
     is_https = bool(web_app_url and web_app_url.startswith('https://'))
 
+    # Avvalgi mijoz ma'lumotlarini bazadan tekshirish
+    try:
+        cust = await sync_to_async(Customer.objects.filter(telegram_id=user.id).first)()
+        if cust and cust.phone_number:
+            context.user_data['phone_number'] = cust.phone_number
+            context.user_data['full_name'] = cust.full_name or user.full_name or user.first_name
+            context.user_data['telegram_user_id'] = user.id
+    except Exception as e:
+        logger.warning(f"Customer prefetch xatosi: {e}")
+
+    has_phone = bool(context.user_data.get('phone_number'))
+
     kb_rows = []
     if is_https:
         kb_rows.append([KeyboardButton("🚀 Menyu ochish (Web App)", web_app=WebAppInfo(url=web_app_url))])
         kb_rows.append([KeyboardButton("🚚 Yetkazib berish"), KeyboardButton("🏪 Olib ketish")])
         kb_rows.append([KeyboardButton("🛒 Savat"), KeyboardButton("👤 Profil")])
-        kb_rows.append([KeyboardButton("📱 Kontaktni ulashish", request_contact=True)])
+        if not has_phone:
+            kb_rows.append([KeyboardButton("📱 Telefon raqamni yuborish", request_contact=True)])
     else:
         kb_rows.append([KeyboardButton("🚚 Yetkazib berish"), KeyboardButton("🏪 Olib ketish")])
         kb_rows.append([KeyboardButton("🍽 Bot Menyusi"), KeyboardButton("🛒 Savat")])
-        kb_rows.append([KeyboardButton("👤 Profil"), KeyboardButton("📱 Kontaktni ulashish", request_contact=True)])
+        if not has_phone:
+            kb_rows.append([KeyboardButton("📱 Telefon raqamni yuborish", request_contact=True)])
+        kb_rows.append([KeyboardButton("👤 Profil")])
 
     reply_kb = ReplyKeyboardMarkup(kb_rows, resize_keyboard=True)
-    await update.message.reply_text(
-        f"🎉 Assalomu alaykum, {user.first_name}!\n\n"
-        f"🍽 Restoranimizga xush kelibsiz!\n\n"
-        f"Buyurtma berish usulini tanlang (🚚 Yetkazib berish yoki 🏪 Olib ketish) 👇",
-        reply_markup=reply_kb
+    
+    welcome_msg = (
+        f"Assalomu alaykum, {user.first_name}! 👋\n\n"
+        f"🍽 **Dilkash Restaurant & Lounge** yetkazib berish xizmatiga xush kelibsiz!\n\n"
     )
+    if not has_phone:
+        welcome_msg += (
+            "📱 Buyurtma berish va qulay xizmatdan foydalanish uchun, iltimos pastdagi "
+            "**\"📱 Telefon raqamni yuborish\"** tugmasini bosing:"
+        )
+        context.user_data["awaiting_contact_at_start"] = True
+    else:
+        welcome_msg += "Buyurtma berish turini tanlang (🚚 Yetkazib berish yoki 🏪 Olib ketish) 👇"
 
-    # Also show the main inline menu
+    await update.message.reply_text(welcome_msg, reply_markup=reply_kb, parse_mode="Markdown")
+
+    # Shuningdek toifalar menyusini ko'rsatish
     await update.message.reply_text(
         "🍽 Nimani buyurtma qilmoqchisiz?",
         reply_markup=main_inline_menu(context)
     )
-    context.user_data["awaiting_contact_at_start"] = True
 
 async def main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    text = "🍽 Нима буюртма қилмоқчисиз?"
+    text = "🍽 Nimani buyurtma qilmoqchisiz?"
     keyboard = main_inline_menu(context).inline_keyboard
     await edit_message_based_on_type(query, text, keyboard)
 
 async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     contact = update.message.contact
-    context.user_data['phone_number'] = contact.phone_number
-    context.user_data['full_name'] = contact.first_name + " " + (contact.last_name or "")
-    context.user_data['telegram_user_id'] = update.effective_user.id
+    raw_phone = contact.phone_number.strip()
+    if not raw_phone.startswith('+'):
+        raw_phone = '+' + raw_phone
+    user = update.effective_user
+    full_name = f"{contact.first_name or ''} {contact.last_name or ''}".strip() or user.full_name or "Mijoz"
 
-    await update.message.reply_text("✅ Раҳмат!", reply_markup=ReplyKeyboardRemove())
+    context.user_data['phone_number'] = raw_phone
+    context.user_data['full_name'] = full_name
+    context.user_data['telegram_user_id'] = user.id
+
+    try:
+        await sync_to_async(Customer.objects.update_or_create)(
+            telegram_id=user.id,
+            defaults={'phone_number': raw_phone, 'full_name': full_name}
+        )
+    except Exception as e:
+        logger.warning(f"Customer saqlashda xato: {e}")
+
+    await update.message.reply_text(
+        f"✅ Rahmat, {full_name}!\n📱 Telefon raqamingiz muvaffaqiyatli tasdiqlandi: **{raw_phone}**",
+        reply_markup=ReplyKeyboardRemove(),
+        parse_mode="Markdown"
+    )
 
     if context.user_data.get("awaiting_contact_at_start"):
         del context.user_data["awaiting_contact_at_start"]
         # Service type tanlash
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🚚 Етказиб бериш", callback_data="service_type:delivery")],
-            [InlineKeyboardButton("🏪 Олиб кетиш", callback_data="service_type:pickup")]
+            [InlineKeyboardButton("🚚 Yetkazib berish", callback_data="service_type:delivery")],
+            [InlineKeyboardButton("🏪 Olib ketish", callback_data="service_type:pickup")]
         ])
         await update.message.reply_text(
-            "🚀 Қайси хизматдан фойдаланмоқчисиз?",
+            "🚀 Qaysi xizmatdan foydalanmoqchisiz?",
             reply_markup=keyboard
         )
         return
@@ -491,26 +532,23 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     service_type = context.user_data.get('service_type', 'delivery')
     if service_type == 'delivery':
         await update.message.reply_text(
-            "📞 Контакт қабул қилинди! Энди локациянгизни юборинг:",
+            "📍 Telefon qabul qilindi! Endi manzilingizni aniqlash uchun geolokatsiyangizni yuboring:",
             reply_markup=ReplyKeyboardMarkup([
-                [KeyboardButton("📍 Локацияни улашиш", request_location=True)]
+                [KeyboardButton("📍 Lokatsiyani yuborish", request_location=True)]
             ], resize_keyboard=True)
         )
         context.user_data['awaiting_location'] = True
     else:
-        # Pickup uchun address/location kerak emas
-        await update.message.reply_text(
-            "📞 Контакт қабул қилинди!",
-            reply_markup=ReplyKeyboardRemove()
-        )
+        # Pickup uchun
         keyboard = [
-            [InlineKeyboardButton("✅ Тасдиқлаш", callback_data="final_confirm_order")],
-            [InlineKeyboardButton("❌ Бекор қилиш", callback_data="cancel_order")]
+            [InlineKeyboardButton("✅ Tasdiqlash", callback_data="final_confirm_order")],
+            [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_order")]
         ]
         context.user_data['payment_method'] = 'naqd'  # default
         await update.message.reply_text(
-            "💳 Тўлов усули: Нақд\n🔸 Буюртмани тасдиқлаш учун \"✅ Тасдиқлаш\" босинг:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            "💳 Toʻlov usuli: **Naqd pul**\n\nBuyurtmani tasdiqlash uchun \"✅ Tasdiqlash\" tugmasini bosing:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
         )
 
 async def handle_service_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -565,40 +603,87 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
             }
             del context.user_data['awaiting_location']
             await update.message.reply_text(
-                f"📍 Локация қабул қилинди!\n"
-                f"📏 Масофа: таҳминан {distance_km:.1f} км\n"
-                f"💰 Етказиб бериш нархи: {delivery_cost:,} сўм\n\n"
-                f"🏠 Агар қўшимча манзил киритмоқчи бўлсангиз, ёзинг.\n"
-                f"❌ Керак бўлмаса, \"Қўшимча манзил керак эмас\" деб ёзинг.",
-                reply_markup=ReplyKeyboardMarkup([
-                    [KeyboardButton("❌ Қўшимча манзил керак эмас")]
-                ], resize_keyboard=True)
+                f"📍 **Geolokatsiya qabul qilindi!**\n"
+                f"📏 Masofa: taxminan {distance_km:.1f} km\n"
+                f"💰 Yetkazib berish narxi: {delivery_cost:,} soʻm\n\n"
+                f"🏢 **Yetkazib berish manzilini kiriting (Majburiy):**\n"
+                f"Iltimos, koʻcha, bino/uy va xonadon raqamini yozib yuboring:\n"
+                f"*(Masalan: Chilonzor 9-mavze, 14-uy, 25-xonadon)*",
+                reply_markup=ReplyKeyboardRemove(),
+                parse_mode="Markdown"
             )
             context.user_data['awaiting_address'] = True
 
 async def handle_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if 'awaiting_address' in context.user_data and context.user_data['awaiting_address']:
-        address = update.message.text
-        if address.lower() == "❌ қўшимча манзил керак эмас" or address.lower() == "қўшимча манзил керак эмас":
-            address = None
+        address = (update.message.text or "").strip()
+        if not address or len(address) < 3 or address.lower() in ["yo'q", "yoq", "kerak emas", "bekor", "йўқ"]:
+            await update.message.reply_text(
+                "⚠️ **Yetkazib berish manzilini kiritish majburiy!**\n"
+                "Kuryer buyurtmangizni tez va toʻgʻri yetkazishi uchun iltimos koʻcha, uy va xonadon raqamini yozing:\n"
+                "*(Masalan: Amir Temur koʻchasi, 24-uy)*",
+                parse_mode="Markdown"
+            )
+            return
 
         context.user_data['address'] = address
         del context.user_data['awaiting_address']
 
-        await update.message.reply_text(
-            "🏠 Манзил қабул қилинди.",
-            reply_markup=ReplyKeyboardRemove()
-        )
+        context.user_data['payment_method'] = 'naqd'
 
         keyboard = [
-            [InlineKeyboardButton("✅ Тасдиқлаш", callback_data="final_confirm_order")],
-            [InlineKeyboardButton("❌ Бекор қилиш", callback_data="cancel_order")]
+            [
+                InlineKeyboardButton("💵 Naqd pul ✅", callback_data="pay_method:naqd"),
+                InlineKeyboardButton("💳 Payme", callback_data="pay_method:payme"),
+                InlineKeyboardButton("🔹 Click", callback_data="pay_method:click"),
+            ],
+            [
+                InlineKeyboardButton("✅ Buyurtmani tasdiqlash", callback_data="final_confirm_order"),
+                InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_order"),
+            ]
         ]
-        context.user_data['payment_method'] = 'naqd'  # default
+
         await update.message.reply_text(
-            "💳 Тўлов усули: Нақд\n🔸 Буюртмани тасдиқлаш учун \"✅ Тасдиқлаш\" босинг:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+            f"🏢 Manzil qabul qilindi: **{address}**\n\n"
+            f"💳 Toʻlov usuli: **Naqd pul** (Oʻzgartirish uchun kerakli usulni tanlang)\n\n"
+            f"Buyurtmani tasdiqlash uchun \"✅ Buyurtmani tasdiqlash\" tugmasini bosing:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
         )
+
+async def handle_pay_method(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    method = query.data.split(":")[1]
+    context.user_data['payment_method'] = method
+
+    labels = {
+        'naqd': '💵 Naqd pul',
+        'payme': '💳 Payme',
+        'click': '🔹 Click'
+    }
+
+    keyboard = [
+        [
+            InlineKeyboardButton(f"{labels['naqd']}{' ✅' if method == 'naqd' else ''}", callback_data="pay_method:naqd"),
+            InlineKeyboardButton(f"{labels['payme']}{' ✅' if method == 'payme' else ''}", callback_data="pay_method:payme"),
+            InlineKeyboardButton(f"{labels['click']}{' ✅' if method == 'click' else ''}", callback_data="pay_method:click"),
+        ],
+        [
+            InlineKeyboardButton("✅ Buyurtmani tasdiqlash", callback_data="final_confirm_order"),
+            InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_order"),
+        ]
+    ]
+
+    addr = context.user_data.get('address')
+    addr_text = f"🏢 Manzil: **{addr}**\n" if addr else ""
+    await query.edit_message_text(
+        f"{addr_text}"
+        f"💳 Toʻlov usuli: **{labels.get(method, method)}**\n\n"
+        f"Buyurtmani yakunlash uchun \"✅ Buyurtmani tasdiqlash\" tugmasini bosing:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="Markdown"
+    )
 
 # ----------------------------------------------------
 # Profil
@@ -1304,19 +1389,70 @@ async def final_confirm_order(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     user = update.effective_user
-    phone = context.user_data.get('phone_number', 'Номаълум')
-    full_name = context.user_data.get('full_name', 'Номаълум')
+    phone = context.user_data.get('phone_number')
+    clean_phone_digits = ''.join(c for c in str(phone or '') if c.isdigit())
+    if not phone or phone == 'Номаълум' or len(clean_phone_digits) < 9:
+        await edit_message_based_on_type(
+            query,
+            "📱 **Buyurtmani yakunlash uchun telefon raqamingizni tasdiqlashingiz shart!**",
+            [[InlineKeyboardButton("⬅️ Bosh menyu", callback_data="main_menu")]]
+        )
+        await query.message.reply_text(
+            "📱 Iltimos, pastdagi tugmani bosib telefon raqamingizni yuboring:",
+            reply_markup=ReplyKeyboardMarkup(
+                [[KeyboardButton("📱 Telefon raqamni yuborish", request_contact=True)]],
+                resize_keyboard=True
+            )
+        )
+        return
+
+    full_name = (context.user_data.get('full_name') or user.full_name or user.first_name or "Mijoz").strip()
     telegram_user_id = context.user_data.get('telegram_user_id', user.id)
-    location = context.user_data.get('location', {}) if service_type == 'delivery' else None
-    address = context.user_data.get('address', None) if service_type == 'delivery' else None
+
+    if service_type == 'delivery':
+        location = context.user_data.get('location')
+        if not location:
+            await edit_message_based_on_type(
+                query,
+                "📍 **Yetkazib berish uchun geolokatsiya yuborish majburiy!**",
+                [[InlineKeyboardButton("⬅️ Bosh menyu", callback_data="main_menu")]]
+            )
+            await query.message.reply_text(
+                "📍 Iltimos, pastdagi tugma orqali geolokatsiyangizni yuboring:",
+                reply_markup=ReplyKeyboardMarkup(
+                    [[KeyboardButton("📍 Lokatsiyani yuborish", request_location=True)]],
+                    resize_keyboard=True
+                )
+            )
+            context.user_data['awaiting_location'] = True
+            return
+
+        address = (context.user_data.get('address') or "").strip()
+        if not address or len(address) < 3:
+            await edit_message_based_on_type(
+                query,
+                "🏢 **Yetkazib berish manzilini kiritish majburiy!**",
+                [[InlineKeyboardButton("⬅️ Bosh menyu", callback_data="main_menu")]]
+            )
+            await query.message.reply_text(
+                "🏢 Iltimos, koʻcha, uy va xonadon raqamini yozib yuboring:\n*(Masalan: Amir Temur koʻchasi, 24-uy)*",
+                reply_markup=ReplyKeyboardRemove(),
+                parse_mode="Markdown"
+            )
+            context.user_data['awaiting_address'] = True
+            return
+    else:
+        location = None
+        address = None
+
     payment_method = context.user_data.get('payment_method', 'naqd')
     user_savat = context.user_data.get('savat', {})
 
     if not user_savat:
         await edit_message_based_on_type(
             query,
-            "🛒 Савтингиз бўш!",
-            [[InlineKeyboardButton("⬅️ Орқага", callback_data="main_menu")]]
+            "🛒 Savatchangiz boʻsh!",
+            [[InlineKeyboardButton("⬅️ Bosh menyu", callback_data="main_menu")]]
         )
         return
 
@@ -1327,18 +1463,18 @@ async def final_confirm_order(update: Update, context: ContextTypes.DEFAULT_TYPE
     for product_name, qty in user_savat.items():
         product_obj = await sync_to_async(Product.objects.filter(name=product_name).first)()
         if product_obj:
-            item_price = product_obj.price  # Keep as Decimal
+            item_price = product_obj.price
             total_products_price += item_price * qty
             order_items_data.append({
                 'product': product_obj,
                 'quantity': qty,
                 'price': item_price,
-                'product_name': product_name, # Add product_name for easier text generation
-                'total': item_price * qty # Add total for easier text generation
+                'product_name': product_name,
+                'total': item_price * qty
             })
         else:
             logger.warning(f"Mahsulot topilmadi: {product_name}")
-            await edit_message_based_on_type(query, f"❌ Буюртма юборишда хато: '{product_name}' маҳсулоти топилмади.", [[InlineKeyboardButton("⬅️ Орқага", callback_data="main_menu")]])
+            await edit_message_based_on_type(query, f"❌ Buyurtma yuborishda xato: '{product_name}' mahsuloti topilmadi.", [[InlineKeyboardButton("⬅️ Orqaga", callback_data="main_menu")]])
             return
 
     total_amount = total_products_price + delivery_cost
@@ -1349,41 +1485,51 @@ async def final_confirm_order(update: Update, context: ContextTypes.DEFAULT_TYPE
             total_products_price, delivery_cost, total_amount, order_items_data
         )
         
-        # Foydalanuvchiga xabar
-        user_text = f"✅ **Буюртмангиз қабул қилинди!**\n\n"
-        user_text += f"📋 Буюртма ID: **{order.order_number}**\n"
-        user_text += f"👨‍💼 Исм: {full_name}\n"
-        user_text += f"📱 Телефон: {phone}\n"
-        user_text += f"💳 Тўлов усули: {order.get_payment_method_display()}\n"
-        user_text += f"🚀 Хизмат тури: {order.get_service_type_display()}\n"
+        # Foydalanuvchiga Uzum Tezkor uslubidagi toza chek
+        user_text = f"✅ <b>Buyurtmangiz muvaffaqiyatli qabul qilindi!</b>\n\n"
+        user_text += f"📋 Buyurtma: <b>#{order.order_number}</b>\n"
+        user_text += f"👤 Mijoz: <b>{full_name}</b>\n"
+        user_text += f"📱 Telefon: <b>{phone}</b>\n"
+        user_text += f"💳 Toʻlov usuli: <b>{order.get_payment_method_display()}</b>\n"
+        user_text += f"🚀 Xizmat: <b>{order.get_service_type_display()}</b>\n"
         
         if service_type == 'delivery':
-            if order.address:
-                user_text += f"🏠 Манзил: {order.address}\n"
-            else:
-                user_text += "📍 Манзил: Фақат локация\n"
+            user_text += f"🏢 Manzil: <b>{order.address}</b>\n"
             if order.latitude and order.longitude:
-                user_text += f"📍 Локация: https://www.google.com/maps?q={order.latitude},{order.longitude}\n"
+                user_text += f"🗺 Xaritada: https://www.google.com/maps?q={order.latitude},{order.longitude}\n"
         else:
-            user_text += "🏪 Олиб кетиш учун: Ресторандан\n"
+            user_text += "🏪 Olib ketish: <b>Restorandan</b>\n"
             
-        user_text += f"\n🍽 **Маҳсулотлар:**\n"
-        for item in order_items_data: # Iterate directly over the prepared list
-            user_text += f"• {item['quantity']} дона {item['product_name']} - {item['total']:,} сўм\n"
-        user_text += f"\n💰 Жами: {order.total_amount:,} сўм\n🆕 Статус: **Янги**"
+        user_text += f"\n🍽 <b>Buyurtma tarkibi:</b>\n"
+        for item in order_items_data:
+            user_text += f"• {item['quantity']} × {item['product_name']} — {item['total']:,} soʻm\n"
 
-        user_keyboard = [[{'text': "⬅️ Бош меню", 'callback_data': "main_menu"}]]
+        if service_type == 'delivery' and delivery_cost > 0:
+            user_text += f"🚚 Yetkazib berish: {delivery_cost:,} soʻm\n"
+            
+        user_text += f"\n💰 <b>Jami toʻlov: {order.total_amount:,} soʻm</b>\n"
+        user_text += f"⚡️ Holat: <b>Yangi (Kassaga uzatildi)</b>"
+
+        user_keyboard = [[{'text': "⬅️ Bosh menyu", 'callback_data': "main_menu"}]]
         user_msg_response = send_telegram_message(
             chat_id=telegram_user_id,
             text=user_text,
-            reply_markup={'inline_keyboard': user_keyboard}
+            reply_markup={'inline_keyboard': user_keyboard},
+            parse_mode="HTML"
         )
         if user_msg_response and user_msg_response.get('ok'):
             order.user_message_id = user_msg_response['result']['message_id']
             
-        await sync_to_async(order.save)() # Save message IDs
+        await sync_to_async(order.save)()
 
-        await edit_message_based_on_type(query, f"✅ Буюртмангиз #{order.order_number} қабул қилинди!", main_inline_menu(context).inline_keyboard)
+        # Savatni tozalash
+        context.user_data['savat'] = {}
+        context.user_data.pop('address', None)
+        context.user_data.pop('location', None)
+        context.user_data.pop('delivery_possible', None)
+        context.user_data.pop('delivery_cost', None)
+
+        await edit_message_based_on_type(query, f"✅ Buyurtmangiz #{order.order_number} qabul qilindi!", main_inline_menu(context).inline_keyboard)
 
     except Exception as e:
         logger.error(f"Buyurtma yaratishda xato: {e}", exc_info=True)
@@ -1569,6 +1715,7 @@ def main():
     application.add_handler(CallbackQueryHandler(clear_cart, pattern="^clear_cart$"))
     application.add_handler(CallbackQueryHandler(update_cart_handler, pattern="^update_cart:"))
     application.add_handler(CallbackQueryHandler(checkout, pattern="^checkout$"))
+    application.add_handler(CallbackQueryHandler(handle_pay_method, pattern="^pay_method:"))
     application.add_handler(CallbackQueryHandler(final_confirm_order, pattern="^final_confirm_order$"))
     application.add_handler(CallbackQueryHandler(cancel_order, pattern="^cancel_order$"))
     application.add_handler(CallbackQueryHandler(feedback_callback, pattern="^feedback$"))

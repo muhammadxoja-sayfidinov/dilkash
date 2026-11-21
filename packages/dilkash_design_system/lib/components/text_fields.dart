@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../tokens/colors.dart';
 import '../tokens/radii.dart';
 
-/// Dilkash Premium Input Field
+/// Dilkash Premium Input Field (Compatible with Form validation)
 class DilkashTextField extends StatelessWidget {
   final TextEditingController? controller;
+  final String? initialValue;
   final String? label;
   final String? hintText;
   final String? errorText;
@@ -17,13 +19,18 @@ class DilkashTextField extends StatelessWidget {
   final int maxLines;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final FormFieldSetter<String>? onSaved;
   final VoidCallback? onTap;
   final FocusNode? focusNode;
   final bool autofocus;
+  final FormFieldValidator<String>? validator;
+  final AutovalidateMode? autovalidateMode;
+  final List<TextInputFormatter>? inputFormatters;
 
   const DilkashTextField({
     super.key,
     this.controller,
+    this.initialValue,
     this.label,
     this.hintText,
     this.errorText,
@@ -36,14 +43,19 @@ class DilkashTextField extends StatelessWidget {
     this.maxLines = 1,
     this.onChanged,
     this.onSubmitted,
+    this.onSaved,
     this.onTap,
     this.focusNode,
     this.autofocus = false,
+    this.validator,
+    this.autovalidateMode,
+    this.inputFormatters,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).colorScheme.primary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,8 +73,9 @@ class DilkashTextField extends StatelessWidget {
           ),
           const SizedBox(height: 6),
         ],
-        TextField(
+        TextFormField(
           controller: controller,
+          initialValue: initialValue,
           focusNode: focusNode,
           keyboardType: keyboardType,
           obscureText: obscureText,
@@ -70,8 +83,12 @@ class DilkashTextField extends StatelessWidget {
           maxLines: maxLines,
           autofocus: autofocus,
           onChanged: onChanged,
-          onSubmitted: onSubmitted,
+          onFieldSubmitted: onSubmitted,
+          onSaved: onSaved,
           onTap: onTap,
+          validator: validator,
+          autovalidateMode: autovalidateMode,
+          inputFormatters: inputFormatters,
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w500,
@@ -116,7 +133,7 @@ class DilkashTextField extends StatelessWidget {
             focusedBorder: OutlineInputBorder(
               borderRadius: DilkashRadii.radiusSm,
               borderSide: BorderSide(
-                color: DilkashColors.primary(isDark),
+                color: primaryColor,
                 width: 1.5,
               ),
             ),
@@ -125,6 +142,13 @@ class DilkashTextField extends StatelessWidget {
               borderSide: const BorderSide(
                 color: DilkashColors.error,
                 width: 1.0,
+              ),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: DilkashRadii.radiusSm,
+              borderSide: const BorderSide(
+                color: DilkashColors.error,
+                width: 1.5,
               ),
             ),
           ),

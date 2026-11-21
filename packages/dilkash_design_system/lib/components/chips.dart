@@ -23,14 +23,17 @@ class DilkashFilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final Color primaryColor = Theme.of(context).colorScheme.primary;
+    final Color onPrimaryColor = Theme.of(context).colorScheme.onPrimary;
+
     final Color bgColor = isSelected
-        ? (isDark ? DilkashColors.primary400 : DilkashColors.primary500)
+        ? primaryColor
         : (isDark
             ? DilkashColors.surfaceDarkElevated
             : const Color(0xFFF1F5F9));
 
     final Color fgColor = isSelected
-        ? (isDark ? Colors.black : Colors.white)
+        ? onPrimaryColor
         : (isDark
             ? DilkashColors.textPrimaryDark
             : DilkashColors.textSecondaryLight);

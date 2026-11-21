@@ -24,6 +24,10 @@ class _CartScreenState extends State<CartScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _apartmentController = TextEditingController();
+  final TextEditingController _floorController = TextEditingController();
+  final TextEditingController _entranceController = TextEditingController();
+  final TextEditingController _doorCodeController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
   final TextEditingController _promoController = TextEditingController();
 
@@ -47,13 +51,9 @@ class _CartScreenState extends State<CartScreen> {
       if (auth.user != null) {
         _nameController.text = auth.user!.fullName;
         _phoneController.text = auth.user!.phone;
-        _addressController.text = auth.user!.defaultAddress.isNotEmpty
-            ? auth.user!.defaultAddress
-            : 'Toshkent sh., Yunusobod 4-mavze';
+        _addressController.text = auth.user!.defaultAddress;
       } else {
-        _nameController.text = 'Mijoz';
-        _phoneController.text = '+998 90 123 45 67';
-        _addressController.text = 'Toshkent sh., Chilonzor 9-mavze';
+        _phoneController.text = '+998 ';
       }
     });
   }
@@ -63,6 +63,10 @@ class _CartScreenState extends State<CartScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _apartmentController.dispose();
+    _floorController.dispose();
+    _entranceController.dispose();
+    _doorCodeController.dispose();
     _notesController.dispose();
     _promoController.dispose();
     super.dispose();
@@ -84,8 +88,54 @@ class _CartScreenState extends State<CartScreen> {
       return;
     }
 
+    // 1. Form Validation (Form Fields)
     if (!_formKey.currentState!.validate()) {
+      DilkashFeedback.showWarning(context, 'Iltimos, barcha majburiy maydonlarni toʻldiring!');
       return;
+    }
+
+    // 2. Strict Input Checks
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      DilkashFeedback.showWarning(context, 'Iltimos, ismingizni kiriting!');
+      return;
+    }
+
+    final phoneDigits = _phoneController.text.replaceAll(RegExp(r'\D'), '');
+    if (phoneDigits.length < 9) {
+      DilkashFeedback.showWarning(context, 'Iltimos, telefon raqamingizni toʻliq kiriting (+998...)!');
+      return;
+    }
+
+    // 3. Delivery Address Check (Strictly Required for delivery)
+    String fullDeliveryAddress = '';
+    if (_serviceType == 'delivery') {
+      final baseAddress = _addressController.text.trim();
+      if (baseAddress.isEmpty) {
+        DilkashFeedback.showWarning(
+          context,
+          'Yetkazib berish uchun koʻcha va uy raqami kiritilishi shart!',
+        );
+        return;
+      }
+
+      final extraParts = <String>[];
+      if (_apartmentController.text.trim().isNotEmpty) {
+        extraParts.add('Xonadon: ${_apartmentController.text.trim()}');
+      }
+      if (_floorController.text.trim().isNotEmpty) {
+        extraParts.add('Qavat: ${_floorController.text.trim()}');
+      }
+      if (_entranceController.text.trim().isNotEmpty) {
+        extraParts.add('Yoʻlak: ${_entranceController.text.trim()}');
+      }
+      if (_doorCodeController.text.trim().isNotEmpty) {
+        extraParts.add('Domofon: ${_doorCodeController.text.trim()}');
+      }
+
+      fullDeliveryAddress = extraParts.isNotEmpty
+          ? '$baseAddress (${extraParts.join(', ')})'
+          : baseAddress;
     }
 
     setState(() => _isSubmitting = true);
@@ -100,11 +150,10 @@ class _CartScreenState extends State<CartScreen> {
           .toList();
 
       final res = await ApiService.createOrder(
-        customerName: _nameController.text.trim(),
+        customerName: name,
         customerPhone: _phoneController.text.trim(),
         serviceType: _serviceType,
-        deliveryAddress:
-            _serviceType == 'delivery' ? _addressController.text.trim() : '',
+        deliveryAddress: _serviceType == 'delivery' ? fullDeliveryAddress : '',
         latitude: _serviceType == 'delivery' ? _selectedLat : null,
         longitude: _serviceType == 'delivery' ? _selectedLng : null,
         paymentMethod: _paymentMethod,
@@ -714,8 +763,52 @@ class _CartScreenState extends State<CartScreen> {
                 const SizedBox(height: 8),
                 DilkashTextField(
                   controller: _addressController,
-                  hintText: 'Koʻcha, uy, xonadon raqami...',
+                  hintText: 'Koʻcha va uy raqami (Majburiy)...',
                   prefixIcon: Icons.location_on_outlined,
+                  validator: (val) {
+                    if (_serviceType == 'delivery' && (val == null || val.trim().isEmpty)) {
+                      return 'Yetkazib berish manzilini kiritish shart!';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 8),
+
+                // Uzum Tezkor 4-grid: Xonadon, Qavat, Yo'lak, Domofon
+                Row(
+                  children: [
+                    Expanded(
+                      child: DilkashTextField(
+                        controller: _apartmentController,
+                        hintText: 'Xonadon',
+                        keyboardType: TextInputType.text,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DilkashTextField(
+                        controller: _floorController,
+                        hintText: 'Qavat',
+                        keyboardType: TextInputType.text,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DilkashTextField(
+                        controller: _entranceController,
+                        hintText: 'Yoʻlak',
+                        keyboardType: TextInputType.text,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DilkashTextField(
+                        controller: _doorCodeController,
+                        hintText: 'Domofon',
+                        keyboardType: TextInputType.text,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
 
@@ -804,7 +897,7 @@ class _CartScreenState extends State<CartScreen> {
                 const SizedBox(height: 20),
               ],
 
-              // 5. Contact Details
+              // 5. Contact Details (Receiver)
               Text(
                 'Qabul qiluvchi maʻlumotlari',
                 style: TextStyle(
@@ -816,23 +909,37 @@ class _CartScreenState extends State<CartScreen> {
               ),
               const SizedBox(height: 8),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: DilkashTextField(
                       controller: _nameController,
-                      label: 'Ismingiz',
-                      hintText: 'Ism',
+                      label: 'Ismingiz (Majburiy)',
+                      hintText: 'Ismingiz',
                       prefixIcon: Icons.person_outline_rounded,
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) {
+                          return 'Ismni kiritish shart';
+                        }
+                        return null;
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: DilkashTextField(
                       controller: _phoneController,
-                      label: 'Telefon',
-                      hintText: '+998 90 ...',
+                      label: 'Telefon (Majburiy)',
+                      hintText: '+998 90 123 45 67',
                       keyboardType: TextInputType.phone,
                       prefixIcon: Icons.phone_outlined,
+                      validator: (val) {
+                        final digits = val?.replaceAll(RegExp(r'\D'), '') ?? '';
+                        if (digits.length < 9) {
+                          return 'Toʻliq raqam kiriting';
+                        }
+                        return null;
+                      },
                     ),
                   ),
                 ],
@@ -840,8 +947,8 @@ class _CartScreenState extends State<CartScreen> {
               const SizedBox(height: 12),
               DilkashTextField(
                 controller: _notesController,
-                label: 'Kuryer yoki buyurtma uchun izoh',
-                hintText: 'Masalan: Domofon kodi 45, eshik oldida qoldiring...',
+                label: 'Kuryer yoki oshxona uchun izoh',
+                hintText: 'Masalan: Domofon ishlamaydi, chaqaloq uxlayapti...',
               ),
               const SizedBox(height: 20),
 
@@ -1098,9 +1205,11 @@ class _CartScreenState extends State<CartScreen> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Material(
       color: isSelected
-          ? (isDark ? DilkashColors.surfaceDark : Colors.white)
+          ? (isDark ? primaryColor.withValues(alpha: 0.25) : primaryColor)
           : Colors.transparent,
       borderRadius: DilkashRadii.radiusSm,
       child: InkWell(
@@ -1116,9 +1225,7 @@ class _CartScreenState extends State<CartScreen> {
                 icon,
                 size: 18,
                 color: isSelected
-                    ? (isDark
-                        ? DilkashColors.primary400
-                        : DilkashColors.primary500)
+                    ? Colors.white
                     : DilkashColors.textSecondary(isDark),
               ),
               const SizedBox(width: 8),
@@ -1128,7 +1235,7 @@ class _CartScreenState extends State<CartScreen> {
                   fontSize: 13,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: isSelected
-                      ? DilkashColors.textPrimary(isDark)
+                      ? Colors.white
                       : DilkashColors.textSecondary(isDark),
                 ),
               ),
@@ -1145,11 +1252,13 @@ class _CartScreenState extends State<CartScreen> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Material(
       color: isSelected
           ? (isDark
-              ? DilkashColors.surfaceDarkElevated
-              : DilkashColors.primary50)
+              ? primaryColor.withValues(alpha: 0.15)
+              : Theme.of(context).colorScheme.primaryContainer)
           : DilkashColors.surface(isDark),
       borderRadius: DilkashRadii.radiusSm,
       child: InkWell(
@@ -1161,7 +1270,7 @@ class _CartScreenState extends State<CartScreen> {
             borderRadius: DilkashRadii.radiusSm,
             border: Border.all(
               color: isSelected
-                  ? DilkashColors.primary(isDark)
+                  ? primaryColor
                   : (isDark
                       ? DilkashColors.borderDark
                       : DilkashColors.borderLight),
@@ -1175,7 +1284,7 @@ class _CartScreenState extends State<CartScreen> {
                 Icons.schedule_rounded,
                 size: 16,
                 color: isSelected
-                    ? DilkashColors.primary(isDark)
+                    ? primaryColor
                     : DilkashColors.textSecondary(isDark),
               ),
               const SizedBox(width: 6),
@@ -1188,7 +1297,7 @@ class _CartScreenState extends State<CartScreen> {
                     fontSize: 12,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                     color: isSelected
-                        ? DilkashColors.primary(isDark)
+                        ? primaryColor
                         : DilkashColors.textPrimary(isDark),
                   ),
                 ),
@@ -1207,11 +1316,13 @@ class _CartScreenState extends State<CartScreen> {
     required IconData icon,
     required bool isSelected,
   }) {
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Material(
       color: isSelected
           ? (isDark
-              ? DilkashColors.surfaceDarkElevated
-              : DilkashColors.primary50)
+              ? primaryColor.withValues(alpha: 0.15)
+              : Theme.of(context).colorScheme.primaryContainer)
           : DilkashColors.surface(isDark),
       borderRadius: DilkashRadii.radiusSm,
       child: InkWell(
@@ -1223,7 +1334,7 @@ class _CartScreenState extends State<CartScreen> {
             borderRadius: DilkashRadii.radiusSm,
             border: Border.all(
               color: isSelected
-                  ? DilkashColors.primary(isDark)
+                  ? primaryColor
                   : (isDark
                       ? DilkashColors.borderDark
                       : DilkashColors.borderLight),
@@ -1236,7 +1347,7 @@ class _CartScreenState extends State<CartScreen> {
                 icon,
                 size: 22,
                 color: isSelected
-                    ? DilkashColors.primary(isDark)
+                    ? primaryColor
                     : DilkashColors.textSecondary(isDark),
               ),
               const SizedBox(height: 6),
@@ -1246,7 +1357,7 @@ class _CartScreenState extends State<CartScreen> {
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: isSelected
-                      ? DilkashColors.primary(isDark)
+                      ? primaryColor
                       : DilkashColors.textPrimary(isDark),
                 ),
               ),
