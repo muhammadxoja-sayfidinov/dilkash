@@ -29,6 +29,9 @@ restaurant_system/staticfiles/
 build/
 *.lock
 *.log
+.gradle/
+.kotlin/
+
 
 # .NET & C# WPF
 [Bb]in/
